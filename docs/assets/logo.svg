@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="segnaprezzi logo: a price tag with a rising trend line">
+  <!-- Price tag: a rounded square rotated 45deg, with a punched hole at the top
+       vertex. The hole is cut with a mask (not painted) so the logo works on
+       any background, light or dark. -->
+  <defs>
+    <mask id="tag-hole">
+      <rect width="64" height="64" fill="#fff"/>
+      <circle cx="32" cy="17.9" r="3.6" fill="#000"/>
+    </mask>
+  </defs>
+  <g mask="url(#tag-hole)">
+    <rect x="14" y="14" width="36" height="36" rx="9" fill="#EA580C" transform="rotate(45 32 32)"/>
+  </g>
+  <!-- Rising price sparkline with arrowhead -->
+  <polyline points="21,39 28,32 33,36 42.2,26.8" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36.8 26 H43 V32.2" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

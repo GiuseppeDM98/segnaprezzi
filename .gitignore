@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Production
+build/
+
+# Environment — never commit secrets (see docs/DEVELOPMENT_GUIDELINES.md)
+.env
+.env.*
+!.env.example
+
+# Local database
+*.db
+*.db-journal
+local.db*
+
+# Generated service worker
+public/sw.js
+public/sw.js.map
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# Misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+
+# Vercel
+.vercel/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json

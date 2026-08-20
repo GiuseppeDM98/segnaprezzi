@@ -1,0 +1,107 @@
+name: Bug report
+description: Something in segnaprezzi doesn't work as specified
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! A few notes before you start:
+
+        - The expected behavior is defined by the specs in [`docs/specs/`](https://github.com/GiuseppeDM98/segnaprezzi/tree/main/docs/specs) — if the app matches the spec but the spec seems wrong, open a [feature request](https://github.com/GiuseppeDM98/segnaprezzi/issues/new?template=feature_request.yml) instead.
+        - **Security issues do not belong here.** Report them privately via the [Security tab](https://github.com/GiuseppeDM98/segnaprezzi/security/advisories/new) — see [SECURITY.md](https://github.com/GiuseppeDM98/segnaprezzi/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug.
+      placeholder: The unit price shown on the review screen is 10× the value printed on the tag when the tag shows €/100g.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps that reliably trigger the bug. Include example values (product, prices, category) where relevant.
+      placeholder: |
+        1. Start a shopping session on /scan
+        2. Photograph a tag showing "€0.99 / 100 g"
+        3. Open /scan/review
+        4. Look at the unit price field
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen (cite the spec section if you know it).
+      placeholder: The unit price is normalized to €9.90/kg (unitPriceMilli = 9900), per spec 00 §6.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens, including exact values and error messages.
+      placeholder: The review screen shows €99.00/kg.
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Safari 26 on iOS / Chrome 140 on Android
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS
+      placeholder: iPhone 15, iOS 26 / Pixel 8, Android 16 / Desktop, Windows 11
+    validations:
+      required: true
+
+  - type: dropdown
+    id: pwa-installed
+    attributes:
+      label: Running as installed PWA?
+      description: Offline/queue bugs often behave differently between the installed app and a browser tab.
+      options:
+        - Yes — installed to home screen / desktop
+        - No — regular browser tab
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: network-state
+    attributes:
+      label: Network state when it happened
+      options:
+        - Online
+        - Offline / flaky (e.g. inside a supermarket)
+        - Not sure
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag and drop images here if they help. Please crop or blur anything personal.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant browser console output or server logs. This is rendered as code automatically — no backticks needed. Remove tokens and personal data first.
+      render: shell
+    validations:
+      required: false
