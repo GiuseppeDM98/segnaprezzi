@@ -12,9 +12,10 @@ you where the law is and how to work under it.
 > exist yet but whose shape is already decided; build exactly that shape.
 
 **Reading order for any session**:
-`CLAUDE.md` (state) → `docs/specs/00-overview.md` (contract) → the spec you are
-implementing → this file (conventions) → `docs/DEVELOPMENT_GUIDELINES.md` and
-`docs/COMMENTS.md` (general discipline).
+`CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
+commit, and guided-collaudo discipline) → `docs/specs/00-overview.md`
+(contract) → the spec you are implementing → this file (conventions) →
+`docs/DEVELOPMENT_GUIDELINES.md` and `docs/COMMENTS.md` (general discipline).
 
 ---
 

@@ -394,7 +394,7 @@ segnaprezzi/
 │   ├── COMMENTS.md             # Comment-writing guidelines (applies to all code)
 │   └── DEVELOPMENT_GUIDELINES.md
 ├── data/istat-nic.json         # Official ISTAT NIC monthly series (committed)
-├── scripts/                    # seed.ts, update-istat.ts, generate-icons.ts
+├── scripts/                    # seed.ts, seed-users.ts, update-istat.ts, generate-icons.ts
 ├── messages/                   # it.json, en.json (next-intl)
 ├── public/                     # PWA icons, manifest assets
 ├── src/

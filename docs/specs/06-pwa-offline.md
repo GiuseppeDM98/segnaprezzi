@@ -1033,10 +1033,12 @@ You are implementing Spec 06 (PWA & Offline) of segnaprezzi.
 Before writing ANY code, read these files completely, in this order:
 1. AGENTS.md
 2. CLAUDE.md
-3. docs/specs/00-overview.md   — the canonical contract (names, money rules, layout)
-4. docs/specs/06-pwa-offline.md — THIS spec; implement it fully and exactly
-5. docs/DEVELOPMENT_GUIDELINES.md — architecture layers, naming, errors, testing
-6. docs/COMMENTS.md            — comment discipline for all code you write
+3. WORKFLOW.md                 — session/collaboration rules: branch, commit,
+                                  guided-collaudo discipline
+4. docs/specs/00-overview.md   — the canonical contract (names, money rules, layout)
+5. docs/specs/06-pwa-offline.md — THIS spec; implement it fully and exactly
+6. docs/DEVELOPMENT_GUIDELINES.md — architecture layers, naming, errors, testing
+7. docs/COMMENTS.md            — comment discipline for all code you write
 
 Also skim docs/specs/03-capture-ai.md (Dexie queue + /api/extract
 contract this spec consumes) and DESIGN.md (tokens for the PWA colors — if its

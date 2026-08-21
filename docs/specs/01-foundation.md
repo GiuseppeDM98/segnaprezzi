@@ -1240,10 +1240,11 @@ You are implementing Spec 01 — Foundation & Scaffold of the segnaprezzi projec
 Before writing ANY code, read these files in full, in this order:
 1. AGENTS.md
 2. CLAUDE.md
-3. docs/specs/00-overview.md        (canonical contract — exact names, never deviate)
-4. docs/specs/01-foundation.md      (the spec you are implementing)
-5. docs/DEVELOPMENT_GUIDELINES.md   (layers, naming, errors, testing, security)
-6. docs/COMMENTS.md                 (comment discipline — applies to every file you write)
+3. WORKFLOW.md                      (session/collaboration rules — branch, commit, guided-collaudo discipline)
+4. docs/specs/00-overview.md        (canonical contract — exact names, never deviate)
+5. docs/specs/01-foundation.md      (the spec you are implementing)
+6. docs/DEVELOPMENT_GUIDELINES.md   (layers, naming, errors, testing, security)
+7. docs/COMMENTS.md                 (comment discipline — applies to every file you write)
 
 Then implement docs/specs/01-foundation.md COMPLETELY, in the order of its
 sections: scaffold (via temp directory merge), Biome, package.json scripts,
