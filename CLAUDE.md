@@ -72,13 +72,20 @@ I/O, no imports from db/ai/next, heavily unit-tested. The offline photo queue
 
 ## 4. Current status
 
-**SPECS COMPLETE, IMPLEMENTATION NOT STARTED.** The repo contains only docs.
-Next step: implement **Spec 01** using the Implementation Prompt at the end of
+**Spec 01 implemented.** Next.js 16 App Router scaffold with pnpm, Biome,
+TypeScript 7 strict mode, the canonical folder layout, `src/lib/env.ts`
+(Zod-validated), next-intl routing (`it` default + `en`), the theming
+foundation (`globals.css` tokens, no-flash dark-mode script), `src/lib/errors.ts`
+error primitives, Vitest + Playwright rigs, and CI (`.github/workflows/ci.yml`).
+No database, auth, camera, or inflation math — rails only, per spec scope.
+Not yet done: Vercel project connection/deploy (no account access this
+session) — do this before Spec 02 needs a live preview.
+Next step: implement **Spec 02** using the Implementation Prompt at the end of
 its spec file.
 
 | Milestone | Status |
 |---|---|
-| Spec 01 — Foundation & Scaffold | ☐ |
+| Spec 01 — Foundation & Scaffold | ☑ |
 | Spec 02 — Database & Auth | ☐ |
 | Spec 03 — Capture & AI Extraction | ☐ |
 | Spec 04 — Inflation Engine | ☐ |
@@ -87,7 +94,7 @@ its spec file.
 | DESIGN.md (generated after Spec 05) | ☐ |
 | Spec 07 — Receipt Import | ☐ |
 
-*Status last updated: 2026-08-21 (Spec 07 added to the plan).*
+*Status last updated: 2026-08-21 (Spec 01 implemented).*
 
 **INSTRUCTION**: whoever completes a milestone updates this table and the date
 above **in the same commit** as the milestone.

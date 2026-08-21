@@ -9,9 +9,9 @@
 Photograph supermarket price tags, let AI read them, and watch *your* cost of living — not the national average — take shape month by month.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![CI](https://img.shields.io/badge/CI-coming%20soon-lightgrey.svg)](#project-status--roadmap)
+[![CI](https://github.com/GiuseppeDM98/segnaprezzi/actions/workflows/ci.yml/badge.svg)](https://github.com/GiuseppeDM98/segnaprezzi/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Status](https://img.shields.io/badge/status-specs%20complete-blueviolet.svg)](docs/specs/)
+[![Status](https://img.shields.io/badge/status-spec%2001%20implemented-blueviolet.svg)](docs/specs/)
 
 </div>
 
@@ -111,7 +111,9 @@ All variables are validated with Zod at boot (`src/lib/env.ts`); a misconfigured
 
 ## Local development
 
-> **Note:** the commands below describe the intended workflow defined in the specs. They will work once Specs 01–02 are implemented.
+> **Note:** the foundation (Spec 01) is implemented — `pnpm dev` serves a
+> placeholder dashboard shell in Italian/English. Database commands
+> (`db:migrate`, `db:seed`) arrive with Spec 02 and don't exist yet.
 
 Requirements: Node 22+ and pnpm.
 
@@ -119,23 +121,20 @@ Requirements: Node 22+ and pnpm.
 git clone https://github.com/GiuseppeDM98/segnaprezzi.git
 cd segnaprezzi
 pnpm install
-
-# Configure the environment
-cp .env.example .env.local
-# In .env.local: TURSO_DATABASE_URL="file:local.db" (no Turso account needed),
-# your ANTHROPIC_API_KEY, a generated BETTER_AUTH_SECRET,
-# and BETTER_AUTH_URL="http://localhost:3000"
-
-pnpm db:migrate   # apply Drizzle migrations to local.db
-pnpm db:seed      # optional: demo data to explore the dashboard
-pnpm dev          # http://localhost:3000
+pnpm dev          # http://localhost:3000 (Italian), http://localhost:3000/en
 ```
 
-Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright), `pnpm lint` (Biome).
+An `.env.local` isn't required yet — `src/lib/env.ts` is validated only once
+server code starts importing it, from Spec 02 onward. Once it is, copy
+`.env.example` to `.env.local` and fill in `TURSO_DATABASE_URL="file:local.db"`
+(no Turso account needed), your `ANTHROPIC_API_KEY`, a generated
+`BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL="http://localhost:3000"`.
+
+Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright), `pnpm lint` (Biome), `pnpm build` (production build).
 
 ## Project status & roadmap
 
-**Current status: specifications complete — implementation starting.**
+**Current status: Spec 01 (Foundation & Scaffold) implemented — Spec 02 next.**
 
 segnaprezzi is built specs-first: every part of the system is fully specified — exact schemas, algorithms with worked numeric examples, prompts, test plans — before a line of application code is written. Each spec is then implemented in its own focused session. The specs are public and are the best way to understand the project in depth:
 

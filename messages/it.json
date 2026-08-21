@@ -1,0 +1,68 @@
+{
+  "common": {
+    "appName": "segnaprezzi",
+    "loading": "Caricamento…",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "confirm": "Conferma",
+    "delete": "Elimina",
+    "retry": "Riprova"
+  },
+  "nav": {
+    "home": "Home",
+    "products": "Prodotti",
+    "scan": "Scansiona",
+    "history": "Cronologia",
+    "settings": "Impostazioni"
+  },
+  "dashboard": {
+    "title": "La tua inflazione",
+    "emptyState": "Fotografa il tuo primo segnaprezzi per iniziare"
+  },
+  "scan": {
+    "title": "Spesa in corso"
+  },
+  "review": {
+    "title": "Rivedi le rilevazioni"
+  },
+  "addManual": {
+    "title": "Aggiungi prezzo"
+  },
+  "addFuel": {
+    "title": "Rifornimento"
+  },
+  "products": {
+    "title": "Prodotti",
+    "searchPlaceholder": "Cerca un prodotto"
+  },
+  "productDetail": {},
+  "history": {
+    "title": "Cronologia"
+  },
+  "stores": {
+    "title": "Punti vendita"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "language": "Lingua",
+    "theme": "Tema"
+  },
+  "auth": {
+    "login": "Accedi",
+    "signup": "Registrati",
+    "email": "Email",
+    "password": "Password",
+    "logout": "Esci"
+  },
+  "errors": {
+    "NOT_FOUND": "Elemento non trovato",
+    "VALIDATION_FAILED": "Controlla i dati inseriti",
+    "UNAUTHORIZED": "Accedi per continuare",
+    "EXTRACTION_FAILED": "Non sono riuscito a leggere il cartellino",
+    "INTERNAL": "Qualcosa è andato storto, riprova"
+  },
+  "offline": {},
+  "categories": {},
+  "units": {},
+  "pwa": {}
+}

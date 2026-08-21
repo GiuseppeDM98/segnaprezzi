@@ -695,6 +695,40 @@ The DB stores raw id strings, so renames are data migrations. Follow the
 checklist comment — it exists because the compiler cannot catch a stale
 prompt.
 
+**4.11 `pnpm` is not always on `PATH` on this Windows dev machine.** Neither
+Git Bash nor PowerShell resolve `pnpm` by default, and `corepack enable`
+fails with `EPERM` writing shims into `C:\Program Files\nodejs` without admin
+rights. Fix once per shell session: `npm install -g pnpm`, then prepend
+`C:\Users\<user>\AppData\Roaming\npm` to `PATH` for that shell (Bash:
+`export PATH="$PATH:/c/Users/<user>/AppData/Roaming/npm"`). `corepack pnpm`
+also works ad hoc but does **not** put a `pnpm` binary on `PATH`, so tools
+that spawn `pnpm` as a subprocess (e.g. `create-next-app --use-pnpm`) still
+fail with `ENOENT` even when `corepack pnpm -v` succeeds.
+
+**4.12 Biome's CSS parser needs `tailwindDirectives: true` for Tailwind 4
+at-rules.** From Biome ~2.5, `@custom-variant` and `@theme` in
+`src/app/globals.css` are rejected as parse errors unless `biome.json` sets
+`"css": { "parser": { "tailwindDirectives": true } }`. Without it, `pnpm lint`
+fails on the theming file even though the CSS is correct Tailwind 4 syntax.
+
+**4.13 Next.js 16 rewrites `AGENTS.md` on every `next dev`/`next build`
+unless disabled.** The "agent rules" feature appends a generated
+`<!-- BEGIN:nextjs-agent-rules -->` block to this file describing the
+installed Next.js version. This repo's `AGENTS.md` is a hand-maintained
+contract, not a target for codegen — `next.config.ts` sets `agentRules:
+false`. If a future Next upgrade reintroduces unwanted writes to project
+docs, keep the flag; do not let generated content live in a committed file.
+
+**4.14 Pin the Playwright browser locale, or the root-path smoke test is
+flaky.** next-intl's middleware negotiates the locale from `Accept-Language`
+when no `theme`/locale cookie is set. Playwright's default browser context
+locale follows the host OS/CI runner, which is often `en-US` — that then
+outranks the app's Italian default at `/`, and
+`tests/e2e/smoke.spec.ts`'s Italian-heading assertion fails nondeterministically.
+Fix: `playwright.config.ts` → `projects[].use.locale = 'it-IT'`. Any new
+Playwright project added later (desktop in Spec 05, WebKit in Spec 06) needs
+the same explicit locale.
+
 ---
 
 ## 5. Spec-Driven Workflow

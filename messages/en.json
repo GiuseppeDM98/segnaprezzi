@@ -1,0 +1,68 @@
+{
+  "common": {
+    "appName": "segnaprezzi",
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "retry": "Retry"
+  },
+  "nav": {
+    "home": "Home",
+    "products": "Products",
+    "scan": "Scan",
+    "history": "History",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Your inflation",
+    "emptyState": "Photograph your first price tag to get started"
+  },
+  "scan": {
+    "title": "Shopping in progress"
+  },
+  "review": {
+    "title": "Review entries"
+  },
+  "addManual": {
+    "title": "Add price"
+  },
+  "addFuel": {
+    "title": "Fuel stop"
+  },
+  "products": {
+    "title": "Products",
+    "searchPlaceholder": "Search for a product"
+  },
+  "productDetail": {},
+  "history": {
+    "title": "History"
+  },
+  "stores": {
+    "title": "Stores"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme"
+  },
+  "auth": {
+    "login": "Log in",
+    "signup": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "logout": "Log out"
+  },
+  "errors": {
+    "NOT_FOUND": "Item not found",
+    "VALIDATION_FAILED": "Please check what you entered",
+    "UNAUTHORIZED": "Log in to continue",
+    "EXTRACTION_FAILED": "Could not read the price tag",
+    "INTERNAL": "Something went wrong, please try again"
+  },
+  "offline": {},
+  "categories": {},
+  "units": {},
+  "pwa": {}
+}
