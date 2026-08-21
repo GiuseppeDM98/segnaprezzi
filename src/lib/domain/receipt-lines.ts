@@ -1,5 +1,5 @@
 /**
- * Pure line arithmetic for receipt import (Spec 07 §7.1, §7.3): the alias
+ * Pure line arithmetic for receipt import: the alias
  * key a receipt line is remembered under, and the package-size / unit-price
  * derivation every line goes through before it can become a price entry.
  *
@@ -13,14 +13,14 @@
 import { calculateUnitPriceMilli } from './money';
 import type { UnitKind } from './units';
 
-/** How the receipt printed a line's quantity (Spec 07 §6.1 "QUANTITY"). */
+/** How the receipt printed a line's quantity ("QUANTITY"). */
 export const QUANTITY_KINDS = ['pieces', 'kg', 'L'] as const;
 export type QuantityKind = (typeof QUANTITY_KINDS)[number];
 
 /** Where a line's package size came from — drives the "needs size" prompt. */
 export type SizeSource = 'weighed' | 'receipt' | 'catalog' | 'assumed-one' | 'missing';
 
-/** Review state of one line (Spec 07 §7.4). */
+/** Review state of one line. */
 export const RECEIPT_LINE_STATUSES = [
   'ready',
   'needs-size',
@@ -78,7 +78,7 @@ export function normalizeAlias(rawLine: string): string {
 
 /**
  * Lowercase, strip diacritics, turn punctuation into spaces, collapse
- * whitespace — the same normalization Spec 03 §8 applies to product names,
+ * whitespace — the same normalization applied to product names elsewhere,
  * repeated here because `domain/` may not import a service.
  */
 function normalizeAliasText(raw: string): string {
@@ -123,7 +123,7 @@ export interface DerivedLineFields {
 /**
  * Turn one extracted receipt line into price-entry fields.
  *
- * The entry contract (Spec 03) is `unit_price_milli × package_size =
+ * The entry contract is `unit_price_milli × package_size =
  * total_price_cents × 10`, where `total_price_cents` is the price of ONE
  * package. Two shapes of line reach that contract differently:
  *
@@ -181,7 +181,7 @@ export function deriveUnitPriceMilli(input: DeriveUnitPriceInput): DerivedLineFi
   };
 }
 
-/** Package size of ONE package, first available source wins (Spec 07 §7.3). */
+/** Package size of ONE package, first available source wins. */
 function resolvePackageSize(
   input: DeriveUnitPriceInput,
   isWeighed: boolean,

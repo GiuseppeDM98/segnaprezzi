@@ -1,5 +1,5 @@
 /**
- * Structured-output schema for receipt extraction (Spec 07 §6.2).
+ * Structured-output schema for receipt extraction.
  *
  * The model's output is untrusted input like any other (AGENTS.md §1.8):
  * the SDK validates against this schema before the extraction reaches a

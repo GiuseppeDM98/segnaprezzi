@@ -1,5 +1,5 @@
 /**
- * Read models for the Spec 03 screens (/scan, /add/manual, /add/fuel).
+ * Read models for the capture screens (/scan, /add/manual, /add/fuel).
  *
  * Design: pages are Server Components and must not reach into repositories
  * (AGENTS.md §1.5), so the small amount of data each capture screen needs to
@@ -82,7 +82,7 @@ export interface ManualEntryContext {
   defaultStoreId: string | null;
 }
 
-/** Catalog and stores for the manual entry form (Spec 03 §10.1). */
+/** Catalog and stores for the manual entry form. */
 export async function getManualEntryContext(db: Db, userId: string): Promise<ManualEntryContext> {
   const [products, stores, recentStoreIds] = await Promise.all([
     listProducts(db, userId, { includeArchived: false }),
@@ -115,7 +115,7 @@ export interface FuelEntryContext {
   defaultStationId: string | null;
 }
 
-/** Fuel stations only — the pump form must not offer a supermarket (§11.3). */
+/** Fuel stations only — the pump form must not offer a supermarket. */
 export async function getFuelEntryContext(db: Db, userId: string): Promise<FuelEntryContext> {
   const [stores, recentStoreIds] = await Promise.all([
     listStores(db, userId),

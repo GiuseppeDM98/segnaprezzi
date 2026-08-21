@@ -1,5 +1,5 @@
 /**
- * Read model of the timeline (Spec 05 §5.8): one page of entries with the
+ * Read model of the timeline: one page of entries with the
  * filters the screen offers, cursor-paginated on (user_id, recorded_at).
  * Grouping by day and by shopping session is presentation and happens in
  * the client from `sessionId` — the service only ships what the rows carry.

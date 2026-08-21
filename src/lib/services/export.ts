@@ -1,7 +1,6 @@
 /**
- * Full user data export (Spec 02 §9). Thin orchestration over the
- * repositories — the route handler stays HTTP-only per the layer rules
- * (Spec 00 §5).
+ * Full user data export. Thin orchestration over the
+ * repositories — the route handler stays HTTP-only per the layer rules.
  */
 import type { Db } from '@/lib/db/client';
 import { listPriceEntries } from '@/lib/db/repositories/price-entries';
@@ -14,7 +13,7 @@ import { listStores } from '@/lib/db/repositories/stores';
 
 /**
  * Payload returned by GET /api/export. Bump schemaVersion on any shape
- * change. Version 2 (Spec 07 §2.6) adds `receipts` and `productAliases`, and
+ * change. Version 2 adds `receipts` and `productAliases`, and
  * `quantity` / `receiptId` on every entry.
  */
 export interface ExportPayload {
@@ -108,7 +107,7 @@ export interface ExportPayload {
 
 /**
  * Assemble the full export payload for one user. All entries are fetched
- * unpaginated (Spec 02 §9 — the export is the genuinely full dataset), so
+ * unpaginated (the export is the genuinely full dataset), so
  * this walks every page of listPriceEntries rather than taking the default
  * page size.
  */

@@ -1,5 +1,5 @@
 /**
- * Pure half of the ISTAT refresh (Spec 04 §8): decode the SDMX-JSON message,
+ * Pure half of the ISTAT refresh: decode the SDMX-JSON message,
  * chain-link the published bases into one series, serialize the committed
  * file. No I/O here — scripts/update-istat.ts does the fetching and writing,
  * and this module is what scripts/istat-nic.test.ts exercises.
@@ -42,7 +42,7 @@ export interface BaseSeries {
   months: Map<string, number>;
 }
 
-/** Shape of data/istat-nic.json (Spec 04 §8.1). */
+/** Shape of data/istat-nic.json. */
 export interface IstatNicFile {
   source: string;
   indexName: string;
@@ -126,7 +126,7 @@ export function decodeBaseSeries(message: SdmxJsonDataMessage): BaseSeries[] {
 
 // Why a local copy of the engine's helper: the inflation barrel deliberately
 // exports only its public API, and importing a sibling module from outside
-// the folder is forbidden (Spec 04 §2). Three lines are cheaper than a leak.
+// the folder is forbidden. Three lines are cheaper than a leak.
 function addMonthsToYm(ym: string, delta: number): string {
   const [year, month] = ym.split('-').map(Number);
   const totalMonths = year * 12 + (month - 1) + delta;

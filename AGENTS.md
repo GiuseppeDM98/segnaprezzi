@@ -1,37 +1,27 @@
 # AGENTS.md — Operating Manual for Coding Agents
 
 This file is the operating manual for AI coding agents (and humans) working in
-the **segnaprezzi** repository. It distills the project contract into rules you
-can apply without re-deriving them. It does not replace the specs — it tells
-you where the law is and how to work under it.
+the **segnaprezzi** repository. It distills the project's conventions and
+hard-won lessons into rules you can apply without re-deriving them.
 
-> **Reality check**: Specs 01 (Foundation & Scaffold), 02 (Database & Auth),
-> 03 (Capture & AI Extraction), 04 (Inflation Engine), 05 (UI & Design
-> System), 06 (PWA & Offline) and 07 (Receipt Import) are implemented — there
-> is a real DB, real auth, real repositories, two real Anthropic gateways
-> (shelf tags and receipts), the pure personal-CPI engine with its service
-> and the committed ISTAT series, every screen of the Spec 00 route map in
-> the "tabulato a modulo continuo" visual world recorded in **`DESIGN.md`**
-> (mandatory reading before any UI work), a real service worker with the sync
-> engine that drains the photo queue, and the receipt pipeline with its
-> learned `product_aliases`. **Spec 08 (Go-live & Operations) is the only
-> unimplemented one.** The current implementation state is tracked in
-> **`CLAUDE.md` → "Current status"** — read it first, trust it over any
-> assumption. Sections below marked **[PLANNED]** describe code that does not
-> exist yet (Spec 08) but whose shape is already decided; build exactly that
-> shape. Where a spec's literal code text and the actually-implemented code
-> differ, this file and the spec's own inline correction notes (search the
-> spec for "Correction") describe what was actually verified to work — a
-> handful of Spec 02's, 03's, 04's, 05's, 06's and 07's literal snippets
-> didn't survive contact with the real dependency versions, the Next.js
-> runtime, the live ISTAT service, the accessibility gates, Turbopack,
-> Serwist's precache manifest, SQLite's NULL semantics and Better Auth's
-> production rate limiter (see §4.15–§4.53).
+> **Current state**: segnaprezzi has a real DB, real auth, real repositories,
+> two real Anthropic gateways (shelf tags and receipts), the pure
+> personal-CPI engine with its service and the committed ISTAT series, every
+> screen of the app in the "tabulato a modulo continuo" visual world recorded
+> in **`DESIGN.md`** (mandatory reading before any UI work), a real service
+> worker with the sync engine that drains the photo queue, and the receipt
+> pipeline with its learned `product_aliases`. The current implementation
+> state is tracked in **`CLAUDE.md` → "Current status"** — read it first,
+> trust it over any assumption. Where this file's guidance and the
+> actually-implemented code differ, this file describes what was actually
+> verified to work — a handful of snippets below didn't survive contact with
+> the real dependency versions, the Next.js runtime, the live ISTAT service,
+> the accessibility gates, Turbopack, Serwist's precache manifest, SQLite's
+> NULL semantics and Better Auth's production rate limiter (see §4.15–§4.53).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
-commit, and guided-collaudo discipline) → `docs/specs/00-overview.md`
-(contract) → the spec you are implementing → this file (conventions) →
+commit, and guided-collaudo discipline) → this file (conventions) →
 `docs/DEVELOPMENT_GUIDELINES.md` and `docs/COMMENTS.md` (general discipline)
 → **`DESIGN.md`** whenever the session touches anything under
 `src/components/` or a `*.tsx` in `src/app/`.
@@ -42,13 +32,12 @@ commit, and guided-collaudo discipline) → `docs/specs/00-overview.md`
 
 ### 1.1 Canonical names are law
 
-`docs/specs/00-overview.md` §6 is the **single source of truth** for table
-names, column names, enum values, and the category taxonomy. Use those exact
-names. Never invent a synonym, never "improve" a name, never contradict it. If
-a spec or a session genuinely needs a deviation, **update 00-overview first**,
-then propagate.
+The table names, column names, enum values, and category taxonomy already in
+the codebase (`src/lib/db/schema/`, `src/lib/domain/`) are the **single
+source of truth**. Use those exact names. Never invent a synonym, never
+"improve" a name, never contradict it.
 
-Ground rules from the contract:
+Ground rules:
 
 - DB identifiers are `snake_case`; TypeScript identifiers are `camelCase`
   (Drizzle maps between them: column `total_price_cents` ↔ property
@@ -95,10 +84,10 @@ export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: nu
 - Arithmetic on money (sums, conversions) is integer arithmetic with a single
   explicit `Math.round` at the end. The integer conversions
   (`calculateUnitPriceMilli`, `toCents`, `toMilli`, `centsToMilli`) live in
-  `src/lib/domain/money.ts` (Spec 02) — pure, integer in/out, string-free.
+  `src/lib/domain/money.ts` — pure, integer in/out, string-free.
 - **All** string rendering of money (and every other `Intl.NumberFormat` /
   `Intl.DateTimeFormat` display helper) lives exclusively in
-  `src/lib/format.ts` (Spec 05), which divides at the last moment
+  `src/lib/format.ts`, which divides at the last moment
   (`cents / 100`, `milli / 1000`) — components never divide by 100
   themselves. Input parsing (`parseDecimalInput`, comma or dot, `null` when
   not a number) lives there too; `money.ts` stays string-free.
@@ -123,7 +112,7 @@ Three base units, keyed by `products.unit_kind`:
 | `count` | **piece** | 6 eggs → `6` |
 
 Unit prices are **always stored per base unit**. Shelf tags shown per 100 g,
-per 100 mL, per etto, etc. are normalized **at extraction time** (Spec 03) and
+per 100 mL, per etto, etc. are normalized **at extraction time** and
 in every manual form: €/100g × 10 = €/kg; €/100mL × 10 = €/L. `src/lib/domain/units.ts`
 defines the `UnitKind` enum, the base-unit display symbols, and
 `convertToBaseUnits` (which rounds: `700 * 0.001` is `0.7000000000000001` in
@@ -149,7 +138,7 @@ which no later screen can repair.
   date library dependency):
 
 ```ts
-// src/lib/inflation/bucketing.ts  (Spec 04, implemented)
+// src/lib/inflation/bucketing.ts
 
 // Why 'en-CA': it is the one widely-supported locale whose formatted date
 // parts come out ISO-like ('2026-04'), so no manual part reassembly and no
@@ -205,8 +194,8 @@ Import rules — **what each layer may and must never import**:
 | `src/components/**` | domain, `lib/i18n` navigation, `motion`, other components | `lib/db`, repositories, services, gateways, `lib/env` |
 | `src/lib/auth/**` | `lib/db` (adapter needs it), `lib/env` | services, components |
 
-The `db`-singleton carve-out (established by Spec 02's `/api/export` route,
-followed by every Spec 03 page and action and by Spec 04's
+The `db`-singleton carve-out (established by the `/api/export` route,
+followed by every capture page and action and by
 `getPersonalCpi(db, userId)`): services take the Drizzle handle as
 their first parameter, exactly like repositories, so that the confirm flow can
 pass a transaction and the tests can pass a throwaway database. Something has
@@ -222,37 +211,38 @@ down, types flow up, and `domain/` + `inflation/` import nothing**.
 `src/lib/domain/` and `src/lib/inflation/` are **pure**: plain functions,
 deterministic, zero I/O, no framework imports, no environment access, no
 `Date.now()` buried inside (time is always a parameter). This is what makes
-the index engine exhaustively unit-testable (Spec 04's test plan depends on
+the index engine exhaustively unit-testable (its test plan depends on
 it). If a function in these directories needs a repository, the design is
 wrong — the **service** fetches, the pure function computes.
 
 ### 1.7 Error handling: DomainError codes + translation at the boundary
 
-Expected errors are `DomainError` subclasses in `src/lib/errors.ts`
-(Spec 01 §9). The `code` is a stable `DomainErrorCode` —
+Expected errors are `DomainError` subclasses in `src/lib/errors.ts`.
+The `code` is a stable `DomainErrorCode` —
 a SCREAMING_SNAKE string union — that doubles as the i18n key under the
 `errors` namespace (`errors.NOT_FOUND`). Classes carry **no** HTTP status;
 route handlers own the code→status mapping:
 
 ```ts
-// src/lib/errors.ts  (Spec 01 §9, implemented)
+// src/lib/errors.ts
 
 // WARNING: adding a code here requires updating:
 // - the `errors` namespace in messages/it.json and messages/en.json
-// - the code→HTTP-status mapping in route handlers (Spec 03)
+// - the code→HTTP-status mapping in route handlers
 export type DomainErrorCode =
   | 'NOT_FOUND'
   | 'VALIDATION_FAILED'
   | 'UNAUTHORIZED'
   | 'EXTRACTION_FAILED'
   | 'INTERNAL';
-// Spec 03 extended the union via that checklist with INVALID_INPUT,
-// INVALID_DATE, INVALID_PRICE, INVALID_SIZE, INVALID_STORE_KIND,
+// The union was later extended with INVALID_INPUT, INVALID_DATE,
+// INVALID_PRICE, INVALID_SIZE, INVALID_STORE_KIND,
 // INCONSISTENT_FUEL_PRICES, SESSION_NOT_FOUND, STORE_NOT_FOUND,
 // PRODUCT_NOT_FOUND, SESSION_CLOSED, PHOTO_TOO_LARGE,
-// UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE; Spec 07 added
+// UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE for capture, and
 // RECEIPT_TOO_LARGE, UNSUPPORTED_RECEIPT_TYPE, RECEIPT_TOO_LONG,
-// RECEIPT_ALREADY_IMPORTED, RECEIPT_NOT_FOUND and RECEIPT_NO_LINES.
+// RECEIPT_ALREADY_IMPORTED, RECEIPT_NOT_FOUND and RECEIPT_NO_LINES for
+// receipt import — both via the checklist above.
 // The code→HTTP mapping is duplicated in BOTH route handlers
 // (src/app/api/extract/route.ts and src/app/api/extract-receipt/route.ts) as
 // an exhaustive Record<DomainErrorCode, number> — which is what makes the
@@ -283,8 +273,8 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: Action
 ```
 
 The subclasses (`NotFoundError`, `ValidationError`, `UnauthorizedError`,
-`ExtractionError`) and the `toActionError()` mapper live alongside them —
-Spec 01 §9 has the full source. The HTTP mapping is `NOT_FOUND` → 404,
+`ExtractionError`) and the `toActionError()` mapper live alongside them in
+`src/lib/errors.ts`. The HTTP mapping is `NOT_FOUND` → 404,
 `VALIDATION_FAILED` → 400, `UNAUTHORIZED` → 401, `EXTRACTION_FAILED` → 422,
 `INTERNAL` → 500.
 
@@ -316,10 +306,10 @@ Every point where untrusted data enters the system is validated with Zod
 
 - Server Action inputs — `schema.safeParse(input)` first line of every action.
 - Route handler bodies/params (`/api/extract`, `/api/export`).
-- The Claude extraction response (Spec 03) — the model's output is untrusted
+- The Claude extraction response — the model's output is untrusted
   input; parse it against the extraction schema before showing it to the user.
-- Environment variables — `src/lib/env.ts` validates all of §11 of the
-  overview with Zod at boot and **fails fast** with a readable message.
+- Environment variables — `src/lib/env.ts` validates every required variable
+  with Zod at boot and **fails fast** with a readable message.
 - IndexedDB queue items on sync replay (data may come from an old app
   version).
 
@@ -328,7 +318,7 @@ nanoid ids, month keys) are composed from small reusable schemas. Inside the
 service/domain layers, inputs are already typed — do not re-validate.
 
 ```ts
-// Reusable field schemas — src/lib/domain/schemas.ts (Spec 03, implemented)
+// Reusable field schemas — src/lib/domain/schemas.ts
 export const nanoidSchema = z.string().length(21);
 export const priceCentsSchema = z.number().int().positive();
 export const unitPriceMilliSchema = z.number().int().positive();
@@ -338,8 +328,8 @@ export const epochMsSchema = z.number().int().positive();
 ### 1.9 Repository pattern — every query is user-scoped (security invariant)
 
 The app is multi-tenant by `user_id`. **Every repository function has the
-signature `(db: Db, userId: string, ...)`** — `db` injected first (Spec 02
-§6.1: services pass the singleton from `src/lib/db/client.ts`, tests pass a
+signature `(db: Db, userId: string, ...)`** — `db` injected first (services
+pass the singleton from `src/lib/db/client.ts`, tests pass a
 throwaway file-backed instance from `src/lib/db/testing/create-test-db.ts`,
 **not** `:memory:` — see §4.17; repositories never import the `db` singleton
 themselves) and `userId` second, included in every `WHERE` clause and JOIN
@@ -385,13 +375,13 @@ segment that owns them, marked `"use server"`, thin (Zod → service → map
 errors, ≤ ~15 lines each).
 
 Route handlers exist **only** where a non-form client must call HTTP directly.
-The complete list (overview §9):
+The complete list:
 
 | Handler | Why it cannot be an action |
 |---|---|
 | `/api/auth/[...all]` | Better Auth owns this surface |
 | `/api/extract` | Called by the offline sync manager / service worker with a binary photo body |
-| `/api/extract-receipt` | Multipart upload of a PDF/image the user picked from disk (Spec 07 §4) |
+| `/api/extract-receipt` | Multipart upload of a PDF/image the user picked from disk |
 | `/api/export` | Streams a downloadable JSON file |
 
 Adding a fifth route handler requires a justification of this kind in the PR
@@ -471,7 +461,7 @@ Six allowed comment types — each shown with a project-specific example:
 | Type | Use for | Example (one-liner) |
 |---|---|---|
 | **Function** | Interface contract on exported functions | `/** Compute the chained index series; one point per Rome month, base month = 100. */` |
-| **Design** | File/section-level approach + trade-offs | `// Matched-model Jevons within categories, expenditure-weighted across them — mirrors ISTAT elementary aggregates. See Spec 04.` |
+| **Design** | File/section-level approach + trade-offs | `// Matched-model Jevons within categories, expenditure-weighted across them — mirrors ISTAT elementary aggregates.` |
 | **Why** | Non-obvious decisions the code can't express | `// Promo entries stay in the mean when includePromosInIndex is on: the personal CPI tracks what the user actually pays, not list prices.` |
 | **Teacher** | Domain knowledge the reader may lack | `// Jevons index = geometric mean of price relatives: exp(mean(ln(p1/p0))). Robust to outliers vs arithmetic mean.` |
 | **Guide** | Rhythm in longer flows | `// Bucket entries per product per Rome month` … `// Impute gaps up to carryForwardMonths` |
@@ -513,13 +503,12 @@ constructing payloads/prompts, `format*` for display strings.
 
 ### 2.1 The tree, annotated
 
-Layout from overview §10, with what belongs in each directory — and what must
+The repo layout, with what belongs in each directory — and what must
 never appear there:
 
 ```
 segnaprezzi/
 ├── docs/
-│   ├── specs/                  # Specs 00–08. Contract docs — code never imports from here.
 │   ├── assets/                 # Logo, favicon source SVG (build inputs, not served).
 │   ├── COMMENTS.md
 │   └── DEVELOPMENT_GUIDELINES.md
@@ -593,9 +582,9 @@ segnaprezzi/
 - **E2E lives in `tests/e2e/*.spec.ts`** (Playwright). The `.spec.ts` /
   `.test.ts` split keeps the two runners from grabbing each other's files.
 - Test names are behavior sentences; bodies follow Arrange–Act–Assert.
-- The inflation engine (Spec 04) carries the exhaustive numeric test plan from
-  its spec — those tests are the correctness contract of the whole app; never
-  weaken one to make an implementation pass.
+- The inflation engine carries an exhaustive numeric test plan — those tests
+  are the correctness contract of the whole app; never weaken one to make an
+  implementation pass.
 
 ### 2.3 Fan-out checklists (update these together)
 
@@ -607,10 +596,10 @@ comment; this section is the registry.
 ```ts
 // WARNING: when you add a category here, also update:
 // - messages/it.json and messages/en.json ("categories" namespace)
-// - the AI extraction prompt in src/lib/ai/ (Spec 03 — the model must know the new id)
+// - the AI extraction prompt in src/lib/ai/ — the model must know the new id
 // - AGENTS.md §1.11 namespace notes if semantics change
 // The DB stores the raw id string: renaming an id requires a data migration.
-export const categories = [ /* ... overview §6 taxonomy ... */ ] as const;
+export const categories = [ /* ... the category taxonomy ... */ ] as const;
 ```
 
 **Adding a `DomainErrorCode`** (`src/lib/errors.ts`): extend the union, add
@@ -633,12 +622,12 @@ pick the `unitKind` it is actually sold in (§1.3). Renaming a `canonicalName`
 is **not** a copy edit: it is the stored product name, so after entries exist
 it splits that fuel's price history in two and becomes a data migration.
 
-**Adding an env var**: `src/lib/env.ts` (Zod), `.env.example`, overview §11
-table, README setup section, and the Vercel project settings.
+**Adding an env var**: `src/lib/env.ts` (Zod), `.env.example`, README setup
+section, and the Vercel project settings.
 
-**Adding a route**: overview §9 route map, `src/middleware.ts` matcher if
-public/private status differs, and the tab bar in `components/layout/` if it
-is a top-level destination.
+**Adding a route**: `src/middleware.ts` matcher if public/private status
+differs, and the tab bar in `components/layout/` if it is a top-level
+destination.
 
 **Regenerating `src/lib/db/schema/auth.ts`** (`pnpm auth:generate`): re-add
 the hand-patched `issuer` column on `accounts` (§4.16) — the CLI output
@@ -650,28 +639,28 @@ doesn't include it, and signup breaks at runtime without it.
 
 ### 3.1 Canonical package.json scripts
 
-This exact list is the project contract. Scripts that arrive with later specs
-are listed now and marked; do not invent different names for them.
+This exact list is the project contract; do not invent different names for
+these scripts.
 
-| Script | Command | Since | When to use |
-|---|---|---|---|
-| `dev` | `next dev` | Spec 01 | Daily development. Serwist is disabled here (§4.3). |
-| `build` | `next build --webpack` | Spec 01 | Production build; also the only way to build the service worker. **The `--webpack` flag is load-bearing** — see §4.39. |
-| `start` | `next start` | Spec 01 | Serve the production build locally (PWA testing). |
-| `lint` | `biome check .` | Spec 01 | CI + pre-commit check. Formatting AND lint in one pass. |
-| `lint:fix` | `biome check --write .` | Spec 01 | Auto-fix before committing. Run it, don't hand-format. |
-| `typecheck` | `tsc --noEmit` | Spec 01 | Always run before declaring a task done; `next build` alone is not the type gate. |
-| `test` | `vitest run` | Spec 01 | Full unit/integration suite, single pass (CI mode). |
-| `test:watch` | `vitest` | Spec 01 | TDD loop while implementing (essential for Spec 04). |
-| `test:e2e` | `playwright test` | Spec 01 | Critical-path E2E + axe. Four projects (`mobile`, `desktop`, `offline-queue`, `pwa`); runs `pnpm build && pnpm start` itself (§4.41). `PORT=3100 pnpm test:e2e` when :3000 is taken (§4.32). |
-| `db:generate` | `drizzle-kit generate` | Spec 02 | After every schema change: emits SQL migration into `drizzle/`. |
-| `db:migrate` | `drizzle-kit migrate` | Spec 02 | Apply pending migrations to the DB in `TURSO_DATABASE_URL`. |
-| `db:studio` | `drizzle-kit studio` | Spec 02 | Browse/edit data in a local GUI while debugging. |
-| `db:seed` | `tsx --env-file-if-exists=.env.local scripts/seed.ts` | Spec 02 | Populate the local DB with demo data (products, entries across months). Not `--env-file` — see §4.21. |
-| `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Spec 02 | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (§3.5, §4.2, §4.16). |
-| `icons` | `tsx scripts/generate-icons.ts` | Spec 06 | Regenerate PWA icon set from `docs/assets/logo.svg` into `public/`. |
-| `receipt:fixture` | `tsx scripts/make-receipt-fixture.ts` | Spec 07 | Regenerate the synthetic receipt PDF the E2E suite uploads. Changing it changes its SHA-256, which the idempotency test derives at runtime — no constant to update. |
-| `istat:update` | `tsx scripts/update-istat.ts` | Spec 04 | Refresh `data/istat-nic.json` from ISTAT; commit the diff. |
+| Script | Command | When to use |
+|---|---|---|
+| `dev` | `next dev` | Daily development. Serwist is disabled here (§4.3). |
+| `build` | `next build --webpack` | Production build; also the only way to build the service worker. **The `--webpack` flag is load-bearing** — see §4.39. |
+| `start` | `next start` | Serve the production build locally (PWA testing). |
+| `lint` | `biome check .` | CI + pre-commit check. Formatting AND lint in one pass. |
+| `lint:fix` | `biome check --write .` | Auto-fix before committing. Run it, don't hand-format. |
+| `typecheck` | `tsc --noEmit` | Always run before declaring a task done; `next build` alone is not the type gate. |
+| `test` | `vitest run` | Full unit/integration suite, single pass (CI mode). |
+| `test:watch` | `vitest` | TDD loop while implementing (essential for the inflation engine). |
+| `test:e2e` | `playwright test` | Critical-path E2E + axe. Four projects (`mobile`, `desktop`, `offline-queue`, `pwa`); runs `pnpm build && pnpm start` itself (§4.41). `PORT=3100 pnpm test:e2e` when :3000 is taken (§4.32). |
+| `db:generate` | `drizzle-kit generate` | After every schema change: emits SQL migration into `drizzle/`. |
+| `db:migrate` | `drizzle-kit migrate` | Apply pending migrations to the DB in `TURSO_DATABASE_URL`. |
+| `db:studio` | `drizzle-kit studio` | Browse/edit data in a local GUI while debugging. |
+| `db:seed` | `tsx --env-file-if-exists=.env.local scripts/seed.ts` | Populate the local DB with demo data (products, entries across months). Not `--env-file` — see §4.21. |
+| `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (§3.5, §4.2, §4.16). |
+| `icons` | `tsx scripts/generate-icons.ts` | Regenerate PWA icon set from `docs/assets/logo.svg` into `public/`. |
+| `receipt:fixture` | `tsx scripts/make-receipt-fixture.ts` | Regenerate the synthetic receipt PDF the E2E suite uploads. Changing it changes its SHA-256, which the idempotency test derives at runtime — no constant to update. |
+| `istat:update` | `tsx scripts/update-istat.ts` | Refresh `data/istat-nic.json` from ISTAT; commit the diff. |
 
 `tsx` is a devDependency — scripts run TypeScript directly, no build step.
 Always invoke through `pnpm` (`pnpm db:migrate`, `pnpm test`), never through
@@ -716,7 +705,7 @@ env vars set (drizzle-kit reads them from the environment via
 Never edit an already-committed migration; add a new one. Never use
 `drizzle-kit push` — migrations are the audit trail.
 
-### 3.5 Better Auth CLI (Spec 02, then rarely)
+### 3.5 Better Auth CLI (rarely needed)
 
 ```bash
 pnpm auth:generate  # regenerates src/lib/db/schema/auth.ts
@@ -796,7 +785,7 @@ an id on retry; never let the server mint ids for queued items.
 
 **4.10 Category changes fan out.** The enum in
 `src/lib/domain/categories.ts` is referenced by both message files, the AI
-extraction prompt (Spec 03), and the checklist registry in §2.3 of this file.
+extraction prompt, and the checklist registry in §2.3 of this file.
 The DB stores raw id strings, so renames are data migrations. Follow the
 checklist comment — it exists because the compiler cannot catch a stale
 prompt.
@@ -833,9 +822,9 @@ outranks the app's Italian default at `/`, and
 `tests/e2e/smoke.spec.ts`'s Italian-heading assertion fails nondeterministically.
 Fix: `playwright.config.ts` → `projects[].use.locale = 'it-IT'`. Every
 project needs it; the three phone-shaped ones (`mobile`, `offline-queue`,
-`pwa`) share one `mobileDevice` literal that pins it once. Spec 06 planned a
-WebKit project for iOS PWA checks and did not add one — Playwright's WebKit
-is not Safari, so it cannot answer the questions that matter there
+`pwa`) share one `mobileDevice` literal that pins it once. A WebKit project
+for iOS PWA checks was considered and deliberately left out — Playwright's
+WebKit is not Safari, so it cannot answer the questions that matter there
 (`beforeinstallprompt` absence, the 7-day storage eviction, the real share
 sheet); those stay owner checks on a real device.
 
@@ -903,7 +892,7 @@ satisfy by default.** From Playwright's `page.request`, sign-in and sign-up
 work without extra headers (open, unauthenticated entry points) but
 `POST /api/auth/sign-out` 403s with `MISSING_OR_NULL_ORIGIN` unless the
 request carries an `Origin` header matching a trusted origin. **Refinement
-(2026-08-21, found during the Spec 03 collaudo):** that carve-out is specific
+(2026-08-21, found during a capture-flow collaudo):** that carve-out is specific
 to `page.request`, which inherits the browser context's origin. A bare Node
 `fetch()` sends no `Origin` at all, so it is rejected on **every** Better Auth
 route including sign-in — any script that authenticates outside a browser must
@@ -916,7 +905,7 @@ session, not just anonymous sign-in/sign-up.
 **4.20 Next.js dev (Turbopack) can return a truncated response when several
 Playwright workers race to be the first request to compile a route.**
 Reproduced twice on different routes ("Unexpected end of JSON input"
-server-side). Largely historical since Spec 06: the E2E suite runs against a
+server-side). Largely historical now that the E2E suite runs against a
 production build where nothing compiles on demand (§4.41). The serial
 warm-up pass in `tests/e2e/global-setup.ts` was kept — it still warms the
 server's module graph and the DB connection — but it is no longer load
@@ -936,8 +925,8 @@ everywhere the script runs.
 
 **4.22 A `"use server"` module may only export async functions — Zod schemas
 cannot live in `actions.ts`.** Next.js rejects an exported `const` from a
-`"use server"` file at build time, so Spec 03 §9.2's literal
-`export const confirmShoppingSessionSchema` in `scan/review/actions.ts` does
+`"use server"` file at build time, so an `export const
+confirmShoppingSessionSchema` in `scan/review/actions.ts` does
 not compile. Either keep the schema as a module-local (non-exported) constant,
 or — when the tests or another module need it, as the confirm schema's own
 unit tests do — put it in a sibling plain module (
@@ -947,8 +936,8 @@ several boundaries belong in `src/lib/domain/schemas.ts` (§1.8).
 
 **4.23 Seed ids are padded to 21 characters — never add a short readable id.**
 `scripts/seed-ids.ts` → `seedId('seed-prod-latte')` produces a contract-shaped
-`nanoid(21)`-length id while staying readable and reproducible. Spec 00 §6
-makes every id a nanoid(21) and the Spec 03 confirm boundary validates that
+`nanoid(21)`-length id while staying readable and reproducible. Every id is a
+nanoid(21) and the confirm boundary validates that
 length, so a 15-character seed id makes the review screen reject any suggestion
 pointing at a seeded product (`INVALID_INPUT` on confirm) — a failure that only
 shows up in a real capture flow against a seeded database, never in the seed
@@ -969,14 +958,14 @@ any `getByRole('alert')` locator hits at least two elements and fails Playwright
 strict mode. Target the specific `data-testid` instead.
 
 **4.26 `vitest.config.ts` pins the environment variables the unit suite runs
-with.** Since Spec 03 some modules under test import `src/lib/env.ts`, which
+with.** Some modules under test import `src/lib/env.ts`, which
 fails fast on a missing variable — so the suite would depend on a developer's
 `.env.local` (and break in CI, which has none) without the `test.env` block.
 The values there are placeholders on purpose: a real `ANTHROPIC_API_KEY` must
 never be reachable from a test run. Every network call in the suite is mocked.
 
-**4.27 ISTAT's SDMX service needs three things the Spec 04 text did not
-know.** (1) The NIC was rebased to 2025=100 in January 2026: dataflow
+**4.27 ISTAT's SDMX service needs three things that were not obvious going
+in.** (1) The NIC was rebased to 2025=100 in January 2026: dataflow
 `IT1,167_744,1.0` (base 2015) is frozen at 2025-12, and `IT1,167_745,1.0`
 ("Nic - monthly data from 2026 onwards (base 2025)") is the live one — it also
 serves the 1995/2010/2015 bases under distinct `DATA_TYPE` codes, so key
@@ -994,7 +983,7 @@ narrow key. The dashboard loads `data/istat-nic.json` as a static import and
 calls `rebaseIstat(months, series[0].ym)`; it never fetches ISTAT at runtime.
 
 **4.29 Test the engine's dead branches by removing them, not by faking
-inputs.** Spec 04 asks for ≈100% line coverage of `src/lib/inflation/`; the
+inputs.** The target is ≈100% line coverage of `src/lib/inflation/`; the
 last few uncovered lines were defensive guards that TypeScript narrowing
 needed but no input could reach (a product in the price table with no
 category, a category series with no first priced month, a mover tie-breaker
@@ -1010,14 +999,14 @@ it is deliberately not a project dependency.
 `open(path, 'w')` in text mode converts `\n` to `\r\n`, and Biome's formatter
 then fails every touched file ("Formatter would have printed…") while the diff
 looks unchanged. Either open with `newline=''`, write bytes, or run a
-CRLF→LF normalization over `git status` files before `pnpm lint` — the Spec 05
-session lost two lint rounds to this before the pattern was clear.
+CRLF→LF normalization over `git status` files before `pnpm lint` — the UI
+build session lost two lint rounds to this before the pattern was clear.
 
 **4.32 Playwright's `baseURL` must follow the dev server's port, and Better
 Auth must agree.** `next dev` silently moves to :3001 when :3000 is taken by
 another project, while `playwright.config.ts` kept pointing at :3000 —
 `reuseExistingServer` then runs the suite against the *other* app. The config
-now reads `PORT` (`PORT=3001 pnpm test:e2e`) and, since Spec 06, starts its
+now reads `PORT` (`PORT=3001 pnpm test:e2e`) and starts its
 own server and passes `BETTER_AUTH_URL` to it, so the origin can no longer
 drift from the port. Outside Playwright the rule still stands: on a
 non-default port start the server with `BETTER_AUTH_URL` set to that origin,
@@ -1062,8 +1051,8 @@ A heredoc that writes a whole TypeScript module, or a Python edit script with
 several large `old`/`new` blocks, fails with `unexpected EOF while looking for
 matching `''` — the command was cut, not mis-quoted. Write new source files
 with the Write tool, make edits with short Python one-liners, and split
-multi-file documentation edits into several calls. Cost the Spec 04 session two
-false starts before the pattern was clear.
+multi-file documentation edits into several calls. Cost the inflation-engine
+session two false starts before the pattern was clear.
 
 **4.39 `next build` emits no service worker under Turbopack, and does not
 fail.** Next.js 16 builds with Turbopack by default; `@serwist/next` is a
@@ -1077,7 +1066,7 @@ mode (`@serwist/next/config` + `@serwist/cli`), not back to a silent no-op.
 
 **4.40 `@serwist/next`'s precache manifest contains no HTML of ours.** It
 globs the build output, which for the App Router is `/_next/static/**` — every
-page is server-rendered. Spec 06's `fallbacks.entries` therefore pointed at
+page is server-rendered. The `fallbacks.entries` config therefore pointed at
 `/offline` and `/en/offline` URLs that were never precached, and an offline
 navigation failed with `ERR_FAILED` instead of rendering the fallback (the
 `PrecacheFallbackPlugin` is attached correctly; `matchPrecache` simply found
@@ -1141,7 +1130,7 @@ an empty `audits` object rather than an error. Installability is asserted in
 
 **4.48 `src/app/favicon.ico` and `public/favicon.ico` cannot coexist.** Both
 claim `/favicon.ico` and Next fails the build with a conflicting-public-file
-error. Spec 06's icon pipeline writes the `public/` one, so the App Router
+error. The icon pipeline writes the `public/` one, so the App Router
 convention file was deleted; `generateMetadata` declares `/favicon.ico`
 explicitly.
 
@@ -1168,7 +1157,7 @@ children), and keep it directly above the node.
 
 **4.51 Don't reach for `client.withOptions()` when a gateway needs different
 SDK options — give it its own `Anthropic` instance.** `src/lib/ai/`'s test
-seam is an injected client shaped `{ messages: { parse } }` (Spec 03 §13.1);
+seam is an injected client shaped `{ messages: { parse } }`;
 a `withOptions({ timeout })` call inside the gateway means every mock must
 also implement `withOptions`, which is a lot of ceremony to express "receipts
 get 45 s instead of 30". `extract-receipt.ts` constructs its own client and
@@ -1196,75 +1185,33 @@ formats) `binary`; verify with
 failure mode that looks like "the model can't read our fixture" three weeks
 later, on somebody else's clone.
 
+**4.54 A synthetic receipt fixture cannot exercise every real layout — a
+discount line that repeats the receipt's own VAT% column needs its own
+worked example, or the model treats it as a product.** The fixture and the
+first worked example in `RECEIPT_SYSTEM_PROMPT` only cover a discount printed
+as a single bare amount (`SCONTO SOCI   -0,40`). A real Coop receipt instead
+prints `SCONTO % CLIE 40.00%    4,00%    -1,92` — the VAT% column repeats on
+the discount line itself, plus the discount's own percentage sits in the
+description text. The model read that as a new, separate, zero-price
+"product" instead of folding it into the line above, exactly the kind of
+line the resolver then offers to add to the catalog as junk. Fixed with a
+second worked example in the prompt matching that shape — pure prompt text,
+no schema or resolver change, and **not** something a unit test can catch:
+prompt changes can only be verified against a real document. The same
+receipt also had the model expand "F/F" (Coop's "Fior Fiore" private-label
+marker) into "farina di frumento" — the existing "don't guess ambiguous
+abbreviations" rule was true in principle but too weak in practice to
+override a plausible-looking wrong guess; it now carries "F/F" as a named
+counter-example. Lesson: when a real-world document surfaces a prompt gap,
+add a worked example matching its *exact* shape, not a generic rule
+addition — the model follows concrete examples far more reliably than an
+abstract instruction it can still rationalize past.
+
 ---
 
-## 5. Spec-Driven Workflow
+## 5. Definition of Done
 
-### 5.1 Spec index
-
-| Spec | File | One line |
-|---|---|---|
-| 00 | `docs/specs/00-overview.md` | Canonical contract: names, money rules, taxonomy, routes, env, plan. **Law.** |
-| 01 | `docs/specs/01-foundation.md` | Scaffold: Next.js 16, Biome, Vitest/Playwright, next-intl wiring, env validation, CI. |
-| 02 | `docs/specs/02-database-auth.md` | Turso + Drizzle schema, migrations, repositories, Better Auth, seed script. |
-| 03 | `docs/specs/03-capture-ai.md` | Camera capture, `/api/extract`, Blob upload, Claude Haiku extraction, review flow, product matching. |
-| 04 | `docs/specs/04-inflation-engine.md` | Pure index engine: bucketing, carry-forward, Jevons, weighting, chaining, ISTAT comparison, exhaustive tests. |
-| 05 | `docs/specs/05-ui-design.md` | Full design system + all screens; produced `DESIGN.md` (implemented 2026-08-21). |
-| 06 | `docs/specs/06-pwa-offline.md` | Serwist, IndexedDB queue, sync manager, install experience, icons. **Implemented 2026-08-21.** |
-| 07 | `docs/specs/07-receipt-import.md` | Digital receipt → per-line extraction, catalog aliases, review, `source='receipt'` entries. **Implemented 2026-08-21.** |
-| 08 | `docs/specs/08-go-live.md` | Operations: Turso + Vercel + Blob + Anthropic provisioning for **one** environment (previews deliberately off — §1.1), the accumulated collaudo for Specs 05–08, runbook. |
-
-Planned order: **01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07**. Spec 04 depends
-on 02 for types only — it can proceed against the schema definitions without a
-running DB.
-
-**Actual order: 08 came last.** It was deferred twice for the same reason —
-it provisions live infrastructure and needs the owner's accounts, which no
-coding session can stand in for — and neither Spec 06 nor Spec 07 turned out
-to have a runtime dependency on it. What waited for a deployment instead are
-the *manual* checks those specs could not answer, which Spec 08 §7.2 now owns
-as one accumulated collaudo.
-
-### 5.2 One spec per session
-
-The protocol, per session:
-
-1. Read `CLAUDE.md` → "Current status" to confirm where the project actually is.
-2. Read the target spec **in full**, plus 00-overview §5–§6 again.
-3. Use the **Implementation Prompt at the end of the spec file** as the task
-   definition — it is written to be self-sufficient for that session.
-4. Implement only that spec's scope. Resist pulling forward work from later
-   specs; stubs belong to the spec that owns them.
-5. Gate before finishing: `pnpm lint && pnpm typecheck && pnpm test`
-   (plus `pnpm test:e2e` when the spec touches user flows).
-6. Update `CLAUDE.md` → "Current status" (what is done, what is next, any
-   deviations that were written back into the specs), and fold the session's
-   findings into this file and `Draft Release Temp.md`. `SESSION_NOTES.md` is
-   the scratch handoff used for that fold: written during the session, read
-   when updating the durable docs, then deleted — never committed.
-7. Commit per `WORKFLOW.md`: **one squashed commit per session**, and never
-   without the project owner's explicit approval. (`WORKFLOW.md` overrides the
-   per-logical-change guidance in `docs/DEVELOPMENT_GUIDELINES.md`, which
-   describes commit hygiene in general.)
-
-If an implementation forces a contract change (name, column, route), stop,
-edit `docs/specs/00-overview.md` first, then continue — the contract never
-drifts silently.
-
-### 5.3 Recommended model and effort per spec (from overview §12)
-
-| Spec | Title | Depends on | Model | Effort |
-|---|---|---|---|---|
-| 01 | Foundation & Scaffold | — | Claude Sonnet 5 | medium |
-| 02 | Database & Auth | 01 | Claude Sonnet 5 | high |
-| 03 | Capture & AI Extraction | 02 | Claude Opus 5 | high |
-| 04 | Inflation Engine | 02 (types only) | Claude Opus 5 (Fable 5 if available) | xhigh |
-| 05 | UI & Design System | 02–04 | Claude Fable 5 + impeccable skill | xhigh |
-| 06 | PWA & Offline | 03, 05 | Claude Opus 5 | high |
-| 07 | Receipt Import | 02, 03, 05 | Claude Opus 5 | high |
-| 08 | Go-live & Operations | 01–04 (05 recommended first) | Claude Sonnet 5 | high |
-
-### 5.4 Definition of done (every task, not just specs)
+Every task, not just a large feature, is done only when:
 
 - `pnpm lint`, `pnpm typecheck`, `pnpm test` all pass.
 - New behavior has tests (pure logic → unit; wiring → integration; critical
@@ -1280,15 +1227,13 @@ drifts silently.
 
 | Document | What it governs | When to read |
 |---|---|---|
-| `docs/specs/00-overview.md` | The contract: names, shapes, decisions | Every session, before writing code |
-| `docs/specs/01–08` | Per-area implementation specs | The one you are implementing, in full |
 | `docs/DEVELOPMENT_GUIDELINES.md` | Layers, naming, errors, testing, security, performance | Once fully; re-check when unsure |
 | `docs/COMMENTS.md` | Comment types and discipline | Before writing any code with comments |
-| `DESIGN.md` | Tokens, typography, layout vocabulary, animation, anti-patterns — generated by the impeccable documenter from the shipped Spec 05 build | **Mandatory before any UI work** |
+| `DESIGN.md` | Tokens, typography, layout vocabulary, animation, anti-patterns — generated by the impeccable documenter from the shipped UI build | **Mandatory before any UI work** |
 | `PRODUCT.md` | Product truth for the impeccable skill (users, positioning, constraints, brand commitments) | Before any impeccable command or a new surface |
 | `CLAUDE.md` | Current implementation status + working notes | First thing, every session |
 | `CONTRIBUTING.md` | External-contributor workflow (PRs, issues) | When touching contribution flow |
 
 Precedence when documents appear to conflict:
-`00-overview.md` → the area spec → `AGENTS.md` → the general guideline docs.
+`AGENTS.md` → the general guideline docs.
 A real conflict is a bug: fix the documents, starting from the top.

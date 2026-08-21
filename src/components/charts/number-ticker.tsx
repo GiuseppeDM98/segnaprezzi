@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Animated rolling number (Spec 05 §6.2, §7). Receives a PRE-FORMATTED
+ * Animated rolling number. Receives a PRE-FORMATTED
  * string; digits roll vertically into their fixed cells with the house
  * spring and a slight per-digit stagger, non-digit characters stay put.
  * Width-stable through tabular figures. Under reduced motion the final

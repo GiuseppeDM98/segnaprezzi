@@ -1,5 +1,5 @@
 /**
- * Shopping session state machine (Spec 03 §2).
+ * Shopping session state machine.
  *
  * Design: a spesa starts on a phone with no connectivity, so the client mints
  * the session id at the first shutter press and the server materializes the
@@ -94,7 +94,7 @@ export async function beginSessionReview(
   return updated ?? session;
 }
 
-/** The newest session the user could still resume, or null (Spec 03 §2.3). */
+/** The newest session the user could still resume, or null. */
 export async function getResumableSession(db: Db, userId: string): Promise<ShoppingSession | null> {
   return getResumableShoppingSession(db, userId);
 }

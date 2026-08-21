@@ -2,15 +2,15 @@
  * Deterministic identifiers for seeded rows, shared by scripts/seed.ts and
  * the E2E fixtures. Pure data helper, no I/O.
  *
- * Why this exists: Spec 00 §6 makes every id a nanoid(21), and Spec 03's
- * confirm boundary validates that exact length — a shorter, human-readable
+ * Why this exists: every id is a nanoid(21), and the confirm boundary
+ * validates that exact length — a shorter, human-readable
  * seed id (the original `'seed-prod-latte'`) is rejected the moment a review
  * card suggests a seeded product, which breaks the capture flow against a
  * seeded database. Padding keeps the ids readable AND reproducible while
  * satisfying the contract.
  */
 
-/** Length of every app-side id (nanoid(21), Spec 00 §6). */
+/** Length of every app-side id (nanoid(21)). */
 const ID_LENGTH = 21;
 
 /**

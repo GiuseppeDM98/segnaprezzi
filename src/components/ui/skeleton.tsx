@@ -1,5 +1,5 @@
 /**
- * Loading placeholder (Spec 05 §6.1). Must match the final layout's
+ * Loading placeholder. Must match the final layout's
  * dimensions so content never shifts when data lands; never a spinner.
  * The shimmer is a CSS animation so reduced motion turns it off for free.
  */

@@ -1,6 +1,6 @@
 import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 
-/** Product detail loading state (Spec 05 §5.7): header, chart, 4 tiles, rows. */
+/** Product detail loading state: header, chart, 4 tiles, rows. */
 export default function ProductDetailLoading() {
   return (
     <div className="flex flex-1 flex-col" aria-busy="true">

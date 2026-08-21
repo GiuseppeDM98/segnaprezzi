@@ -1,13 +1,13 @@
 /**
- * The POST /api/extract-receipt use case (Spec 07 §4.3) and the read model
- * the review screen loads (§8.1).
+ * The POST /api/extract-receipt use case and the read model
+ * the review screen loads.
  *
  * Design: exactly one row is written here — the `receipts` import record, in
  * status `extracted`. Not a single `price_entries` row exists until the user
- * confirms (§8.3), because a receipt line is a *proposal* until a human has
+ * confirms, because a receipt line is a *proposal* until a human has
  * agreed that "LATTE PS UHT" is the litre of milk in their catalog.
  *
- * The uploaded file never touches disk or Blob storage (§5): it is hashed,
+ * The uploaded file never touches disk or Blob storage: it is hashed,
  * base64-ed into one API call, and dropped. The hash is what makes a
  * re-upload idempotent, and `ai_raw_json` — every `rawLine` included — is the
  * audit trail that replaces the document we deliberately do not keep.
@@ -51,7 +51,7 @@ import {
   resolveReceiptLines,
 } from './resolve-receipt-lines';
 
-/** Rome-day window used by the "already recorded today" hint (§8.1). */
+/** Rome-day window used by the "already recorded today" hint. */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface ReceiptStoreSuggestion {
@@ -107,7 +107,7 @@ export interface ImportReceiptInput {
  * @returns The import record id, its header, and one draft per product line
  * @throws ReceiptAlreadyImportedError when this exact file was confirmed before
  * @throws ReceiptNoLinesError when the model found no product line
- * @throws ExtractionUnavailableError / ExtractionError per Spec 03's split
+ * @throws ExtractionUnavailableError / ExtractionError per the gateway's retryable/non-retryable split
  */
 export async function importReceipt(db: Db, input: ImportReceiptInput): Promise<ReceiptReview> {
   const contentHash = createHash('sha256').update(input.file.bytes).digest('hex');
@@ -177,11 +177,11 @@ export async function importReceipt(db: Db, input: ImportReceiptInput): Promise<
 }
 
 /**
- * Rebuild the review of a receipt already on file (Spec 07 §8.1).
+ * Rebuild the review of a receipt already on file.
  *
  * The stored extraction is immutable, but the resolution is not: aliases
- * learned since — even a minute ago, in another tab — must apply, so §6.4
- * and §7 re-run on every load rather than being frozen at upload time.
+ * learned since — even a minute ago, in another tab — must apply, so flagging
+ * and line resolution re-run on every load rather than being frozen at upload time.
  *
  * @throws ReceiptNotFoundError when the receipt is not the user's, or was discarded
  */
@@ -226,7 +226,7 @@ interface BuildReviewInput {
   now: number;
 }
 
-/** Steps 5-7 of §4.3: flag, resolve the store, resolve the lines. */
+/** Flag, resolve the store, resolve the lines. */
 async function buildReview(db: Db, input: BuildReviewInput): Promise<ReceiptReview> {
   const flags = flagReceiptForReview(input.extraction, input.now);
 
@@ -245,7 +245,7 @@ async function buildReview(db: Db, input: BuildReviewInput): Promise<ReceiptRevi
     unitKind: product.unitKind,
     defaultPackageSize: product.defaultPackageSize,
     isArchived: product.isArchived,
-    // The store-recency bonus is a capture-screen affordance (Spec 03 §8):
+    // The store-recency bonus is a capture-screen affordance:
     // a receipt already states its store, so nothing here is "nearby".
     hasRecentEntryAtStore: false,
   }));
@@ -293,7 +293,7 @@ interface ResolvedStore {
 }
 
 /**
- * The store this receipt belongs to (§4.3 step 6): an explicit pick wins,
+ * The store this receipt belongs to: an explicit pick wins,
  * otherwise the printed chain/name is matched against the user's stores by
  * normalized text, otherwise the review screen is told what to offer.
  */
@@ -337,7 +337,7 @@ function resolveStore(
 
 /**
  * Observations the user already has for these products on the receipt's Rome
- * day (§8.1). A receipt price and a tag price of the same product on the same
+ * day. A receipt price and a tag price of the same product on the same
  * day are both valid, so the hint never blocks anything — it exists so the
  * timeline holds no surprises.
  */
@@ -448,7 +448,7 @@ export function parseReceiptExtraction(raw: string): ReceiptExtraction | null {
 
 /**
  * Call the gateway and translate its internal error into the domain
- * contract, exactly as Spec 03 §6.4 does: retryable becomes "we will try
+ * contract, exactly as the photo extraction path does: retryable becomes "we will try
  * again" (503), non-retryable becomes "this file will never extract" (422).
  */
 async function runExtraction(input: {

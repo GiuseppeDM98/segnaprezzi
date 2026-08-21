@@ -1,5 +1,5 @@
 /**
- * Test builders for the engine (Spec 04 §7). Not exported by the barrel and
+ * Test builders for the engine. Not exported by the barrel and
  * never imported by production code.
  *
  * Fixture timestamps are at 10:00 UTC, so the Rome month equals the UTC
@@ -46,7 +46,7 @@ export function buildProduct(overrides: Partial<IndexProduct> = {}): IndexProduc
 }
 
 /**
- * The Spec 04 §6 worked example, verbatim: three products, four months,
+ * The worked example used across the engine's tests, verbatim: three products, four months,
  * thirteen entries. Its numbers are the acceptance contract of the engine.
  */
 export function buildWorkedExample(): { entries: IndexEntry[]; products: IndexProduct[] } {

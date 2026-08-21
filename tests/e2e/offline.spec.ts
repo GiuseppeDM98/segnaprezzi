@@ -4,7 +4,7 @@ import { PWA_E2E_USER } from './fixtures/users';
 import { resetCaptureFixtures } from './helpers/db';
 
 /*
- * Offline queue + sync engine E2E suite (Spec 06 §9.1, scenarios 1–4).
+ * Offline queue + sync engine E2E suite (scenarios 1–4).
  *
  * This project runs with `serviceWorkers: "block"` because Playwright cannot
  * intercept a request issued *through* an active worker, and every scenario

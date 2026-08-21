@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * The pump form (Spec 03 §11.2 · Spec 05 §5.5), built to be filled
- * one-handed standing at the pump.
+ * The pump form, built to be filled one-handed standing at the pump.
  *
  * Design: the user knows any two of {unit price, quantity, total} — which two
  * depends on whether they filled the tank, paid a round amount, or just read

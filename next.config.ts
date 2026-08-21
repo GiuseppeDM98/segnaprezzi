@@ -3,16 +3,16 @@ import withSerwistInit from '@serwist/next';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
-// Why: the request config lives under src/lib/i18n (00-overview §10), not the
-// plugin's default src/i18n, so the path must be passed explicitly.
+// Why: the request config lives under src/lib/i18n, not the plugin's default
+// src/i18n, so the path must be passed explicitly.
 const withNextIntl = createNextIntlPlugin('./src/lib/i18n/request.ts');
 
 /*
  * The precache manifest @serwist/next injects covers /_next/static assets
  * only — App Router pages are rendered by the server, so no HTML of ours is
- * in it. The offline fallback (Spec 06 §2.4) must be, or the service worker
- * has nothing to serve when a navigation fails, and the two locale variants
- * are separate documents.
+ * in it. The offline fallback must be precached explicitly, or the service
+ * worker has nothing to serve when a navigation fails, and the two locale
+ * variants are separate documents.
  *
  * A fresh revision per build is deliberate: it is what makes an updated
  * worker re-fetch the fallback instead of keeping the previous deploy's copy.
@@ -38,8 +38,8 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   // Why: `next dev` otherwise appends a generated block to AGENTS.md on
-  // every run — this repo's AGENTS.md is a hand-maintained project contract
-  // (docs/specs/00-overview.md), not a file for Next.js to rewrite.
+  // every run — this repo's AGENTS.md is a hand-maintained project contract,
+  // not a file for Next.js to rewrite.
   agentRules: false,
 };
 

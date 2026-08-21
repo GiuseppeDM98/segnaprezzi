@@ -1,7 +1,6 @@
 /**
- * Steps 1 and 2 of the engine (Spec 04 §4.1–§4.2): Europe/Rome month
- * bucketing, 'YYYY-MM' arithmetic, the month grid, per-product monthly
- * means, and carry-forward imputation.
+ * Europe/Rome month bucketing, 'YYYY-MM' arithmetic, the month grid,
+ * per-product monthly means, and carry-forward imputation.
  *
  * Design: the only place the engine touches a Date is toRomeYearMonth. From
  * there on, months are 'YYYY-MM' strings handled with integer arithmetic —
@@ -82,7 +81,7 @@ export function bucketEntries(entries: readonly IndexEntry[]): BucketedEntry[] {
 /**
  * Running integer sum and count. Why not a running mean: integer sums are
  * exact in doubles, so the entry order cannot change the result by a single
- * bit — a requirement of the engine's determinism rule (Spec 04 §2).
+ * bit — a requirement of the engine's determinism rule.
  */
 interface Accumulator {
   sum: number;
@@ -90,7 +89,7 @@ interface Accumulator {
 }
 
 /**
- * Per-product, per-month arithmetic mean of unitPriceMilli (Spec 04 §4.1).
+ * Per-product, per-month arithmetic mean of unitPriceMilli.
  *
  * Duplicate observations in a month — two stores, a re-scan, entries moved in
  * by a product merge — simply average.
@@ -140,7 +139,7 @@ export function computeObservedMeans(
 }
 
 /**
- * Carry-forward imputation (Spec 04 §4.2): fill each product's empty grid
+ * Carry-forward imputation: fill each product's empty grid
  * months with its most recent observed mean, as long as that observation is
  * at most `carryForwardMonths` calendar months old. The window is anchored
  * on the observation month — with carryForwardMonths = 2 an observation in

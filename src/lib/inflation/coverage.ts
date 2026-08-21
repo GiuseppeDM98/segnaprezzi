@@ -1,5 +1,5 @@
 /**
- * Coverage statistics (Spec 04 §1.6, §4.7).
+ * Coverage statistics.
  *
  * Design — honesty as a requirement: a national index averages millions of
  * quotes; a personal one may hang on five products. Every result therefore

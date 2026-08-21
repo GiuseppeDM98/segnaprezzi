@@ -6,8 +6,9 @@ import { extractReceipt, RECEIPT_EXTRACTION_MODEL } from './extract-receipt';
 import type { ReceiptExtraction } from './receipt-schema';
 
 /*
- * The gateway is mocked at the SDK client boundary, like Spec 03's: the
- * point of these tests is the request shape and the failure-mode mapping,
+ * The gateway is mocked at the SDK client boundary, like the price-tag
+ * gateway's tests: the point of these tests is the request shape and the
+ * failure-mode mapping,
  * and every branch of the latter keys off a real SDK error class — so the
  * fixtures construct the real classes rather than lookalike objects, or the
  * instanceof chain under test would never run.

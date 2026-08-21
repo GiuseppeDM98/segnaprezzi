@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Connectivity as React state (Spec 06 §6.1).
+ * Connectivity as React state.
  *
  * SSR-safe by construction: the server has no navigator, and rendering
  * "offline" on the server would make every first paint flash the banner, so

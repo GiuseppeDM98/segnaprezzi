@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Live queue status (Spec 06 §5.5).
+ * Live queue status.
  *
  * Design: Dexie's useLiveQuery re-runs the query on every write to the
  * observed tables, so a status flip in the service worker's drain reaches

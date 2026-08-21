@@ -12,8 +12,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Signup (Spec 05 §5.11). Server component so env.SIGNUP_ENABLED never has
- * to cross into client code (Spec 02 §5.7): a closed instance renders the
+ * Signup. Server component so env.SIGNUP_ENABLED never has
+ * to cross into client code: a closed instance renders the
  * notice instead of the form.
  */
 export default async function SignupPage() {

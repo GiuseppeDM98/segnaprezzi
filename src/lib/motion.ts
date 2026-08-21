@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The motion system (Spec 05 §7): one spring, one fade, one hook.
+ * The motion system: one spring, one fade, one hook.
  *
  * Design: components import these and never declare ad-hoc spring values —
  * the whole app moves with the same physics, which is what makes motion read

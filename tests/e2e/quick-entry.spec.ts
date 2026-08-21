@@ -4,7 +4,7 @@ import { SEED_USER_2 } from './fixtures/users';
 import { deleteProductsByName } from './helpers/db';
 
 /*
- * Quick-entry E2E suite (Spec 03 §10, §11).
+ * Quick-entry E2E suite.
  *
  * These two forms are online-only and single-shot, so the interesting part is
  * the arithmetic the browser does while the user types — the g→kg conversion
@@ -33,7 +33,7 @@ test('should convert grams to kilos and store integer money from the manual form
 }) => {
   await page.goto('/add/manual');
 
-  // No catalog match for the typed name → inline create (Spec 05 §5.4).
+  // No catalog match for the typed name → inline create.
   await page.getByTestId('product-search').fill(MANUAL_PRODUCT_NAME);
   await page.getByTestId('create-product').click();
   await expect(page.getByTestId('new-product-name')).toHaveValue(MANUAL_PRODUCT_NAME);

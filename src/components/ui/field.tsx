@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Label + control + hint + error wrapper (Spec 05 §6.1). Wires
+ * Label + control + hint + error wrapper. Wires
  * aria-describedby / aria-invalid for whatever control it receives through
  * the render prop, so no form has to remember the accessibility plumbing.
  */

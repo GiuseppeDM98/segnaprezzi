@@ -1,7 +1,7 @@
 export { SEED_USER, SEED_USER_2 } from '../../../scripts/seed-users';
 
 /**
- * A throwaway account owned by the Spec 06 offline/PWA suites.
+ * A throwaway account owned by the offline/PWA suites.
  *
  * Why not a seed user: those two run against a production server on a
  * different port, in parallel with the rest of the suite, and the offline

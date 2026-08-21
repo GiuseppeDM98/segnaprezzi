@@ -1,6 +1,6 @@
 import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 
-/** Catalog loading state (Spec 05 §5.6): header controls + 8 skeleton rows. */
+/** Catalog loading state: header controls + 8 skeleton rows. */
 export default function ProductsLoading() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col pt-safe" aria-busy="true">

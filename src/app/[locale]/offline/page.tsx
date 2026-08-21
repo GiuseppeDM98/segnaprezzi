@@ -6,8 +6,8 @@ import { routing } from '@/lib/i18n/routing';
 import { ReloadButton } from './reload-button';
 
 /*
- * The service worker's navigation fallback (Spec 06 §2.4). A technical
- * route, not part of the Spec 00 §9 route map.
+ * The service worker's navigation fallback. A technical
+ * route, not part of the regular route map.
  *
  * Two constraints shape it: it must be renderable at build time (the SW
  * precaches it, so it can never depend on a session or a fetch), and it is

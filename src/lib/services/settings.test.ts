@@ -9,7 +9,7 @@ import { exportUserData } from './export';
 import { getIndexSettings, importUserData, updateIndexSettings } from './settings';
 
 /*
- * Integration tests for Settings (Spec 05 §5.10): index options round-trip,
+ * Integration tests for Settings: index options round-trip,
  * and the backup import — a merge by id that never wipes, rejects files that
  * are not a segnaprezzi export, and cannot touch another user's rows even
  * when the file names their ids.

@@ -22,7 +22,7 @@ export const auth = betterAuth({
 
   database: drizzleAdapter(db, {
     provider: 'sqlite',
-    // Why: Spec 00 §6 mandates plural table names (users, sessions, ...).
+    // Why: this project's naming convention mandates plural table names (users, sessions, ...).
     usePlural: true,
     schema,
   }),
@@ -34,9 +34,9 @@ export const auth = betterAuth({
   },
 
   user: {
-    // Spec 05 §5.10: "Elimina account" wipes everything. The credential
-    // account re-checks the password on delete, and the DB cascades from
-    // users to every app table (Spec 02 §4.2), so one call removes all data.
+    // "Elimina account" wipes everything. The credential account re-checks
+    // the password on delete, and the DB cascades from users to every app
+    // table, so one call removes all data.
     deleteUser: {
       enabled: true,
     },
@@ -54,7 +54,7 @@ export const auth = betterAuth({
   },
 
   // Why: Better Auth's built-in rate limiter throttles repeated sign-in/
-  // sign-up calls per IP. §10.3's Playwright global-setup logs in two fixed
+  // sign-up calls per IP. The Playwright global-setup logs in two fixed
   // seed users back-to-back on every run (plus a throwaway signup per test),
   // all from localhost — enough to trip a per-IP limiter meant for the
   // public internet, producing flaky 429s that have nothing to do with a
@@ -67,7 +67,7 @@ export const auth = betterAuth({
 
   advanced: {
     database: {
-      // Why: Spec 00 mandates app-side nanoid(21) ids for ALL tables,
+      // Why: this project mandates app-side nanoid(21) ids for ALL tables,
       // including the auth ones.
       generateId: () => nanoid(),
     },

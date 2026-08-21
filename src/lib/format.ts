@@ -1,5 +1,5 @@
 /**
- * Display formatting (Spec 05 §2.3).
+ * Display formatting.
  *
  * Design: this module is the single boundary between integer money
  * (total_price_cents, unit_price_milli) and human-readable strings. No other
@@ -102,7 +102,7 @@ export function formatPct(
     style: 'percent',
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-    // Why 'exceptZero': the spec wants "+4,2%" and "−1,3%" but a plain
+    // Why 'exceptZero': we want "+4,2%" and "−1,3%" but a plain
     // "0,0%" — Intl's signDisplay has exactly that mode.
     signDisplay: 'exceptZero',
   }).format(ratio);

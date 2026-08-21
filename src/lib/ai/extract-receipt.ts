@@ -1,6 +1,5 @@
 /**
- * Anthropic gateway: one receipt file in, one ReceiptExtraction out
- * (Spec 07 §6.3).
+ * Anthropic gateway: one receipt file in, one ReceiptExtraction out.
  *
  * Design: same client construction, same structured-output pattern and the
  * same AiGatewayError mapping as the price-tag gateway — imported from it
@@ -22,16 +21,17 @@ import { RECEIPT_SYSTEM_PROMPT } from './receipt-prompt';
 import { type ReceiptExtraction, receiptExtractionSchema } from './receipt-schema';
 
 /**
- * Locked to Haiku 4.5 (Spec 00 §3): this is transcription of text that is
- * already structured, and a 40-line receipt costs about two cents. Kept in
- * its own constant, separate from Spec 03's EXTRACTION_MODEL, so the tag and
- * receipt pipelines can diverge without one dragging the other along.
+ * Locked to Haiku 4.5: this is transcription of text that is already
+ * structured, and a 40-line receipt costs about two cents. Kept in its own
+ * constant, separate from the price-tag gateway's EXTRACTION_MODEL, so the
+ * tag and receipt pipelines can diverge without one dragging the other along.
  */
 export const RECEIPT_EXTRACTION_MODEL = 'claude-haiku-4-5';
 
 /**
- * A whole receipt is a longer read than one tag: Spec 03's 30 s budget is
- * tuned for a single image, and a two-page PDF regularly needs more.
+ * A whole receipt is a longer read than one tag: the price-tag gateway's
+ * 30 s budget is tuned for a single image, and a two-page PDF regularly
+ * needs more.
  */
 const RECEIPT_TIMEOUT_MS = 45_000;
 
@@ -39,9 +39,10 @@ const RECEIPT_TIMEOUT_MS = 45_000;
 const RECEIPT_MAX_TOKENS = 8000;
 
 /**
- * Its own SDK instance rather than Spec 03's: the two differ only in the
- * timeout, and a per-call `withOptions` would make the injected-client test
- * seam a different shape here than everywhere else in src/lib/ai.
+ * Its own SDK instance rather than the price-tag gateway's: the two differ
+ * only in the timeout, and a per-call `withOptions` would make the
+ * injected-client test seam a different shape here than everywhere else in
+ * src/lib/ai.
  */
 const receiptClient = new Anthropic({
   apiKey: env.ANTHROPIC_API_KEY,

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Header of a sub-screen (Spec 05 §4): back button, title, optional
+ * Header of a sub-screen: back button, title, optional
  * caption and trailing actions. Sticky, respects the top safe-area inset.
  */
 import { ArrowLeft } from 'lucide-react';

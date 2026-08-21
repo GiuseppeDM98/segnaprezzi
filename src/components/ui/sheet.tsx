@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Bottom sheet (Spec 05 §6.1): drag handle, scrim, drag-to-dismiss on
+ * Bottom sheet: drag handle, scrim, drag-to-dismiss on
  * mobile; a centered dialog from the tablet breakpoint up. Traps focus,
  * closes on Esc and on the scrim, and restores focus to the opener.
  *

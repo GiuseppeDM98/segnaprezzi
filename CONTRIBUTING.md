@@ -2,31 +2,32 @@
 
 Thanks for your interest in segnaprezzi — a mobile-first, offline-first PWA that
 turns photos of supermarket price tags into your **personal inflation index**.
-Contributions of every size are welcome: bug reports, spec discussions, docs,
-translations, tests, and code.
+Contributions of every size are welcome: bug reports, docs, translations,
+tests, and code.
 
-Everything below assumes you have read this repo's canonical contract at least
+Everything below assumes you have read `CLAUDE.md` and `AGENTS.md` at least
 once. That is not optional — see the next section.
 
 ---
 
-## Project philosophy: spec-driven development
+## Project philosophy: consistency first
 
-segnaprezzi is **spec-first**. The behavior of the app is defined in
-[`docs/specs/`](docs/specs/), and [`docs/specs/00-overview.md`](docs/specs/00-overview.md)
-is the single source of truth for table names, column names, money rules, the
-category taxonomy, routes, and environment variables. Code that contradicts the
-spec is a bug — even if it "works".
+Canonical table names, column names, money rules, the category taxonomy,
+routes, and environment variables are whatever is already implemented in the
+code (Drizzle schema, Zod schemas, domain enums) — never invent a synonym,
+never contradict what is already there. Code that contradicts an existing
+convention is a bug — even if it "works".
 
 Practical consequences:
 
-- **Read `docs/specs/00-overview.md` before writing any code.** It is short and
-  it will save you a rejected PR.
-- **Every feature starts as a spec change.** If your idea changes behavior, open
-  a PR against `docs/specs/` (or an issue proposing one) *before* implementing.
-  Small bug fixes that restore spec-compliant behavior don't need a spec change.
-- If a spec must deviate from `00-overview.md`, update `00-overview.md` first,
-  in the same PR.
+- **Read `CLAUDE.md` and `AGENTS.md` before writing any code.** They are short
+  and will save you a rejected PR.
+- **If your idea changes behavior, open a Discussion or an issue proposing it
+  before implementing** — five minutes of alignment beats a rewritten PR.
+  Small bug fixes that restore already-documented behavior don't need this.
+- If a change needs a new convention, document the decision where the rest of
+  that area's conventions live (`AGENTS.md`, `CLAUDE.md`'s "Key decisions"),
+  in the same PR as the code.
 
 ---
 
@@ -164,7 +165,7 @@ feat: add carry-forward imputation to monthly bucketing
 fix: normalize €/100g unit prices to €/kg at extraction time
 refactor: extract product matching into matchProducts service
 chore: bump drizzle-kit to 0.31.x
-docs: clarify promo handling in spec 04
+docs: clarify promo handling in the inflation engine
 test: cover YoY headline with fewer than 13 months of data
 ```
 
@@ -201,7 +202,7 @@ Lowercase, hyphen-separated, specific (`feature/fuel-quick-form`, not
   Italian-only) strings fail review. If you don't speak the other language, a
   best-effort machine translation marked in the PR description is fine — the
   maintainer will polish it.
-- **Spec updated** in the same PR if the change alters documented behavior.
+- **Docs updated** in the same PR if the change alters documented behavior.
 - Fill in the PR template — the checklist mirrors everything above.
 
 By submitting a contribution you agree it is licensed under the project's

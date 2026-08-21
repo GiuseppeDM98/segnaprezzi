@@ -1,8 +1,8 @@
 /**
- * Deterministic dev seed (Spec 02 §8). Gives Specs 04/05 a realistic
- * fourteen-month dataset (rising prices, promos, fuel, a second supermarket
- * for per-store comparison) plus a second, minimal user for cross-user
- * isolation testing (§8.4). Fourteen months, not four: Spec 05's dashboard
+ * Deterministic dev seed. Gives the inflation engine and the dashboard a
+ * realistic fourteen-month dataset (rising prices, promos, fuel, a second
+ * supermarket for per-store comparison) plus a second, minimal user for
+ * cross-user isolation testing. Fourteen months, not four: the dashboard
  * leads with the year-over-year headline and a 12-month trend, and both
  * need thirteen months of series to be real rather than a placeholder.
  *
@@ -11,9 +11,9 @@
  * the repository layer for price_entries — the seed doubles as an
  * end-to-end smoke test of that layer. Stores/products/sessions use fixed
  * ids for reproducibility and cross-references between builders, which the
- * repository create functions deliberately don't accept (Spec 02 §6.1: ids
- * are always app-generated) — those three tables are inserted directly via
- * the Drizzle schema instead.
+ * repository create functions deliberately don't accept (ids are always
+ * app-generated) — those three tables are inserted directly via the
+ * Drizzle schema instead.
  */
 import { eq } from 'drizzle-orm';
 
@@ -107,7 +107,7 @@ function buildSeedMonths(): YearMonth[] {
 }
 
 // ---------------------------------------------------------------------------
-// Fixed reference data (§8.3, §8.4).
+// Fixed reference data.
 // ---------------------------------------------------------------------------
 
 const STORE_ESSELUNGA = {
@@ -126,7 +126,7 @@ const STORE_ENI = {
   kind: 'fuel_station' as const,
 };
 
-/** A second supermarket so the per-store comparison (Spec 05 §5.7) has two rows. */
+/** A second supermarket so the per-store comparison has two rows. */
 const STORE_CARREFOUR = {
   id: seedId('seed-store-carrefour'),
   name: 'Carrefour Market Corso Genova',
@@ -144,7 +144,7 @@ interface GroceryProductDef {
   category: (typeof products.$inferInsert)['category'];
   unitKind: (typeof products.$inferInsert)['unitKind'];
   packageSize: number;
-  /** unit_price_milli for [M-13 … M0], oldest first; the last four match Spec 02 §8.3. */
+  /** unit_price_milli for [M-13 … M0], oldest first; the last four are pinned so the resulting index can be checked by hand. */
   prices: number[];
   /** spaghetti and latte get a second entry on day 18. */
   secondEntryDay18?: boolean;
@@ -291,19 +291,19 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
 const FUEL_PRODUCT = {
   id: seedId('seed-prod-benzina'),
   // Must match FUEL_QUICK_PICKS' canonical name, or a real refuelling would
-  // create a second product and split this history in two (Spec 03 §11.1).
+  // create a second product and split this history in two.
   name: 'Benzina',
   brand: null as string | null,
   category: 'fuel' as const,
   unitKind: 'volume' as const,
-  /** unit_price_milli for [M-13 … M0]; the last four match Spec 02 §8.3. */
+  /** unit_price_milli for [M-13 … M0]; the last four are pinned so the resulting index can be checked by hand. */
   prices: [1699, 1712, 1735, 1760, 1748, 1770, 1795, 1810, 1802, 1780, 1789, 1812, 1846, 1799],
 };
 
 /** Liters per fuel entry, consumed two at a time (one per month, cycling). */
 const FUEL_LITER_CYCLE = [35.0, 32.4, 38.2, 30.0, 33.5, 36.1, 31.8, 34.2];
 
-/** total_price_cents = round(unit_price_milli * package_size / 10) (Spec 02 §8.3). */
+/** total_price_cents = round(unit_price_milli * package_size / 10). */
 function calculateTotalPriceCents(unitPriceMilli: number, packageSize: number): number {
   return Math.round((unitPriceMilli * packageSize) / 10);
 }

@@ -7,7 +7,7 @@ import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { getDashboardData } from './dashboard';
 
 /*
- * Integration tests for the dashboard read model (Spec 05 §5.1): the three
+ * Integration tests for the dashboard read model: the three
  * states (empty, thin, ready), the headline fallback from YoY to since-start,
  * and the ISTAT overlay rebased onto the user's base month.
  */

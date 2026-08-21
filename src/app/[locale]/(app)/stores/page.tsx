@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('title') };
 }
 
-/** Store management (Spec 05 §5.9), reached from Settings and from the store pickers. */
+/** Store management, reached from Settings and from the store pickers. */
 export default async function StoresPage() {
   const user = await requireUser();
   const stores = await listStoresWithCounts(db, user.id);

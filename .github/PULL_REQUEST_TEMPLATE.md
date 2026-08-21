@@ -2,10 +2,10 @@
 
 <!-- What does this PR do, and why? One or two sentences. -->
 
-## Linked issue / spec
+## Linked issue
 
-<!-- "Closes #123" for issues. For behavior changes, link the spec section this
-implements or the spec PR that agreed on it (docs/specs/...). -->
+<!-- "Closes #123" for issues, or a link to the Discussion that agreed on this
+change. -->
 
 ## Type of change
 
@@ -16,7 +16,7 @@ matching type — it becomes the squash-merge commit message. -->
 - [ ] `fix` — bug fix
 - [ ] `refactor` — no behavior change
 - [ ] `chore` — tooling, dependencies, config
-- [ ] `docs` — documentation or specs only
+- [ ] `docs` — documentation only
 - [ ] `test` — tests only
 
 ## Checklist
@@ -27,7 +27,7 @@ matching type — it becomes the squash-merge commit message. -->
 - [ ] Money stays integer: `total_price_cents` / `unit_price_milli` — no floats hold euros
 - [ ] i18n: every new UI string exists in **both** `messages/it.json` and `messages/en.json`
 - [ ] UI changes verified in **both light and dark themes**, mobile viewport first
-- [ ] Spec updated (`docs/specs/`) if this PR changes documented behavior — n/a otherwise
+- [ ] Docs updated (`CLAUDE.md`/`AGENTS.md`) if this PR changes documented behavior — n/a otherwise
 
 ## Screenshots
 

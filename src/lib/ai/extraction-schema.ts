@@ -1,13 +1,12 @@
 /**
- * The shape the extraction model must return (Spec 03 §7.2, mirroring the
- * field list of Spec 00 §8).
+ * The shape the extraction model must return.
  *
  * Design: this schema is both the structured-output contract handed to the
  * Anthropic SDK and the validation boundary for the model's answer — the
  * model's output is untrusted input like any other (AGENTS.md §1.8).
  *
  * The money and size fields allow 0 as the "not legible" sentinel the prompt
- * mandates. Confirm-time validation (§9.2) requires positive values, so a
+ * mandates. Confirm-time validation requires positive values, so a
  * sentinel forces the user to fill the gap on the review screen instead of
  * silently persisting a zero-price entry.
  */

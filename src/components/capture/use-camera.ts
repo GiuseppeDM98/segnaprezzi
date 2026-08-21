@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * getUserMedia lifecycle for the in-app viewfinder (Spec 03 §3.1).
+ * getUserMedia lifecycle for the in-app viewfinder.
  *
  * Design: the shutter must feel instant, so this hook keeps a live stream
  * open and captures a raw JPEG frame synchronously from the video element;
- * the expensive WebP compression happens afterwards in compressPhoto (§4).
+ * the expensive WebP compression happens afterwards in compressPhoto.
  * The stream is released whenever the tab is hidden — a live camera in a
  * background tab drains a phone battery fast — and re-acquired on return.
  */

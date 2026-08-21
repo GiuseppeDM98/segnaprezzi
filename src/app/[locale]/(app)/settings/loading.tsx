@@ -1,6 +1,6 @@
 import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 
-/** Settings loading state (Spec 05 §5.10): skeleton rows per section. */
+/** Settings loading state: skeleton rows per section. */
 export default function SettingsLoading() {
   return (
     <div

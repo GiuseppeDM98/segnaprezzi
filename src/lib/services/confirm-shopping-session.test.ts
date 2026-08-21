@@ -12,13 +12,13 @@ import {
 
 /*
  * Integration test against a real migrated libSQL database and the real
- * repositories (Spec 03 §13.4). The behaviours under test — onConflictDoNothing,
+ * repositories. The behaviours under test — onConflictDoNothing,
  * transaction rollback, FK scoping — are SQL semantics, so a fake repository
  * would test nothing that can actually break.
  *
- * Deviation from the spec's literal `createClient({ url: ':memory:' })`: the
- * project's test DB factory uses a uniquely-named temp file instead, because
- * an anonymous in-memory libSQL connection silently resets itself when a
+ * The project's test DB factory deliberately avoids
+ * `createClient({ url: ':memory:' })` and uses a uniquely-named temp file
+ * instead, because an anonymous in-memory libSQL connection silently resets itself when a
  * transaction callback throws (AGENTS.md §4.17) — which is exactly what half
  * of these tests do.
  */

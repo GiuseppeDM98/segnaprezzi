@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Switch for booleans (Spec 05 §6.1). A real button with role="switch";
+ * Switch for booleans. A real button with role="switch";
  * the label is part of the hit area so the 44 px target holds.
  */
 import { motion } from 'motion/react';

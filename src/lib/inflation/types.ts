@@ -1,5 +1,5 @@
 /**
- * Types of the personal inflation engine (Spec 04 §3). No logic lives here.
+ * Types of the personal inflation engine. No logic lives here.
  *
  * The public types are re-exported by the barrel (index.ts); the internal
  * ones at the bottom are shared between the sibling modules only.
@@ -13,9 +13,9 @@ import type { CategoryId } from '@/lib/domain/categories';
  * persistence schema. `category` is denormalized from the product at
  * projection time (repository JOIN) so the engine never joins anything.
  *
- * This is the ONE definition of IndexEntry in the codebase. Spec 02's
- * `listEntriesForIndex` imports this type and returns exactly it — the
- * repository maps the DB `Date` to `recordedAt` epoch milliseconds.
+ * This is the ONE definition of IndexEntry in the codebase. The repository's
+ * `listEntriesForIndex` imports this type and returns exactly it — mapping
+ * the DB `Date` to `recordedAt` epoch milliseconds.
  */
 export interface IndexEntry {
   productId: string;

@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Compact pill (Spec 05 §6.1). Two jobs: `filter` chips are toggles
+ * Compact pill. Two jobs: `filter` chips are toggles
  * (aria-pressed, 44 px target, highlighter wash when selected); `status`
  * chips are read-only labels tinted by `tone`. Status chips always carry
- * text — color is never the only channel (§8).
+ * text — color is never the only channel.
  */
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';

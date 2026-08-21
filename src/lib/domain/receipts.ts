@@ -1,6 +1,6 @@
 /**
  * Receipt-level enums and the one piece of calendar arithmetic the import
- * needs (Spec 07 §2.4, §6.4). Pure — no I/O, no framework imports.
+ * needs. Pure — no I/O, no framework imports.
  */
 
 export const RECEIPT_STATUSES = ['extracted', 'confirmed', 'discarded'] as const;
@@ -9,7 +9,7 @@ export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export const RECEIPT_FILE_KINDS = ['pdf', 'image'] as const;
 export type ReceiptFileKind = (typeof RECEIPT_FILE_KINDS)[number];
 
-/** Media types POST /api/extract-receipt accepts (Spec 07 §4.1). */
+/** Media types POST /api/extract-receipt accepts. */
 export const RECEIPT_MEDIA_TYPES = ['application/pdf', 'image/webp', 'image/jpeg'] as const;
 export type ReceiptMediaType = (typeof RECEIPT_MEDIA_TYPES)[number];
 
@@ -26,7 +26,7 @@ export const RECEIPT_FILE_KIND_BY_MEDIA_TYPE: Record<ReceiptMediaType, ReceiptFi
  * Teacher: a receipt prints local time ("19/08/2026 18:42"), and the model
  * hands it back as a naive ISO string with no offset. Reading it as UTC
  * would move a late-evening purchase into the next calendar day — and the
- * inflation engine buckets by Rome months (Spec 04), so the last purchase of
+ * inflation engine buckets by Rome months, so the last purchase of
  * a month would land in the wrong one. The conversion below asks the Intl
  * timezone database for Rome's offset rather than hardcoding CET/CEST.
  *
@@ -121,7 +121,7 @@ const ISO_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})
  *
  * A date without a time becomes noon Rome time: a receipt says *which day*
  * it belongs to, and noon is the reading that stays on that day under any
- * offset (Spec 07 §4.3 step 8).
+ * offset.
  *
  * @param raw - ISO-ish string from the extraction, or null
  * @returns Epoch milliseconds UTC, or null when the string is unusable

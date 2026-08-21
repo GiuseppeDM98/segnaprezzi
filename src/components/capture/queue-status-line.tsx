@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The one-line queue status under the photo tray (Spec 06 §6.2).
+ * The one-line queue status under the photo tray.
  *
  * Only the non-zero parts are printed, joined with " · ", so a healthy queue
  * says nothing at all: the line exists to explain a wait, not to narrate a

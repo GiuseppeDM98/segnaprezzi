@@ -1,5 +1,5 @@
 /**
- * Public API of the personal inflation engine (Spec 04 §2).
+ * Public API of the personal inflation engine.
  *
  * Consumers import from '@/lib/inflation' only. The sibling modules are
  * implementation details: importing one of them from outside this folder is

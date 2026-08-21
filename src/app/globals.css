@@ -6,7 +6,7 @@
  * locked 2026-08-21; the contract comment lives in src/app/[locale]/layout.tsx
  * and the full system in DESIGN.md).
  *
- * Two layers, as Spec 01 §8 set them up:
+ * Two layers:
  *  1. Raw custom properties on :root / .dark hold the colors and flip with
  *     the theme. Light is the paper register (cream stock, ribbon ink);
  *     dark is the print negative (ink field, paper type) — never a
@@ -16,7 +16,7 @@
  *
  * Components use semantic utilities ONLY — never raw hex/oklch values,
  * never Tailwind palette colors. This file and docs/assets/logo.svg are
- * the only places a literal color may appear (Spec 05 §2.1).
+ * the only places a literal color may appear.
  *
  * One meaning per color (raise kept from the Televideo challenger):
  *   ink = text · accent (highlighter orange) = the one live/active thing, and
@@ -122,7 +122,7 @@
   --font-sans: var(--font-form), "Barlow", "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-print), "Martian Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
 
-  /* Named breakpoints (Spec 05 §3): raw sm/md/lg never decide layout. */
+  /* Named breakpoints: raw sm/md/lg never decide layout. */
   --breakpoint-*: initial;
   --breakpoint-tablet: 48rem;
   --breakpoint-rail: 64rem;

@@ -1,7 +1,6 @@
 /**
- * Post-extraction sanity checks for a receipt (Spec 07 §6.4). Pure — the
- * import service applies it to every extraction before the response leaves
- * the server.
+ * Post-extraction sanity checks for a receipt. Pure — the import service
+ * applies it to every extraction before the response leaves the server.
  *
  * Design: nothing here BLOCKS an import. A receipt whose lines do not add up
  * to its printed total is usually still 38 good observations and one

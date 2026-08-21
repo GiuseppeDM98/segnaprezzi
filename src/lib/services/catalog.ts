@@ -1,5 +1,5 @@
 /**
- * Read model and use cases of the product catalog screen (Spec 05 §5.6):
+ * Read model and use cases of the product catalog screen:
  * the list with each product's latest unit price and the previous one for
  * the trend badge, the category chips, and the merge flow. Everything
  * returned is plain JSON (Dates become epoch ms) because it crosses into
@@ -105,7 +105,7 @@ export interface MergeProductsResult {
 }
 
 /**
- * Merge several duplicates into one surviving product (Spec 05 §5.6). Each
+ * Merge several duplicates into one surviving product. Each
  * pair is one transaction in the repository; a failure mid-way leaves the
  * already-merged pairs merged, which is safe — every intermediate state is
  * a valid catalog, and the index simply recomputes from it.
@@ -138,7 +138,7 @@ export interface EditProductInput {
   category: CategoryId;
 }
 
-/** Rename / re-brand / re-categorize a product (Spec 05 §5.7 "Modifica"). */
+/** Rename / re-brand / re-categorize a product ("Modifica"). */
 export async function editProduct(
   db: Db,
   userId: string,
@@ -165,7 +165,7 @@ export async function setProductArchived(
 }
 
 /**
- * Forget one learned receipt line (Spec 07 §9).
+ * Forget one learned receipt line.
  *
  * Deliberately silent when the alias is not the user's: the only way to see
  * an alias id is to have been shown it, and a "not found" here would only

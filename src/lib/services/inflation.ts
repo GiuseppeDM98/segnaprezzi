@@ -1,5 +1,5 @@
 /**
- * Personal CPI service (Spec 04 §9): projection in, pure computation out.
+ * Personal CPI service: projection in, pure computation out.
  *
  * Deliberately thin — the three repository reads and one call into the pure
  * engine. Anything smarter (caching, partial recomputation) belongs nowhere
@@ -9,14 +9,12 @@
  * cache would add invalidation complexity (every new entry, merge, or
  * settings change invalidates) for no measurable gain.
  *
- * Correction to Spec 04 §9's literal text, aligned with the codebase rules
- * rather than the snippet: the service takes `db` as its first parameter
- * like every other service (AGENTS.md §1.5 — the app layer passes the
- * singleton, tests pass a throwaway database) and does not wrap itself in
- * React's cache() (services never import react). The per-request
- * memoization the spec asks for belongs to the dashboard page (Spec 05),
- * which can wrap this call in cache() where the several server components
- * that share it live.
+ * Deliberately aligned with the codebase's layering rules: the service takes
+ * `db` as its first parameter like every other service (AGENTS.md §1.5 — the
+ * app layer passes the singleton, tests pass a throwaway database) and does
+ * not wrap itself in React's cache() (services never import react).
+ * Per-request memoization belongs to the dashboard page, which can wrap this
+ * call in cache() where the several server components that share it live.
  */
 import type { Db } from '@/lib/db/client';
 import { listEntriesForIndex } from '@/lib/db/repositories/price-entries';
@@ -38,7 +36,7 @@ export interface IndexInputs {
 
 /**
  * The three projections the engine consumes, read once. Exported so the
- * dashboard read model (Spec 05) can derive its thin-data stats and mover
+ * dashboard read model can derive its thin-data stats and mover
  * sparklines from the same rows instead of reading the entries twice.
  */
 export async function loadIndexInputs(db: Db, userId: string): Promise<IndexInputs> {

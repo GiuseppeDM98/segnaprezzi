@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Price-entry Server Actions (Spec 05 §5.7 entry sheet, shared with the
+ * Price-entry Server Actions (entry sheet, shared with the
  * timeline): edit and delete one observation. Both recompute the index
  * implicitly — the dashboard reads the engine fresh on every request.
  */
@@ -79,7 +79,7 @@ export async function deletePriceEntry(input: { entryId: string }): Promise<Acti
   }
 }
 
-/** Forget one learned receipt line for this product (Spec 07 §9). */
+/** Forget one learned receipt line for this product. */
 export async function deleteProductAlias(input: { aliasId: string }): Promise<ActionResult<null>> {
   const parsed = z.object({ aliasId: nanoidSchema }).safeParse(input);
   if (!parsed.success) {

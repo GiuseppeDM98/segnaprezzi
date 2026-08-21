@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Styled native <select> (Spec 05 §6.1) — the native picker has the best
+ * Styled native <select> — the native picker has the best
  * mobile ergonomics, so only the closed frame is ours.
  */
 import { ChevronDown } from 'lucide-react';

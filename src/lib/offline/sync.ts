@@ -1,14 +1,14 @@
 /**
- * The offline sync engine (Spec 06 §5).
+ * The offline sync engine.
  *
  * Design: capture is local-first, so the queue is the app's real source of
  * truth while shopping and the network is an opportunistic consumer of it.
  * The engine therefore never blocks a capture and never asks the user to
  * press anything: it drains on app start, on `online`, on tab focus, right
  * after an enqueue, and — where Background Sync exists — even after the tab
- * is gone. Every drain is idempotent (the photo id is the idempotency key,
- * Spec 03 §5.1), which is what lets the page and the service worker both
- * hold a valid claim on the same queue.
+ * is gone. Every drain is idempotent (the photo id is the idempotency key),
+ * which is what lets the page and the service worker both hold a valid
+ * claim on the same queue.
  *
  * Client-only module: it runs in the page and in the service worker, and
  * imports nothing from next/*, db/ or services/.
@@ -29,10 +29,10 @@ import { uploadPendingPhoto } from './upload-photo';
  * jitter: one client uploading two photos at a time has no thundering-herd
  * problem, and determinism is what makes the fake-timer tests exact.
  *
- * Correction to Spec 06 §5.2's prose: with MAX_UPLOAD_ATTEMPTS = 5 the fifth
- * failure parks the photo as `failed` rather than waiting again, so the
- * delays that can actually elapse are 1/2/4/8 s. The 16 s entry is kept as
- * the schedule's last rung in case the attempt budget is ever raised.
+ * With MAX_UPLOAD_ATTEMPTS = 5 the fifth failure parks the photo as `failed`
+ * rather than waiting again, so the delays that can actually elapse are
+ * 1/2/4/8 s. The 16 s entry is kept as the schedule's last rung in case the
+ * attempt budget is ever raised.
  */
 const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
 
@@ -62,7 +62,8 @@ let hasRequestedPersistence = false;
 
 /**
  * Start the sync engine: recover interrupted uploads, attach the four
- * page-side triggers of §5.3, and run an initial drain. Idempotent —
+ * page-side triggers (online, tab focus, enqueue, Background Sync), and
+ * run an initial drain. Idempotent —
  * subsequent calls return the existing disposer.
  *
  * @returns Disposer that detaches every listener (used by tests and HMR).
@@ -85,7 +86,7 @@ export function startSyncEngine(): () => void {
   }
 
   // Observing the table rather than wrapping enqueuePendingPhoto() keeps
-  // Spec 03's capture flow calling Spec 03's primitive directly (§5.3).
+  // the capture flow calling the queue's primitive directly.
   function handlePhotoCreated(this: { onsuccess?: (primKey: string) => void }): void {
     this.onsuccess = () => {
       void handleEnqueue();
@@ -192,7 +193,7 @@ async function scheduleNextAttempt(): Promise<void> {
  * Where the Web Locks API is missing, a module-scoped flag guards the page
  * context alone; an overlap with the service worker is then theoretically
  * possible and harmless, because retrying a photo id is idempotent end to
- * end (Spec 06 §5.1).
+ * end.
  */
 async function withSyncLock(body: () => Promise<void>): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.locks) {
@@ -229,7 +230,7 @@ async function handleEnqueue(): Promise<void> {
  *
  * Best effort by design: Chromium grants it silently for installed apps,
  * Safari ignores it outright (its 7-day eviction rule is why the iOS install
- * sheet exists at all, Spec 06 §7.3). Never awaited — the shutter must not
+ * sheet exists at all). Never awaited — the shutter must not
  * wait on a permission heuristic.
  */
 function requestPersistentStorage(): void {
@@ -272,7 +273,7 @@ async function writeSyncMeta(key: string, value: unknown): Promise<void> {
   await offlineDb.syncMeta.put({ key, value });
 }
 
-// Queue writes are Spec 03's API and are not redefined here: capture calls
-// enqueuePendingPhoto() from photo-queue.ts, and manual retry is Spec 03's
+// Queue writes are not redefined here: capture calls
+// enqueuePendingPhoto() from photo-queue.ts, and manual retry is
 // retryFailedPhoto(), re-exported so sync consumers have one import point.
 export { retryAllFailedPhotos, retryFailedPhoto } from './photo-queue';

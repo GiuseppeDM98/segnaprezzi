@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The raised Scan button (Spec 05 §4, §6.1): the one persistent piece of
+ * The raised Scan button: the one persistent piece of
  * brand color in the chrome. Carries the shared `layoutId` that lets the
  * accent disc morph into the full-screen viewfinder on /scan.
  */

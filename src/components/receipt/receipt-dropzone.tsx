@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * File picker and drop target for one receipt (Spec 07 §3).
+ * File picker and drop target for one receipt.
  *
  * A dashed frame on the page rather than a card: this is an empty slot
  * waiting to be filled, and DESIGN.md gives dashed hairlines exactly that

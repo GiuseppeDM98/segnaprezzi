@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Timeline Server Actions (Spec 05 §5.8): one page of entries for the
+ * Timeline Server Actions: one page of entries for the
  * current filters and cursor. Entry edit/delete reuse the product-detail
  * actions — one boundary per operation.
  */

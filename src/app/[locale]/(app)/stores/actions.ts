@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Store management Server Actions (Spec 05 §5.9). Also imported by the
+ * Store management Server Actions. Also imported by the
  * store pickers of the capture and quick-entry screens for inline create —
  * one boundary, one schema, wherever a store is born.
  */

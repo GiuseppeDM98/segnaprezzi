@@ -1,5 +1,5 @@
 /**
- * Empty / error surface (Spec 05 §6.1): an icon or the logo mark, a title,
+ * Empty / error surface: an icon or the logo mark, a title,
  * a body, and up to two actions. `tone="error"` is the app's only error
  * layout for content areas — plain language plus a retry.
  */

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 
 /**
- * Locale-aware 404 (Spec 05 §5.12): reached by notFound() in any page and
+ * Locale-aware 404: reached by notFound() in any page and
  * by the catch-all segment for unknown URLs. Reuses EmptyState with the
  * logo mark; no bespoke illustration.
  */

@@ -1,5 +1,5 @@
 /**
- * Settings use cases (Spec 05 §5.10): the two index options the user may
+ * Settings use cases: the two index options the user may
  * change and the backup import that restores a previous /api/export file.
  */
 import { z } from 'zod';
@@ -49,12 +49,12 @@ export async function updateIndexSettings(
 }
 
 /*
- * Backup import. The file is a previous GET /api/export payload (Spec 02 §9).
+ * Backup import. The file is a previous GET /api/export payload.
  * Dates travel as ISO strings and become Dates here; ids are re-validated as
  * nanoid(21) so a hand-edited file cannot smuggle arbitrary keys into the
  * tables.
  *
- * Both schema versions are accepted: a v1 backup predates Spec 07 and simply
+ * Both schema versions are accepted: a v1 backup predates receipt import and simply
  * carries no quantity, so it defaults to 1. What a v2 backup does NOT restore
  * is the `receipts` import records — they hold no observation (the entries
  * do) and their `ai_raw_json` is deliberately absent from the export, so a

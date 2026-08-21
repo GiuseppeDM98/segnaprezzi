@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * Client half of the capture screen (Spec 03 §2.3, §3.2 · Spec 05 §5.2):
- * session resume, store chip + picker sheet, immersive viewfinder, tray
+ * Client half of the capture screen: session resume, store chip + picker
+ * sheet, immersive viewfinder, tray
  * and the review CTA. The FAB's accent disc morphs into this screen
  * through the shared layoutId.
  *
  * Design: the spesa is client-owned. The session id is minted on the first
  * shutter press and never waits for the network; the shutter's only job is
- * to put a compressed photo in Dexie. Spec 06's sync engine takes it from
+ * to put a compressed photo in Dexie. The sync engine takes it from
  * there — the screen never uploads anything itself and never polls, it just
  * renders the live queue, so a lost connection changes only the status
  * chips, never what is on screen.
@@ -92,7 +92,7 @@ export function ScanScreen({ context }: ScanScreenProps) {
     setHasCapturedOnce(true);
     const compressed = await compressPhoto(source);
     // The shutter ends here. The sync engine observes the insert and takes
-    // over — uploading now, or whenever signal returns (Spec 06 §5.3).
+    // over — uploading now, or whenever signal returns.
     await enqueuePendingPhoto({
       sessionId: activeSessionId,
       storeId: storeId ?? undefined,

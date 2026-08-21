@@ -8,7 +8,7 @@ import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { getPersonalCpi } from './inflation';
 
 /*
- * Integration test for the wiring (Spec 04 §9): the three projections reach
+ * Integration test for the wiring: the three projections reach
  * the pure engine with the user's own data and settings. The engine's
  * numbers themselves are covered exhaustively in src/lib/inflation.
  */

@@ -58,7 +58,7 @@ export async function resetCaptureFixtures(email: string): Promise<void> {
  * reference them.
  *
  * Order matters: price_entries.product_id blocks deleting a product that
- * still has history (Spec 02 §4.2), which is exactly the guarantee the app
+ * still has history, which is exactly the guarantee the app
  * relies on — so the entries go first.
  */
 export async function deleteProductsByName(email: string, names: string[]): Promise<void> {
@@ -97,7 +97,7 @@ const RECEIPT_FIXTURE_PRODUCT_NAMES = [
  * aliases and the import records themselves.
  *
  * Order matters twice: price_entries.product_id blocks deleting a product
- * that still has history (Spec 02 §4.2), and price_entries.receipt_id would
+ * that still has history, and price_entries.receipt_id would
  * merely be nulled by a receipt delete, leaving orphans behind.
  *
  * Called before each test, like resetCaptureFixtures, so a run that died

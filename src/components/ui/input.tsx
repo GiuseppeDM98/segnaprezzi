@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Text / decimal input (Spec 05 §6.1). Money mode right-aligns, switches to
+ * Text / decimal input. Money mode right-aligns, switches to
  * the print face with tabular figures and sets inputmode="decimal" so the
  * numeric keypad comes up; a prefix/suffix (€, /kg) sits inside the frame.
  */

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /*
- * Environment validation (docs/specs/00-overview.md §11).
+ * Environment validation.
  *
  * Design: every environment variable the app reads is declared here and
  * nowhere else. Modules import the typed `env` object instead of touching

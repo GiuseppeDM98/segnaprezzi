@@ -38,9 +38,9 @@ ALTER TABLE `price_entries` ADD `receipt_id` text REFERENCES receipts(id);--> st
 ALTER TABLE `price_entries` ADD `quantity` integer DEFAULT 1 NOT NULL;--> statement-breakpoint
 ALTER TABLE `products` ADD `default_package_size` real;
 --> statement-breakpoint
--- Backfill (Spec 07 §2.7): every product that already has history gets the
--- package size of its newest observation, so the first receipt imported
--- after this migration can resolve a unit price without asking the user.
+-- Backfill: every product that already has history gets the package size of
+-- its newest observation, so the first receipt imported after this
+-- migration can resolve a unit price without asking the user.
 UPDATE products SET default_package_size = (
   SELECT pe.package_size FROM price_entries pe
   WHERE pe.product_id = products.id AND pe.package_size > 0

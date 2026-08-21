@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Receipt review Server Actions (Spec 07 §8.2).
+ * Receipt review Server Actions.
  *
  * Thin by contract: authenticate, validate with Zod, call the service, map
  * domain errors. Every number reaching them has been edited by hand on the
@@ -75,7 +75,7 @@ export async function discardReceipt(input: {
 
 const searchProductsSchema = z.object({ query: z.string().trim().max(100) });
 
-/** Catalog search for the line cards' product picker (shared with Spec 03's). */
+/** Catalog search for the line cards' product picker (shared with the capture review's). */
 export async function searchProducts(input: {
   query: string;
 }): Promise<ActionResult<ProductSearchHit[]>> {

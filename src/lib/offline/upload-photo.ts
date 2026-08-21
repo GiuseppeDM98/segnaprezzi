@@ -1,5 +1,5 @@
 /**
- * The single-photo transport (Spec 03 §5.4 · Spec 06 §5.2).
+ * The single-photo transport.
  *
  * Design: this module owns the HTTP call to /api/extract and the
  * retryable/non-retryable classification of its failures — nothing else. The

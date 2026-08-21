@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Full-bleed getUserMedia viewfinder (Spec 05 §6.3): framing guide,
+ * Full-bleed getUserMedia viewfinder: framing guide,
  * shutter, torch, permission/failure states and the file-input fallback.
  * The slots (`topBar`, `bottomBar`) let the screen lay its chrome inside
  * the safe-area insets while the video extends behind them.

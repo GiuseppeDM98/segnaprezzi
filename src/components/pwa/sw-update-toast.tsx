@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Announces a waiting service worker (Spec 06 §8, step 3).
+ * Announces a waiting service worker.
  *
  * It lives in the app shell rather than in SwProvider because the toast
  * outlet does: the update prompt must look like every other toast, above the

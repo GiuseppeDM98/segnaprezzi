@@ -44,6 +44,12 @@
 - Uploading the same receipt twice picks up where you left off instead of paying to read it again — and refuses outright once it has been imported
 - Product pages now list the receipt lines they have learned, so a mapping that went wrong can be forgotten with one tap
 
+## 🐛 Bug Fixes
+
+- Fixed the receipt review screen's "exclude" control, which showed a generic "more options" icon that didn't communicate what it did
+- Fixed receipt import misreading a discount line as its own product when the line repeats the receipt's tax-rate column next to the discount amount
+- Fixed receipt import guessing at ambiguous product abbreviations instead of keeping them as printed when unsure what they mean
+
 ## 🔧 Improvements
 
 - The offline pill no longer polls: it reacts the instant a photo's status changes, including when the upload happened in the background with the app closed

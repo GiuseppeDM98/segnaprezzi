@@ -1,5 +1,5 @@
 /**
- * Batch confirm of a reviewed spesa (Spec 03 §9.3).
+ * Batch confirm of a reviewed spesa.
  *
  * Design: one transaction turns a tray of reviewed extractions into products
  * and price entries and closes the session. It is the only place in the
@@ -111,7 +111,7 @@ export async function confirmShoppingSession(
       })),
     );
 
-    // Spec 07 §2.2: record each product's newest package size so the next
+    // Record each product's newest package size so the next
     // receipt line for it can resolve a unit price without asking the user.
     await updateDefaultPackageSizes(
       tx,

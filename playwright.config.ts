@@ -2,9 +2,9 @@ import { defineConfig } from '@playwright/test';
 
 /*
  * Design: the primary project is a 390×844 mobile viewport — the app's real
- * target is a phone held one-handed in a supermarket aisle. Spec 05 added a
- * desktop project (the ≥ 1024 px rail) limited to the smoke and
- * accessibility suites; Spec 06 adds two more:
+ * target is a phone held one-handed in a supermarket aisle. A desktop project
+ * (the ≥ 1024 px rail) is limited to the smoke and accessibility suites, and
+ * two more projects cover the PWA:
  *
  * - `offline-queue` blocks the service worker and mocks /api/extract, because
  *   Playwright cannot intercept a request issued *through* an active worker;
@@ -12,11 +12,11 @@ import { defineConfig } from '@playwright/test';
  * - `pwa` runs with the worker enabled and no mocks: precache, the offline
  *   fallback page and the manifest.
  *
- * Since Spec 06 the whole suite runs against a PRODUCTION server rather than
- * `next dev`: public/sw.js is a build artifact and does not exist in
- * development at all (next.config.ts disables Serwist there). One server, not
- * two — a dev server and a build running side by side race each other inside
- * the same .next directory and corrupt its generated type files.
+ * The whole suite runs against a PRODUCTION server rather than `next dev`:
+ * public/sw.js is a build artifact and does not exist in development at all
+ * (next.config.ts disables Serwist there). One server, not two — a dev
+ * server and a build running side by side race each other inside the same
+ * .next directory and corrupt its generated type files.
  *
  * Why a configurable port: on a dev machine another project may already own
  * :3000. PORT=3100 pnpm test:e2e pins the server, the baseURL and the auth

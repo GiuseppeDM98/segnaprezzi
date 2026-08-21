@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t('title') };
 }
 
-/** Settings (Spec 05 §5.10): account, index options, preferences, data, info. */
+/** Settings: account, index options, preferences, data, info. */
 export default async function SettingsPage() {
   const user = await requireUser();
   const indexSettings = await getIndexSettings(db, user.id);

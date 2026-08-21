@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of the timeline (Spec 05 §5.8): filter chips (category and
+ * Client half of the timeline: filter chips (category and
  * store open picker sheets, promo and source are chips), days in Europe/Rome
  * ("Oggi", "Ieri", then the date), shopping sessions grouped under a card
  * with their total, standalone entries as plain rows, cursor pagination

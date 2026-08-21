@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The manual entry form (Spec 03 §10.1 · Spec 05 §5.4): product picker
+ * The manual entry form: product picker
  * with inline create, the price group with the live-derived unit price,
  * promo/store/date details, and a save bar tuned for entering several
  * prices in a row (the form resets but keeps store and date).

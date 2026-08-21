@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 /*
- * Service worker E2E suite (Spec 06 §9.1, scenarios 5–6).
+ * Service worker E2E suite (scenarios 5–6).
  *
  * This project runs with the worker ENABLED and no route mocks — the whole
  * point is what the worker does on its own. It therefore asserts nothing

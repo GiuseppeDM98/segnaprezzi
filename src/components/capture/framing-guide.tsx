@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The tag-shaped overlay on the viewfinder (Spec 03 §3.2, Spec 05 §5.2).
+ * The tag-shaped overlay on the viewfinder.
  *
  * Purely visual — nothing is cropped in v1. Its job is to get the tag close
  * to the centre of the frame at a readable size, which is what keeps the

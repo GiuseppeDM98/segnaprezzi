@@ -5,14 +5,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        segnaprezzi is **spec-driven**: features usually start their life as a PR against
-        [`docs/specs/`](https://github.com/GiuseppeDM98/segnaprezzi/tree/main/docs/specs), not as code. This issue is the right place to
-        propose and discuss the idea first — if it's accepted, the next step is typically a spec
-        change (which you're welcome to write yourself).
+        This issue is the right place to propose and discuss an idea first — if it's
+        accepted, the next step is typically implementing it (which you're welcome to do
+        yourself).
 
-        Check [`docs/specs/00-overview.md`](https://github.com/GiuseppeDM98/segnaprezzi/blob/main/docs/specs/00-overview.md) first: the
-        **Non-goals for v1** and **Roadmap** sections may already answer whether the idea fits now,
-        later, or never. Not sure it's concrete enough for an issue yet? Start a
+        Check the **Non-goals** and **Roadmap** sections of the [README](https://github.com/GiuseppeDM98/segnaprezzi#readme)
+        first: they may already answer whether the idea fits now, later, or never. Not
+        sure it's concrete enough for an issue yet? Start a
         [Discussion](https://github.com/GiuseppeDM98/segnaprezzi/discussions) instead.
 
   - type: textarea
@@ -47,8 +46,8 @@ body:
       label: Willingness to contribute
       description: No obligation either way — this just helps with planning.
       options:
-        - I'd like to write the spec change and implement it
-        - I'd like to implement it once the spec is agreed
+        - I'd like to implement it myself
+        - I'd like to implement it once the approach is agreed
         - I could help with parts (tests, translations, review)
         - I'm proposing the idea only
     validations:

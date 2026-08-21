@@ -1,5 +1,5 @@
 /**
- * Scale and path math for the hand-rolled SVG charts (Spec 05 §6.2).
+ * Scale and path math for the hand-rolled SVG charts.
  *
  * Design: charts are hand-rolled SVG — no chart library. Two reasons:
  * (1) bundle size: the app is a mobile PWA and every charting dependency

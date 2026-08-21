@@ -1,5 +1,5 @@
 /**
- * ISTAT comparison helper (Spec 04 §8.3). The official series itself is a
+ * ISTAT comparison helper. The official series itself is a
  * static committed file (data/istat-nic.json) loaded by the caller — this
  * module only rebases it.
  */

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Service worker registration and the update handshake (Spec 06 §8).
+ * Service worker registration and the update handshake.
  *
  * Design: registration is manual (`register: false` in next.config.ts) so
  * the app owns when a new worker takes over. A worker that activated on its

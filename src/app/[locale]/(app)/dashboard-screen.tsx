@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of the dashboard (Spec 05 §5.1): the hero ticker, the trend
+ * Client half of the dashboard: the hero ticker, the trend
  * chart with its ISTAT toggle (persisted per device), the category bars and
  * the top movers. Every number arrives as a ratio/integer and is rendered
  * through src/lib/format.ts here — nothing is formatted upstream.

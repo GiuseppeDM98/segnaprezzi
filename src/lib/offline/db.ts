@@ -1,11 +1,11 @@
 /**
- * The offline photo queue's IndexedDB schema (Spec 03 §5.1, Spec 06 §5.1).
+ * The offline photo queue's IndexedDB schema.
  *
  * Design: supermarkets have terrible connectivity, so a captured photo is
  * durable locally before any network call is attempted. Each row carries its
  * own id — generated at capture time — which is reused as the Blob pathname
  * and later as price_entries.id, making the whole pipeline idempotent under
- * retries (§6.5).
+ * retries.
  *
  * Client-only module: it is never imported by server code.
  */
@@ -24,9 +24,9 @@ export interface PendingPhoto {
   /** Compressed image from compressPhoto(): image/webp, or image/jpeg on Safari < 17. */
   blob: Blob;
   status: PendingPhotoStatus;
-  /** Completed upload+extract attempts. The sync engine (Spec 06) backs off on this. */
+  /** Completed upload+extract attempts. The sync engine backs off on this. */
   attempts: number;
-  /** Short classification code, e.g. "network", "http_413" (Spec 06 §5.2). */
+  /** Short classification code, e.g. "network", "http_413". */
   lastError?: string;
   /** Human-readable detail for the failed-item UI; `lastError` stays the code. */
   lastErrorMessage?: string | null;
@@ -39,7 +39,7 @@ export interface PendingPhoto {
   createdAt: number;
 }
 
-/** Key-value sidecar for the sync engine's own bookkeeping (Spec 06 §5.1). */
+/** Key-value sidecar for the sync engine's own bookkeeping. */
 export interface SyncMetaRecord {
   key: string;
   value: unknown;
@@ -62,7 +62,7 @@ offlineDb.version(1).stores({
 });
 
 /*
- * Version 2 (Spec 06): backoff gate + human-readable error, and the syncMeta
+ * Version 2: backoff gate + human-readable error, and the syncMeta
  * table. Records written by version 1 are due immediately — a queue that
  * survived an app upgrade has been waiting long enough.
  */

@@ -1,7 +1,7 @@
 /**
- * Steps 4–7 of the engine (Spec 04 §4.4–§4.7): Jevons aggregation within
- * categories, expenditure-weighted aggregation across them, chaining, and
- * the computePersonalCpi orchestrator — the engine's single entry point.
+ * Jevons aggregation within categories, expenditure-weighted aggregation
+ * across them, chaining, and the computePersonalCpi orchestrator — the
+ * engine's single entry point.
  *
  * Design: matched-model Jevons within categories, expenditure-weighted
  * across them, chained month over month — the same structure as ISTAT's NIC
@@ -41,7 +41,7 @@ import {
   computeTrailingExpenditure,
 } from './weights';
 
-/** Level of every chained series at its base month (Spec 00 §2 "Base month"). */
+/** Level of every chained series at its base month. */
 export const BASE_INDEX = 100;
 /** Lag, in series points, between a month and its year-over-year reference. */
 const YOY_LAG_MONTHS = 12;
@@ -136,7 +136,7 @@ export function chainSeries(
  * headline.
  *
  * All arithmetic on relatives, means, weights and index levels uses floats —
- * these are ratios, not money (Spec 00 §6). Nothing is rounded here; the
+ * these are ratios, not money. Nothing is rounded here; the
  * display layer rounds.
  */
 export function computePersonalCpi(input: {
@@ -185,7 +185,7 @@ export function computePersonalCpi(input: {
     }
 
     // R(m) = Σ w_c(m) · R_c(m): the arithmetic weighted mean of category
-    // relatives — the Laspeyres-style aggregation of Spec 00 §7.4.
+    // relatives — the Laspeyres-style aggregation across categories.
     const weights = computeCategoryWeights(
       computeTrailingExpenditure(monthlyExpenditure, link.toYm),
       categoryRelatives.keys(),

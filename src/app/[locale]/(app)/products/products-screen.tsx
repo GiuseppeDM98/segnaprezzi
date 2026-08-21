@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of the catalog (Spec 05 §5.6): search, category chips, the
+ * Client half of the catalog: search, category chips, the
  * archived toggle, compact zebra rows with the last unit price and a trend
  * badge, and the merge flow (selection mode → survivor sheet → confirm).
  */

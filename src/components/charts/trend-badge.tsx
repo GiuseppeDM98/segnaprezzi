@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Signed percentage pill with a direction arrow (Spec 05 §6.2).
+ * Signed percentage pill with a direction arrow.
  *
  * Price-direction mapping (DESIGN.md): this is an inflation tracker, so a
  * RISING price renders in the `negative` family and a FALLING price in the

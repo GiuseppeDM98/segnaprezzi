@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Capture-screen Server Actions (Spec 03 §2.4).
+ * Capture-screen Server Actions.
  *
  * Thin by contract: authenticate, validate with Zod, call the service, map
  * domain errors. No business rule lives here.

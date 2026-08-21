@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Store picker sheet shared by the capture and quick-entry screens (Spec 05
- * §5.2, §5.4, §5.5): search, the "none" row, inline create, and a link to
+ * Store picker sheet shared by the capture and quick-entry screens: search,
+ * the "none" row, inline create, and a link to
  * the stores screen. Creating is delegated to the screen through `onCreate`
  * so this component never imports a Server Action.
  */

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of the product detail (Spec 05 §5.7): header with the
+ * Client half of the product detail: header with the
  * overflow menu (edit / archive), the unit-price chart with promo dots and
  * a range toggle, the four stat tiles, the per-store comparison and the
  * entries list with the shared entry sheet.
@@ -425,7 +425,7 @@ function MenuRow({
 }
 
 /**
- * The receipt lines this product has learned (Spec 07 §9).
+ * The receipt lines this product has learned.
  *
  * Visible because an alias is invisible machinery until it goes wrong: when
  * a receipt keeps resolving "LATTE PS UHT" to the wrong milk, this list is

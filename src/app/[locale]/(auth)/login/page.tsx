@@ -10,8 +10,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Login (Spec 05 §5.11). Server component so SIGNUP_ENABLED decides the
- * signup cross-link without crossing into client code (Spec 02 §5.7).
+ * Login. Server component so SIGNUP_ENABLED decides the
+ * signup cross-link without crossing into client code.
  */
 export default function LoginPage() {
   return <LoginForm isSignupEnabled={env.SIGNUP_ENABLED} />;

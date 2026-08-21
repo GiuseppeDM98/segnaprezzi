@@ -4,7 +4,7 @@
  * Design: phone cameras produce 8–50 MP images, but Claude reads a shelf tag
  * perfectly well at ≤ 1600 px. Compressing on-device before queueing keeps
  * IndexedDB small, lets uploads survive supermarket connectivity, and caps
- * Anthropic image-token cost (tokens ≈ width × height / 750, see Spec 03 §7.5).
+ * Anthropic image-token cost (tokens ≈ width × height / 750).
  */
 
 const MAX_DIMENSION_PX = 1600;

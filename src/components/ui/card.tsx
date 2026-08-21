@@ -1,5 +1,5 @@
 /**
- * Surface container (Spec 05 §6.1). In the printout world a card is a
+ * Surface container. In the printout world a card is a
  * ruled block on the sheet — a hairline frame, no drop shadow, no nesting.
  */
 import type { ComponentProps, ReactNode } from 'react';

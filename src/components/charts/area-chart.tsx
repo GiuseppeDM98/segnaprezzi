@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Monthly line + soft area (Spec 05 §6.2) with an optional comparison
+ * Monthly line + soft area with an optional comparison
  * series (ISTAT) that sits visually behind the accent line, optional
  * markers (promo observations) and sparse y ticks. Draws in on mount only;
  * toggling the comparison fades the overlay and never re-draws the chart.

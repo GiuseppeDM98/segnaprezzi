@@ -83,15 +83,12 @@ and stays in the language it was given in.)*
 
 ### Current state: automatable, and exercised
 
-Superseded on 2026-08-21, the first time a real collaudo ran against running
-code (Spec 03 — Capture & AI Extraction). This section previously said the
-repository contained no application code and that obligation 4 of the Collaudo
-Guidato rule could not be honored. Both are now false: Specs 01–03 are
-implemented, and the Spec 03 collaudo was executed in six phases with 63
-automated checks plus the full E2E suite. Evidence, with the per-phase results,
-was recorded in `CLAUDE.md` → "Current status" at the time; since `CLAUDE.md`
-keeps only the latest milestone, the per-phase table now lives in git history
-(commit `05f7352`, the Spec 03 merge), with a one-line pointer in `CLAUDE.md`.
+The repository has real application code and obligation 4 of the Collaudo
+Guidato rule is fully honorable: the first real collaudo ran against running
+code end to end, executed in six phases with 63 automated checks plus the
+full E2E suite. Evidence, with the per-phase results, was recorded in
+`CLAUDE.md` → "Current status" at the time; since `CLAUDE.md` keeps only the
+latest state, the per-phase table now lives in git history.
 
 What that collaudo established about how obligation 4 works in practice here:
 
@@ -114,7 +111,7 @@ What that collaudo established about how obligation 4 works in practice here:
   rejects it with `MISSING_OR_NULL_ORIGIN` — see `AGENTS.md` §4.19.
 - **What genuinely could not be automated**, and was handed to the owner: the
   look and one-handed usability of the new screens on localhost. Note this is
-  a sanity check, not an aesthetic verdict — Spec 05 redesigns those screens.
+  a sanity check, not an aesthetic verdict — the UI keeps evolving.
 - **What could not be verified by anyone**, and must be said rather than
   glossed over: the real `claude-haiku-4-5` call and the real Vercel Blob
   upload, which need `ANTHROPIC_API_KEY` and `BLOB_READ_WRITE_TOKEN`. In the
@@ -123,25 +120,22 @@ What that collaudo established about how obligation 4 works in practice here:
 ### Package manager and quality-gate commands
 
 pnpm (Node 22+). The exact commands are already documented once, in
-`CONTRIBUTING.md` → "Everyday commands" and `CLAUDE.md` §5.5 — do not
-duplicate them here, just note the two relevant for collaudo once Spec 01
-lands:
+`CONTRIBUTING.md` → "Everyday commands" and `CLAUDE.md` → "Session protocol"
+— do not duplicate them here, just note the two relevant for collaudo:
 
 - `pnpm test` — Vitest, unit/integration.
 - `pnpm test:e2e` — Playwright, E2E.
 
 ### E2E: Playwright, and how it will authenticate
 
-`playwright.config.ts` exists and follows `docs/specs/01-foundation.md` §10:
-single `mobile` project (Chromium, 390×844 mobile emulation), `webServer`
-auto-starts `pnpm dev` against `http://localhost:3000`, tests live under
-`tests/e2e/`.
+`playwright.config.ts` exists: single `mobile` project (Chromium, 390×844
+mobile emulation), `webServer` auto-starts `pnpm dev` against
+`http://localhost:3000`, tests live under `tests/e2e/`.
 
-Auth scripting is implemented as Spec 02 §10.3 specifies (that design was
-added specifically so it wouldn't be improvised session by session):
+Auth scripting was designed deliberately, specifically so it wouldn't be
+improvised session by session:
 
-- `docs/specs/02-database-auth.md` §8.2/§8.4 define **two** deterministic seed
-  users (credentials in `scripts/seed-users.ts`, the single source of truth
+- **Two** deterministic seed users (credentials in `scripts/seed-users.ts`, the single source of truth
   imported by both `scripts/seed.ts` and `tests/e2e/fixtures/users.ts`) — one
   with a full realistic dataset, one minimal — precisely so the
   own-resource/other's-resource pair required by Part 1 never needs an ad hoc
@@ -160,32 +154,32 @@ added specifically so it wouldn't be improvised session by session):
   database) — not by hand, per Part 1 obligation 1.
 
 If a future session finds this design doesn't hold up in practice (e.g. the
-`webServer`/`globalSetup` ordering assumption noted in Spec 02 §10.3 turns
-out wrong for the installed Playwright version), fix it in Spec 02 itself,
-not by working around it ad hoc in a session script.
+`webServer`/`globalSetup` ordering assumption turns out wrong for the
+installed Playwright version), fix the design itself, not by working around
+it ad hoc in a session script.
 
 ### Local isolated environment
 
 No Docker/emulator is used or needed. Per `CONTRIBUTING.md` → "Development
 setup": set `TURSO_DATABASE_URL=file:local.db` in `.env.local` (no
 `TURSO_AUTH_TOKEN` needed against a local file DB), then `pnpm db:migrate` and
-`pnpm db:seed`. `scripts/seed.ts` is specified to **refuse to run against
-anything but a local file DB** (`docs/specs/02-database-auth.md`, seed safety
-check) and to be idempotent-by-wipe, so it is safe to use as the throwaway
+`pnpm db:seed`. `scripts/seed.ts` **refuses to run against anything but a
+local file DB** (a deliberate seed safety check) and is idempotent-by-wipe,
+so it is safe to use as the throwaway
 fixture mechanism obligation 1 asks for — prefer extending/reusing it (or a
 short-lived script alongside it, deleted after the collaudo) over inventing a
 separate fixture path.
 
 ### Inspecting real data state (not just page appearance)
 
-`GET /api/export` (`docs/specs/02-database-auth.md` §9) returns a full JSON
-export of the authenticated user's own data and 401s anonymously. It is the
-primary tool for the "verify on the database, never on page appearance alone"
-requirement — call it with the test session's cookies and assert on the JSON
-body; the E2E suite does exactly this. Where the export does not yet surface a
-column the collaudo needs, a direct `@libsql/client` query in the throwaway
-script is the fallback (this is what the Spec 03 collaudo used, to reach
-`ai_confidence`, `promo_kind` and the session statuses). Drizzle Studio
+`GET /api/export` returns a full JSON export of the authenticated user's own
+data and 401s anonymously. It is the primary tool for the "verify on the
+database, never on page appearance alone" requirement — call it with the test
+session's cookies and assert on the JSON body; the E2E suite does exactly
+this. Where the export does not yet surface a column the collaudo needs, a
+direct `@libsql/client` query in the throwaway script is the fallback (used,
+for example, to reach `ai_confidence`, `promo_kind` and the session
+statuses). Drizzle Studio
 (`pnpm db:studio`, from `CONTRIBUTING.md`) stays available for eyeballing, but
 it is a human tool, not scriptable, so prefer the other two.
 

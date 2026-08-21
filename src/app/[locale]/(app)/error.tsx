@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Route error boundary for every (app) screen (Spec 05 §5.12): plain
+ * Route error boundary for every (app) screen: plain
  * language, a retry that re-renders the segment, and a way home. The error
  * itself goes to the console for developers; users never see internals.
  */

@@ -4,7 +4,7 @@ import en from '../../../messages/en.json';
 import it from '../../../messages/it.json';
 
 /**
- * Spec 05 §9: both message files must stay key-complete — a key added to
+ * Both message files must stay key-complete — a key added to
  * one locale without its twin fails CI here instead of rendering a raw key.
  */
 function collectKeys(tree: unknown, prefix = ''): string[] {

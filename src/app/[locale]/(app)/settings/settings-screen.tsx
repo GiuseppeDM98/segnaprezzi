@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of Settings (Spec 05 §5.10). Five printed sections: account,
+ * Client half of Settings. Five printed sections: account,
  * index (optimistic toggles that roll back on failure), preferences
  * (language switches the [locale] segment, theme writes the cookie the
  * root layout reads pre-paint), data (export / import / stores) and info.

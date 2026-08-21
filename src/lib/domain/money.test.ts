@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { calculateFuelQuantity, calculateFuelTotalCents, calculateUnitPriceMilli } from './money';
 
 /*
- * Spec 03 §11.2 adds the fuel half of the money helpers. The rounding is the
+ * These tests cover the fuel half of the money helpers. The rounding is the
  * whole point: pump unit prices carry three decimals, so every one of these
  * cases would lose money (or invent it) if the arithmetic went through cents.
  */

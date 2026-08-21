@@ -8,11 +8,11 @@ export default defineConfig({
     },
   },
   test: {
-    // Why: the components project matches nothing until Spec 05 lands its
-    // first .test.tsx — an empty project must not fail the run.
+    // Why: the components project can be empty (before its first .test.tsx
+    // lands) — an empty project must not fail the run.
     passWithNoTests: true,
     /*
-     * Why fixed env values: since Spec 03 some modules under test import
+     * Why fixed env values: some modules under test import
      * src/lib/env.ts, which fails fast on a missing variable. Tests must not
      * depend on a developer's .env.local (and CI has none), and an API key
      * here would be a real key in a test run — these placeholders make both
@@ -33,8 +33,8 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
-          // Spec 06: the offline modules need an IndexedDB. Files that also
-          // need a DOM opt into happy-dom with a @vitest-environment docblock.
+          // The offline modules need an IndexedDB. Files that also need a
+          // DOM opt into happy-dom with a @vitest-environment docblock.
           setupFiles: ['./vitest.setup.ts'],
         },
       },

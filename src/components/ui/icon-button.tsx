@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Icon-only action (Spec 05 §6.1). The accessible name is mandatory — it is
+ * Icon-only action. The accessible name is mandatory — it is
  * the aria-label and the tooltip — so an icon can never ship unnamed.
  */
 import { motion } from 'motion/react';

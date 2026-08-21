@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Bottom navigation (Spec 05 §4): five fixed destinations with icons AND
+ * Bottom navigation: five fixed destinations with icons AND
  * labels, the Scan FAB raised through the bar's top edge. The top edge is a
  * tear-off perforation — the bar is the stub of the statement.
  *

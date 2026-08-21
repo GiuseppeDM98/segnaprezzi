@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The shared auth form (Spec 05 §5.11): one real <form> whose fields are
+ * The shared auth form: one real <form> whose fields are
  * revealed progressively — the next field slides in (house spring) once the
  * previous one is valid and focus advances — so autofill and password
  * managers keep working while the screen feels like one question at a time.

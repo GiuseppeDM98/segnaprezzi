@@ -1,5 +1,5 @@
 /**
- * Quick-pick fuels for the pump form (Spec 03 §11.1).
+ * Quick-pick fuels for the pump form.
  *
  * Design: the stored product name is the canonical Italian one and is fixed
  * for every locale — switching the UI language must not fork the user's

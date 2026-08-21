@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * Sticky footer of the receipt review (Spec 07 §8.1).
+ * Sticky footer of the receipt review.
  *
- * Same anatomy as the capture review's confirm bar (Spec 05 §5.3): counters
+ * Same anatomy as the capture review's confirm bar: counters
  * on the left in the print face, the one primary action on the right, and
  * `pb-11` on mobile so the raised Scan disc never covers it (DESIGN.md).
  * Confirm is disabled while any INCLUDED line still lacks a size or a
