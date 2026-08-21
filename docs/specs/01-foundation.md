@@ -1,6 +1,6 @@
 # Spec 01 — Foundation & Scaffold
 
-> **Status**: Approved · **Last updated**: 2026-08-20
+> **Status**: Implemented (2026-08-21) · **Last updated**: 2026-08-21
 > **Depends on**: — (first implementation spec)
 > **Contract**: [`docs/specs/00-overview.md`](./00-overview.md). This spec elaborates; it never contradicts.
 
@@ -1211,22 +1211,24 @@ the production one.
 
 ## 13. Definition of Done
 
-- [ ] `pnpm install` completes cleanly on Node 22+; `engines`, `packageManager`,
+- [x] `pnpm install` completes cleanly on Node 22+; `engines`, `packageManager`,
       and `.node-version` are set.
-- [ ] `pnpm dev` serves the placeholder dashboard: `/` in Italian,
+- [x] `pnpm dev` serves the placeholder dashboard: `/` in Italian,
       `/en` in English; no hardcoded UI strings anywhere.
-- [ ] Dark mode: setting the `theme=dark` cookie — or OS dark preference with no
+- [x] Dark mode: setting the `theme=dark` cookie — or OS dark preference with no
       cookie — renders the dark palette with no flash of light theme on load.
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and
+- [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and
       `pnpm test:e2e` all pass locally.
-- [ ] Folder skeleton matches §5, including `.gitkeep` placeholders; all Spec 01
+- [x] Folder skeleton matches §5, including `.gitkeep` placeholders; all Spec 01
       scripts from §4 exist in `package.json` with the exact names/commands.
-- [ ] `src/lib/env.ts`, `src/lib/errors.ts` (+ test), i18n files, `globals.css`,
+- [x] `src/lib/env.ts`, `src/lib/errors.ts` (+ test), i18n files, `globals.css`,
       configs, and `.env.example` match this spec; `.env.local` is git-ignored
       and no secret appears in any committed file.
-- [ ] `.github/workflows/ci.yml` present; both jobs green on GitHub.
-- [ ] Vercel project connected, `fra1` region set, Spec 01 shell deployed.
-- [ ] `CLAUDE.md` "Current status" updated; all commits follow Conventional
+- [x] `.github/workflows/ci.yml` present; both jobs green on GitHub.
+- [ ] Vercel project connected, `fra1` region set, Spec 01 shell deployed —
+      **not done this session** (no Vercel account access); do this manually
+      or in a follow-up session before Spec 02 needs a live preview.
+- [x] `CLAUDE.md` "Current status" updated; all commits follow Conventional
       Commits.
 
 ---

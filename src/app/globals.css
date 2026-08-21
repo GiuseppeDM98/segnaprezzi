@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/*
+ * Design: theme tokens (docs/specs/01-foundation.md §8).
+ *
+ * Two layers:
+ *  1. Raw custom properties on :root / .dark hold the actual colors and
+ *     flip with the theme.
+ *  2. @theme inline maps them to Tailwind color tokens, generating the
+ *     utilities the app uses (bg-background, text-text-muted, border-border,
+ *     bg-accent, …).
+ *
+ * Components use ONLY semantic utilities — never raw hex/oklch values, never
+ * Tailwind palette colors (bg-orange-600 is a review rejection).
+ *
+ * PLACEHOLDER VALUES — final palette owned by Spec 05 / DESIGN.md.
+ * `positive` = favorable movement (e.g. a price drop), `negative` =
+ * unfavorable (a price rise); the exact perceptual mapping is Spec 05's call.
+ */
+
+/* Dark theme applies when .dark is on <html> — set pre-paint by the theme
+ * script in src/app/[locale]/layout.tsx (cookie, OS-preference fallback). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: oklch(98.4% 0.003 75);
+  --surface: oklch(100% 0 0);
+  --surface-raised: oklch(96.2% 0.004 75);
+  --text: oklch(21% 0.01 75);
+  --text-muted: oklch(50% 0.01 75);
+  --accent: oklch(64.6% 0.222 41.116); /* #EA580C — brand seed, logo.svg */
+  --accent-contrast: oklch(98.5% 0.01 41);
+  --positive: oklch(62.7% 0.194 149.214);
+  --negative: oklch(57.7% 0.245 27.325);
+  --warning: oklch(66.6% 0.179 58.318);
+  --border: oklch(90% 0.005 75);
+}
+
+.dark {
+  --background: oklch(17% 0.005 75);
+  --surface: oklch(21% 0.006 75);
+  --surface-raised: oklch(25% 0.008 75);
+  --text: oklch(95% 0.005 75);
+  --text-muted: oklch(65% 0.01 75);
+  --accent: oklch(70% 0.19 45);
+  --accent-contrast: oklch(20% 0.05 45);
+  --positive: oklch(72.3% 0.219 149.579);
+  --negative: oklch(63.7% 0.237 25.331);
+  --warning: oklch(76.9% 0.188 70.08);
+  --border: oklch(30% 0.008 75);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
