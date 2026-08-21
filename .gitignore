@@ -27,6 +27,7 @@ public/sw.js.map
 coverage/
 playwright-report/
 test-results/
+playwright/.auth/
 
 # Misc
 .DS_Store

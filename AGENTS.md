@@ -5,11 +5,17 @@ the **segnaprezzi** repository. It distills the project contract into rules you
 can apply without re-deriving them. It does not replace the specs — it tells
 you where the law is and how to work under it.
 
-> **Reality check**: the repository is currently **specs-only**. Implementation
-> starts with Spec 01. The current implementation state is tracked in
-> **`CLAUDE.md` → "Current status"** — read it first, trust it over any
-> assumption. Sections below marked **[PLANNED]** describe code that does not
-> exist yet but whose shape is already decided; build exactly that shape.
+> **Reality check**: Specs 01 (Foundation & Scaffold) and 02 (Database & Auth)
+> are implemented — there is a real DB, real auth, real repositories. The
+> current implementation state is tracked in **`CLAUDE.md` → "Current
+> status"** — read it first, trust it over any assumption. Sections below
+> marked **[PLANNED]** describe code that does not exist yet (Spec 03
+> onward) but whose shape is already decided; build exactly that shape. Where
+> a spec's literal code text and the actually-implemented code differ, this
+> file and the spec's own inline correction notes (search the spec for
+> "Correction") describe what was actually verified to work — a handful of
+> Spec 02's literal snippets didn't survive contact with the real dependency
+> versions (see §4.15–§4.20).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
@@ -56,7 +62,7 @@ Why two scales: shelf totals never need more than 2 decimals; unit prices
 (1 cent = 10 milli-euros):
 
 ```ts
-// src/lib/domain/money.ts  [PLANNED — Spec 02]
+// src/lib/domain/money.ts
 
 /**
  * Compute the unit price in milli-euros per base unit.
@@ -99,9 +105,10 @@ Three base units, keyed by `products.unit_kind`:
 
 Unit prices are **always stored per base unit**. Shelf tags shown per 100 g,
 per 100 mL, per etto, etc. are normalized **at extraction time** (Spec 03) and
-in every manual form: €/100g × 10 = €/kg; €/100mL × 10 = €/L. Conversion
-tables and helpers live in `src/lib/domain/units.ts` [PLANNED] — nothing
-outside `domain/` hand-rolls a unit conversion.
+in every manual form: €/100g × 10 = €/kg; €/100mL × 10 = €/L. `src/lib/domain/units.ts`
+defines the `UnitKind` enum and base-unit display symbols; the actual
+normalization arithmetic is `calculateUnitPriceMilli` in `money.ts` above —
+nothing outside `domain/` hand-rolls a unit conversion.
 
 ### 1.4 Time and month bucketing (Europe/Rome)
 
@@ -285,15 +292,16 @@ export const epochMsSchema = z.number().int().positive();
 
 The app is multi-tenant by `user_id`. **Every repository function has the
 signature `(db: Db, userId: string, ...)`** — `db` injected first (Spec 02
-§6.1: services pass the singleton from `src/lib/db/client.ts`, tests pass an
-in-memory instance; repositories never import the `db` singleton themselves)
-and `userId` second, included in every `WHERE` clause and JOIN condition. No
-exceptions, not even "the id is already unique". This is the single invariant
-that prevents cross-user data leaks; it is cheaper to enforce mechanically
-than to reason about per-query.
+§6.1: services pass the singleton from `src/lib/db/client.ts`, tests pass a
+throwaway file-backed instance from `src/lib/db/testing/create-test-db.ts`,
+**not** `:memory:` — see §4.17; repositories never import the `db` singleton
+themselves) and `userId` second, included in every `WHERE` clause and JOIN
+condition. No exceptions, not even "the id is already unique". This is the
+single invariant that prevents cross-user data leaks; it is cheaper to
+enforce mechanically than to reason about per-query.
 
 ```ts
-// src/lib/db/repositories/stores.ts  [PLANNED — Spec 02 §6.2]
+// src/lib/db/repositories/stores.ts
 
 /** Fetch one store by id, or null if it does not exist for this user. */
 export async function getStoreById(
@@ -320,7 +328,7 @@ export async function getStoreById(
   **no business rules** (no promo filtering logic, no index math, no "should
   this be archived" decisions).
 - `userId` always comes from the server session
-  (`requireUser()` helper in `src/lib/auth/session.ts` [PLANNED]) — never
+  (`requireUser()` helper in `src/lib/auth/session.ts`) — never
   from client input.
 
 ### 1.10 Server Actions vs route handlers
@@ -502,7 +510,8 @@ segnaprezzi/
   the same directory (`src/lib/inflation/chain.ts` →
   `src/lib/inflation/chain.test.ts`). Vitest picks up `src/**/*.test.ts(x)`.
 - **Repository integration tests** run against a throwaway local libSQL
-  database (`file::memory:` or a temp file), also colocated.
+  database — a uniquely-named temp file per test, **not** `:memory:` (§4.17)
+  — via `src/lib/db/testing/create-test-db.ts`, also colocated.
 - **E2E lives in `tests/e2e/*.spec.ts`** (Playwright). The `.spec.ts` /
   `.test.ts` split keeps the two runners from grabbing each other's files.
 - Test names are behavior sentences; bodies follow Arrange–Act–Assert.
@@ -541,6 +550,10 @@ table, README setup section, and the Vercel project settings.
 public/private status differs, and the tab bar in `components/layout/` if it
 is a top-level destination.
 
+**Regenerating `src/lib/db/schema/auth.ts`** (`pnpm auth:generate`): re-add
+the hand-patched `issuer` column on `accounts` (§4.16) — the CLI output
+doesn't include it, and signup breaks at runtime without it.
+
 ---
 
 ## 3. Common Commands
@@ -565,7 +578,7 @@ are listed now and marked; do not invent different names for them.
 | `db:migrate` | `drizzle-kit migrate` | Spec 02 | Apply pending migrations to the DB in `TURSO_DATABASE_URL`. |
 | `db:studio` | `drizzle-kit studio` | Spec 02 | Browse/edit data in a local GUI while debugging. |
 | `db:seed` | `tsx --env-file=.env.local scripts/seed.ts` | Spec 02 | Populate the local DB with demo data (products, entries across months). |
-| `auth:generate` | `pnpm dlx @better-auth/cli@^1.7.0 generate --yes` | Spec 02 | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (§3.5, §4.2). |
+| `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Spec 02 | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (§3.5, §4.2, §4.16). |
 | `icons` | `tsx scripts/generate-icons.ts` | Spec 06 | Regenerate PWA icon set from `docs/assets/logo.svg` into `public/`. |
 | `istat:update` | `tsx scripts/update-istat.ts` | Spec 04 | Refresh `data/istat-nic.json` from ISTAT; commit the diff. |
 
@@ -623,7 +636,9 @@ pnpm db:migrate
 Always invoke through the `auth:generate` script (§3.1) — never a raw
 `npx`/`pnpm dlx` call inline; the script pins the CLI version. Re-run only
 when the Better Auth config changes shape (new plugin, new field). The
-generated `schema/auth.ts` is never hand-edited (overview §6).
+generated `schema/auth.ts` is committed but not fully hand-off — it needs one
+manual correction after every regeneration until the CLI catches up with the
+installed core version; see §4.16 before touching it.
 
 ---
 
@@ -728,6 +743,87 @@ outranks the app's Italian default at `/`, and
 Fix: `playwright.config.ts` → `projects[].use.locale = 'it-IT'`. Any new
 Playwright project added later (desktop in Spec 05, WebKit in Spec 06) needs
 the same explicit locale.
+
+**4.15 SQLite's `RESTRICT` FK action is not deferred to end-of-statement —
+never use it when a cascading delete elsewhere can touch the same row
+first.** Every other FK action (including the default `NO ACTION`) is
+checked once, after the whole statement's cascades have run. `RESTRICT`
+checks immediately, per row, as the cascade executes. `price_entries` has
+both `productId → products.id` and `userId → users.id` (cascade); with
+`productId` set to `restrict`, a single `DELETE FROM users` that cascades to
+both `products` and `price_entries` could fail with a spurious FK violation
+depending on which sibling cascade SQLite processes first (reproduced with a
+minimal 3-table case). If a future table needs "block deletion while
+children exist" semantics on a column that a cascade can also reach
+transitively, default to omitting `onDelete` (`NO ACTION`) instead of
+`restrict` — same user-facing blocking behavior for a direct delete, no
+same-statement cascade race.
+
+**4.16 `@better-auth/cli` lags behind the `better-auth` core package's own
+versioning — pin an actual published version, and expect to patch the
+output by hand.** There is no `@better-auth/cli@^1.7.0`; the CLI package
+tops out around `1.4.22`/`1.5.0-beta.x` while `better-auth` core is at
+`1.7.1`. Two consequences, both already applied in
+`src/lib/db/schema/auth.ts` (correction note at the top of that file) and
+`package.json`'s `auth:generate` script: (1) the CLI needs explicit
+`--config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` — it does
+not autodetect either path in this project layout; (2) the CLI's schema
+output is missing an `issuer: text('issuer').notNull()` column on
+`accounts` that core 1.7.1 requires at runtime (`signUpEmail` throws "The
+field 'issuer' does not exist..." without it) — re-add that column by hand
+after every `pnpm auth:generate` until a CLI version that understands core
+1.7+ ships. Check the latest `@better-auth/cli` version whenever this comes
+up again; don't assume today's pin is still the best available.
+
+**4.17 The test DB factory uses a uniquely-named temp file, never
+`:memory:` — an anonymous in-memory libSQL connection silently resets
+itself the instant a `db.transaction()` callback throws.** Verified with a
+minimal repro: a table created before the transaction becomes "no such
+table" on the very next query after a rolled-back transaction on the same
+connection — this broke the `mergeProducts` rollback tests outright.
+`file::memory:?cache=shared` avoids that crash but shares ONE anonymous
+database across every client in the process (verified: an unrelated second
+client immediately sees the first client's rows), breaking per-test
+isolation. `@libsql/client` also rejects the standard SQLite named-memory-db
+escape hatch (`file:name?mode=memory&cache=shared` → "Unsupported URL query
+parameter 'mode'"). `src/lib/db/testing/create-test-db.ts` instead creates a
+fresh temp file per call under `os.tmpdir()`, cleaned up on
+`process.on('exit')` — same fresh-DB-per-test contract, none of the three
+bugs above.
+
+**4.18 A local file database needs WAL + a busy_timeout, or a handful of
+concurrent requests throws `SQLITE_BUSY: database is locked`.** SQLite's
+default rollback-journal mode serializes readers and writers tightly enough
+that Playwright's parallel workers hitting `GET /api/export` reproduced it
+reliably. `src/lib/db/client.ts` runs `PRAGMA journal_mode = WAL` and
+`PRAGMA busy_timeout = 5000` once per process, only for `file:` URLs (Turso
+remote already handles concurrency server-side). Fire-and-forget, not
+awaited — a top-level `await` there breaks `tsx`'s CJS transform for
+`scripts/*` — safe because the local driver executes synchronously
+under the hood and `journal_mode=WAL` is persisted in the file itself, so
+even a worst-case race self-heals after the first successful run.
+
+**4.19 Better Auth's sign-out route (and any other state-changing call on an
+existing session) enforces an Origin check that Playwright's `page.request`
+doesn't satisfy by default.** Sign-in and sign-up work fine without extra
+headers (open, unauthenticated entry points), but `POST /api/auth/sign-out`
+403s with `MISSING_OR_NULL_ORIGIN` unless the request carries an `Origin`
+header matching a trusted origin — `page.request.post()` is a raw API call,
+not a real in-page `fetch()`, so it never sends one on its own (verified via
+curl too). Pass `headers: { Origin: new URL(page.url()).origin }` explicitly
+on any E2E call to a Better Auth route that acts on an authenticated
+session, not just anonymous sign-in/sign-up.
+
+**4.20 Next.js dev (Turbopack) can return a truncated response when several
+Playwright workers race to be the first request to compile a route.**
+Several E2E tests requesting `/` and `/en` as their very first action,
+started by parallel workers at once, intermittently produced "Unexpected
+end of JSON input" server-side instead of queuing behind the first compile
+(reproduced twice, on different routes each time). `tests/e2e/global-setup.ts`
+now does one serial warm-up `page.request.get()` per route before the
+parallel run starts — stable across repeated runs since. Add a warm-up call
+there for any new top-level route a future spec's E2E suite hits from
+multiple parallel tests.
 
 ---
 

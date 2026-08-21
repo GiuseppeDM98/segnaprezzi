@@ -64,7 +64,7 @@ I/O, no imports from db/ai/next, heavily unit-tested. The offline photo queue
 - **Receipt import** (Spec 07): digital receipt (PDF) or photo → `/api/extract-receipt` → per-line extraction with `claude-haiku-4-5` → alias/fuzzy match to the catalog → review → N entries `source='receipt'`. File never stored; aliases learned on confirm.
 - **Dashboard + product histories** (Spec 05): index hero, trend chart, category breakdown, top movers, per-product price history.
 - **Offline-first PWA** (Spec 06): Serwist, IndexedDB photo queue, sync on reconnect.
-- **Auth + multi-user isolation** (Spec 02): Better Auth, every query scoped by `user_id`; `SIGNUP_ENABLED=false` closes registration.
+- **Auth + multi-user isolation** (Spec 02, implemented): Better Auth, every query scoped by `user_id`; `SIGNUP_ENABLED=false` closes registration.
 - **i18n**: next-intl, `it` + `en`, all routes under `[locale]`.
 - **ISTAT comparison**: static `data/istat-nic.json`, refreshed by `scripts/update-istat.ts`.
 
@@ -72,21 +72,49 @@ I/O, no imports from db/ai/next, heavily unit-tested. The offline photo queue
 
 ## 4. Current status
 
-**Spec 01 implemented.** Next.js 16 App Router scaffold with pnpm, Biome,
-TypeScript 7 strict mode, the canonical folder layout, `src/lib/env.ts`
-(Zod-validated), next-intl routing (`it` default + `en`), the theming
-foundation (`globals.css` tokens, no-flash dark-mode script), `src/lib/errors.ts`
-error primitives, Vitest + Playwright rigs, and CI (`.github/workflows/ci.yml`).
-No database, auth, camera, or inflation math — rails only, per spec scope.
-Not yet done: Vercel project connection/deploy (no account access this
-session) — do this before Spec 02 needs a live preview.
-Next step: implement **Spec 02** using the Implementation Prompt at the end of
-its spec file.
+*(Per-session history lives in `git log`, not here — this section is the
+current state of the codebase, not a journal.)*
+
+**Latest (2026-08-21, Spec 02): rails, DB, and auth are live.** Next.js 16
+App Router scaffold (pnpm, Biome, TS7 strict, next-intl `it`/`en`, theming,
+`src/lib/errors.ts`, Vitest + Playwright, CI) now sits on a real Turso/Drizzle
+DB — all nine canonical tables migrated (`drizzle/0000_perpetual_santa_claus.sql`)
+— and Better Auth email+password auth (signup gated by `SIGNUP_ENABLED`,
+login/logout, session cookies, a `user_settings` row auto-created on signup,
+an `(app)` layout that verifies the session server-side). All five
+repositories implemented and `user_id`-scoped (incl. transactional
+`mergeProducts`, keyset-paginated `price-entries`). `scripts/seed.ts`
+populates a deterministic four-month dataset for both seed users;
+`GET /api/export` returns the full dataset. 28 unit tests + 9 Playwright E2E
+tests green, alongside `pnpm lint`/`typecheck`/`build`.
+
+Three verified corrections to Spec 02's literal text — RESTRICT→NO ACTION on
+`price_entries.productId` (SQLite checks RESTRICT immediately per-row, not
+deferred like every other action, which broke the full-account-wipe cascade);
+the `@better-auth/cli` version pin (`^1.7.0` doesn't exist; used `1.4.22`)
+plus a hand-patched `issuer` column the CLI doesn't yet emit but core 1.7.1
+needs at runtime; the test DB factory using a uniquely-named temp file
+instead of `:memory:` (an anonymous in-memory libSQL connection resets
+itself the instant a `db.transaction()` throws) — plus one addition no spec
+version mentions (WAL + busy_timeout on the local file DB, without which a
+few concurrent requests threw `SQLITE_BUSY`). Full rationale in
+`docs/specs/02-database-auth.md`'s inline correction notes and `AGENTS.md`
+§4.15–§4.20 — read those before touching the DB client, the auth schema, or
+the test DB factory.
+
+Not yet done: Vercel project connection/deploy (no account access yet, carried
+over since Spec 01); the WORKFLOW.md guided-collaudo phase-by-phase review
+hasn't been walked through in chat with the user (the automatable half is
+already covered by the E2E suite above).
+
+Next step: implement **Spec 03** or **Spec 04** using the Implementation
+Prompt at the end of the respective spec file (00-overview §12: either order
+is fine, both depend only on Spec 02).
 
 | Milestone | Status |
 |---|---|
 | Spec 01 — Foundation & Scaffold | ☑ |
-| Spec 02 — Database & Auth | ☐ |
+| Spec 02 — Database & Auth | ☑ |
 | Spec 03 — Capture & AI Extraction | ☐ |
 | Spec 04 — Inflation Engine | ☐ |
 | Spec 05 — UI & Design System | ☐ |
@@ -94,7 +122,7 @@ its spec file.
 | DESIGN.md (generated after Spec 05) | ☐ |
 | Spec 07 — Receipt Import | ☐ |
 
-*Status last updated: 2026-08-21 (Spec 01 implemented).*
+*Status last updated: 2026-08-21 (Spec 02 implemented).*
 
 **INSTRUCTION**: whoever completes a milestone updates this table and the date
 above **in the same commit** as the milestone.

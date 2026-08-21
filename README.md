@@ -11,7 +11,7 @@ Photograph supermarket price tags, let AI read them, and watch *your* cost of li
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/GiuseppeDM98/segnaprezzi/actions/workflows/ci.yml/badge.svg)](https://github.com/GiuseppeDM98/segnaprezzi/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Status](https://img.shields.io/badge/status-spec%2001%20implemented-blueviolet.svg)](docs/specs/)
+[![Status](https://img.shields.io/badge/status-spec%2002%20implemented-blueviolet.svg)](docs/specs/)
 
 </div>
 
@@ -33,7 +33,7 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 
 ## Features
 
-All features below are **planned** — the project is fully specified but implementation has not started yet. See [Project status](#project-status--roadmap).
+The project is fully specified up front; each spec lands in its own session, and features are checked off as they actually ship. See [Project status](#project-status--roadmap).
 
 - [ ] **Tag scanning** — photograph shelf price tags; Claude Haiku 4.5 extracts product, total price, and unit price with a review-before-save flow
 - [ ] **Fuel & manual quick entry** — a dedicated €/L ⇄ liters form for fuel, and a manual form for everything without a tag
@@ -41,10 +41,11 @@ All features below are **planned** — the project is fully specified but implem
 - [ ] **Product price histories** — per-product charts across stores and time, with duplicate-product merging
 - [ ] **Promo tracking** — flag discounts, loyalty prices, coupons, and bundles; choose whether promos count toward your index
 - [ ] **Offline-first PWA** — installable on your phone, captures photos with zero connectivity, syncs later
-- [ ] **Italian + English** — full i18n from day one
-- [ ] **Dark / light theme**
-- [ ] **Data export** — your complete data as JSON, always
-- [ ] **Self-hostable** — your prices live in your own database, on your own deployment
+- [x] **Accounts & private data** — email + password sign-up/login; every price, product, and store is scoped to your account alone
+- [x] **Italian + English** — full i18n from day one
+- [x] **Dark / light theme**
+- [x] **Data export** — your complete data as JSON, always
+- [ ] **Self-hostable** — your prices live in your own database, on your own deployment (auth and DB are self-hosted already; capture and index are still to come)
 
 ## Screenshots
 
@@ -111,9 +112,8 @@ All variables are validated with Zod at boot (`src/lib/env.ts`); a misconfigured
 
 ## Local development
 
-> **Note:** the foundation (Spec 01) is implemented — `pnpm dev` serves a
-> placeholder dashboard shell in Italian/English. Database commands
-> (`db:migrate`, `db:seed`) arrive with Spec 02 and don't exist yet.
+> **Note:** Specs 01–02 are implemented — there's a real local database and
+> working sign-up/login, but no camera capture or index math yet (Spec 03/04).
 
 Requirements: Node 22+ and pnpm.
 
@@ -121,20 +121,22 @@ Requirements: Node 22+ and pnpm.
 git clone https://github.com/GiuseppeDM98/segnaprezzi.git
 cd segnaprezzi
 pnpm install
-pnpm dev          # http://localhost:3000 (Italian), http://localhost:3000/en
+cp .env.example .env.local        # then fill in ANTHROPIC_API_KEY and BETTER_AUTH_SECRET
+                                   # (generate a secret: openssl rand -base64 32)
+pnpm db:migrate                   # applies migrations to a local file:local.db — no Turso account needed
+pnpm db:seed                      # optional: seeds a demo account (dev@segnaprezzi.local / segnaprezzi-dev)
+pnpm dev                          # http://localhost:3000 (Italian), http://localhost:3000/en
 ```
 
-An `.env.local` isn't required yet — `src/lib/env.ts` is validated only once
-server code starts importing it, from Spec 02 onward. Once it is, copy
-`.env.example` to `.env.local` and fill in `TURSO_DATABASE_URL="file:local.db"`
-(no Turso account needed), your `ANTHROPIC_API_KEY`, a generated
-`BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL="http://localhost:3000"`.
+`TURSO_DATABASE_URL="file:local.db"` in `.env.example` already points at a
+local SQLite file, so `TURSO_AUTH_TOKEN` can stay empty for local work.
+`BLOB_READ_WRITE_TOKEN` is only exercised once photo capture lands (Spec 03).
 
-Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright), `pnpm lint` (Biome), `pnpm build` (production build).
+Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm db:studio` (browse the local DB).
 
 ## Project status & roadmap
 
-**Current status: Spec 01 (Foundation & Scaffold) implemented — Spec 02 next.**
+**Current status: Spec 02 (Database & Auth) implemented — Spec 03 or 04 next.**
 
 segnaprezzi is built specs-first: every part of the system is fully specified — exact schemas, algorithms with worked numeric examples, prompts, test plans — before a line of application code is written. Each spec is then implemented in its own focused session. The specs are public and are the best way to understand the project in depth:
 

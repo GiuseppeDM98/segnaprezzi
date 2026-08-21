@@ -52,7 +52,12 @@
     "signup": "Sign up",
     "email": "Email",
     "password": "Password",
-    "logout": "Log out"
+    "name": "Name",
+    "logout": "Log out",
+    "submit": "Submit",
+    "signupClosed": "Registration is currently closed.",
+    "invalidEmail": "Enter a valid email address",
+    "passwordTooShort": "Password must be at least 8 characters"
   },
   "errors": {
     "NOT_FOUND": "Item not found",
