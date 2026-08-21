@@ -88,6 +88,7 @@ For E2E work, install the Playwright browsers once: `pnpm exec playwright instal
 | `pnpm db:migrate` | Apply pending Drizzle migrations |
 | `pnpm db:seed` | Load demo data into the local DB |
 | `pnpm db:studio` | Browse the local DB with Drizzle Studio |
+| `pnpm istat:update` | Refresh `data/istat-nic.json` from ISTAT's SDMX service (commit the diff) |
 
 ---
 

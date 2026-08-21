@@ -24,5 +24,9 @@
 
 ## 🏗️ Technical
 
+- Added the personal inflation engine: your entries are bucketed into calendar months (Italian time), each product is compared with itself month over month, products within a category are combined with a geometric mean, and categories are weighted by what you actually spent over the last twelve months — giving a chained index (first month = 100) with month-over-month, year-over-year and since-start figures, per-category series, and your top risers and fallers
+- Added honesty stats next to every index number — how many products were compared, how many categories, how much was carried forward from earlier months, which months had nothing to compare, and how many suspicious jumps were capped — so a thin history never looks more solid than it is
+- Added carry-forward and outlier guards: a missing month is filled from the last known price for up to two months (configurable; 0 turns it off), a promo-only month still counts when promos are excluded from the index, and one implausible jump (a €/100 g tag read as €/kg) can move the index by at most a factor of five for one month
+- Added the official ISTAT NIC index as bundled data (all items, monthly since 1996, in the current 2025 = 100 base) so the "you vs Italy" comparison works offline, plus a maintenance command and a monthly GitHub workflow that refresh it from ISTAT's data service and open a pull request with the diff
 - Set up the Next.js 16 project foundation (build tooling, linting, type checking, and automated tests) that the rest of the app will be built on
 - Retrying a photo upload after a dropped connection now overwrites the same stored photo instead of leaving a duplicate behind, and confirming a shopping trip twice can never create the same entry twice

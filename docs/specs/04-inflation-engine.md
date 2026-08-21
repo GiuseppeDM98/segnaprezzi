@@ -1,6 +1,9 @@
 # Spec 04 — Personal Inflation Engine
 
-> **Status**: Approved · **Last updated**: 2026-08-21
+> **Status**: Implemented (2026-08-21) · **Last updated**: 2026-08-21
+> **Depends on**: Spec 02 (database schema — types and repositories)
+> **Corrections**: the literal text was adjusted in three places during
+> implementation — search this file for "Correction" (§8.1, §8.2, §9).
 > Implements section 7 of `docs/specs/00-overview.md`. This spec is the full
 > algorithm, the exhaustive edge-case contract, and the acceptance fixtures.
 > The worked example in §6 is normative: its numbers **are** the test fixtures.
@@ -102,6 +105,7 @@ src/lib/inflation/
 ├── movers.ts       # Top movers
 ├── istat.ts        # rebaseIstat — pure helper for the official-series overlay
 ├── index.ts        # Barrel: re-exports the public API ONLY
+├── fixtures.ts     # Test builders + seeded PRNG (§7); not exported by the barrel
 └── *.test.ts       # Colocated unit tests (Vitest)
 ```
 
@@ -713,6 +717,15 @@ fetches, no API keys, works offline.
   base irrelevant to the UI).
 - `updatedAt` is the fetch time (ISO string), set by the update script.
 
+**Correction (2026-08-21, verified during implementation):** the committed file
+covers 1996-01 onwards in the base ISTAT currently publishes (`2025=100`), with
+the three earlier bases (1995, 2010, 2015) **chain-linked** onto it — see the
+§8.2 correction for why a single published base would stop at 2025-12. The
+`base` string records this
+(`"2025=100 (earlier bases 1995, 2010, 2015 chain-linked on their reference-year averages)"`);
+the shape of the file is unchanged. Linked values are rounded to 4 decimals;
+values of the current base are exactly as published.
+
 ### 8.2 `scripts/update-istat.ts` contract
 
 Run with `pnpm istat:update`. This spec adds the corresponding row to
@@ -731,6 +744,30 @@ error-handling guidelines (fail fast, loud, diagnosable).
    implementer must verify the current flowRef via
    `…/rest/dataflow/IT1?format=jsondata` or ISTAT's data browser, and record
    the final URL in a why-comment in the script.
+
+   **Correction (2026-08-21, verified against the live service):** three
+   adjustments, all recorded in why-comments in `scripts/update-istat.ts`:
+   - **flowRef**: `IT1,167_744,1.0` is frozen at 2025-12 — ISTAT rebased the
+     NIC to 2025=100 in January 2026 and opened `IT1,167_745,1.0` ("Nic -
+     monthly data from 2026 onwards (base 2025)"). That dataflow also serves
+     the historical bases (1995, 2010, 2015, back to 1996-01) under distinct
+     `DATA_TYPE` codes, contiguous and non-overlapping. The final URL is
+     `https://esploradati.istat.it/SDMXWS/rest/data/IT1,167_745,1.0/M.IT..4.00`
+     (monthly · Italy · every index-number DATA_TYPE · MEASURE `4` index
+     number · ECOICOP_2 `00` all items). The script chain-links each older base
+     onto the newest by dividing it by its own average over the next base's
+     reference year (ISTAT's "coefficiente di raccordo" method), validates the
+     result is gap-free and overlap-free, and fails loudly otherwise.
+   - **format**: `?format=jsondata` (and the SDMX-JSON 2.0 media type) return
+     every observation as `null` on this NSI version. `Accept: application/json`
+     negotiates SDMX-JSON 1.0, which carries real values.
+   - **headers**: Node's `fetch` (undici) sends `accept-language: *` by default
+     and the service answers HTTP 500 `languageTag1`; the script sends
+     `Accept-Language: en` explicitly.
+
+   The pure half of the script (SDMX decoding, base linking, serialization)
+   lives in `scripts/istat-nic.ts` with its own `istat-nic.test.ts`, so the
+   contract above is tested without network access.
 2. **Validate hard, fail loudly.** Non-200 response, unparseable body,
    unexpected SDMX-JSON shape, empty series, or any `ym` not matching
    `/^\d{4}-(0[1-9]|1[0-2])$/` → log a diagnostic error (URL, status, first
@@ -887,40 +924,56 @@ The dashboard page (Spec 05) calls `getPersonalCpi(userId)` from a server
 component and passes plain data down to client chart components. No route
 handler is needed — the index is server-rendered.
 
+**Correction (2026-08-21, verified during implementation):** the service is
+`getPersonalCpi(db, userId)` — it takes the Drizzle handle as its first
+parameter like every other service (Spec 03's correction: the app layer passes
+the singleton, tests pass a throwaway database) and it does **not** import
+`cache` from `react` (AGENTS.md §1.5: services never import `react`). The
+per-request memoization the snippet above describes belongs to the Spec 05
+dashboard page, which wraps the call in `cache()` where the server components
+that share it live. `src/lib/services/inflation.test.ts` runs the service
+against a real migrated test database.
+
+**Correction (2026-08-21):** `listEntriesForIndex` fills `quantity` with a
+constant `1` until Spec 07's migration adds the `price_entries.quantity`
+column (Spec 07 §2.3 already says it only has to map the new column in this
+projection). The engine multiplies by `quantity` today, so nothing else
+changes when the column lands.
+
 ---
 
 ## 10. Definition of Done
 
-- [ ] `src/lib/inflation/` contains exactly the files of §2; `index.ts`
+- [x] `src/lib/inflation/` contains exactly the files of §2; `index.ts`
       re-exports only `computePersonalCpi`, `rebaseIstat`, `toRomeYearMonth`,
       and the public types.
-- [ ] No file in `src/lib/inflation/` imports from `db/`, `ai/`, `services/`,
+- [x] No file in `src/lib/inflation/` imports from `db/`, `ai/`, `services/`,
       `next/*`, or `react` (verified by inspection or a lint rule).
-- [ ] `computePersonalCpi` implements §4 exactly: Rome bucketing, promo rule
+- [x] `computePersonalCpi` implements §4 exactly: Rome bucketing, promo rule
       with promo-only fallback, carry-forward with observation-anchored
       window, `[0.2, 5]` clamp, Jevons in log space with sorted iteration,
       trailing-12-month renormalized weights (promos always in expenditure),
       flat-month handling, forward-only chaining.
-- [ ] All §5 edge cases behave as specified.
-- [ ] Test cases 1–24 of §7 implemented and green, including the §6
+- [x] All §5 edge cases behave as specified.
+- [x] Test cases 1–24 of §7 implemented and green, including the §6
       acceptance fixture (every table value, 4-decimal tolerance) and the
       constant-price property test; engine line coverage ≈ 100%.
-- [ ] `rebaseIstat` implemented and tested (base present, base missing,
+- [x] `rebaseIstat` implemented and tested (base present, base missing,
       base value 0).
-- [ ] `data/istat-nic.json` committed in the §8.1 format with real fetched
+- [x] `data/istat-nic.json` committed in the §8.1 format with real fetched
       data; `scripts/update-istat.ts` follows the §8.2 contract (fail loudly,
       replace-not-merge, atomic write).
-- [ ] `package.json` gains the `istat:update` script row
+- [x] `package.json` gains the `istat:update` script row
       (`"istat:update": "tsx scripts/update-istat.ts"`), invoked as
       `pnpm istat:update`.
-- [ ] Optional: `.github/workflows/update-istat.yml` added as in §8.4.
-- [ ] `src/lib/services/inflation.ts` and the two repository projections
+- [x] Optional: `.github/workflows/update-istat.yml` added as in §8.4.
+- [x] `src/lib/services/inflation.ts` and the two repository projections
       exist as in §9.
-- [ ] All comments follow `docs/COMMENTS.md` (the teacher comments of §1 and
+- [x] All comments follow `docs/COMMENTS.md` (the teacher comments of §1 and
       the why-comments of §4 appear in the code); naming follows
       `docs/DEVELOPMENT_GUIDELINES.md`.
-- [ ] `pnpm biome check`, `pnpm tsc --noEmit`, and `pnpm vitest run` all pass.
-- [ ] `CLAUDE.md` "Current status" updated; work committed with conventional
+- [x] `pnpm biome check`, `pnpm tsc --noEmit`, and `pnpm vitest run` all pass.
+- [x] `CLAUDE.md` "Current status" updated; work committed with conventional
       commits.
 
 ---

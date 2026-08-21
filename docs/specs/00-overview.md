@@ -1,8 +1,8 @@
 # Spec 00 — Project Overview & Canonical Contract
 
-> **Status**: Approved · **Last updated**: 2026-08-21
+> **Status**: Approved · **Last updated**: 2026-08-21 (Spec 08 added to §12)
 > This document is the single source of truth for names, data shapes, and decisions.
-> Every other spec (01–07) elaborates on this contract and MUST NOT contradict it.
+> Every other spec (01–08) elaborates on this contract and MUST NOT contradict it.
 > If a spec needs to deviate, update this file first.
 
 ---
@@ -445,8 +445,11 @@ segnaprezzi/
 | 05 | UI & Design System | 02–04 | Claude Fable 5 + impeccable skill | xhigh |
 | 06 | PWA & Offline | 03, 05 | Claude Opus 5 | high |
 | 07 | Receipt Import | 02, 03, 05 | Claude Opus 5 | high |
+| 08 | Go-live & Operations | 01–04 (05 recommended first) | Claude Sonnet 5 | high |
 
-Order: 01 → 02 → (03 ∥ 04) → 05 → 06 → 07. One spec per Claude Code session,
+Order: 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07 — Spec 08 is an operations
+session (Turso, Vercel, Blob, Anthropic key, first live collaudo) and must
+precede Spec 06's real-device PWA checks. One spec per Claude Code session,
 using the Implementation Prompt at the end of each spec file. After each
 milestone: update the *Current status* section in `CLAUDE.md`, commit with
 conventional commits.

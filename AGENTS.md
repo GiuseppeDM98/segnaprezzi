@@ -5,19 +5,21 @@ the **segnaprezzi** repository. It distills the project contract into rules you
 can apply without re-deriving them. It does not replace the specs — it tells
 you where the law is and how to work under it.
 
-> **Reality check**: Specs 01 (Foundation & Scaffold), 02 (Database & Auth) and
-> 03 (Capture & AI Extraction) are implemented — there is a real DB, real auth,
-> real repositories, a real Anthropic extraction gateway and the capture,
-> review and quick-entry screens. The
-> current implementation state is tracked in **`CLAUDE.md` → "Current
+> **Reality check**: Specs 01 (Foundation & Scaffold), 02 (Database & Auth),
+> 03 (Capture & AI Extraction) and 04 (Inflation Engine) are implemented —
+> there is a real DB, real auth, real repositories, a real Anthropic
+> extraction gateway, the capture, review and quick-entry screens, and the
+> pure personal-CPI engine with its service and the committed ISTAT series.
+> The current implementation state is tracked in **`CLAUDE.md` → "Current
 > status"** — read it first, trust it over any assumption. Sections below
-> marked **[PLANNED]** describe code that does not exist yet (Spec 04
+> marked **[PLANNED]** describe code that does not exist yet (Spec 05
 > onward) but whose shape is already decided; build exactly that shape. Where
 > a spec's literal code text and the actually-implemented code differ, this
 > file and the spec's own inline correction notes (search the spec for
 > "Correction") describe what was actually verified to work — a handful of
-> Spec 02's and Spec 03's literal snippets didn't survive contact with the real
-> dependency versions and the Next.js runtime (see §4.15–§4.26).
+> Spec 02's, Spec 03's and Spec 04's literal snippets didn't survive contact
+> with the real dependency versions, the Next.js runtime and the live ISTAT
+> service (see §4.15–§4.30).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
@@ -91,7 +93,11 @@ export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: nu
   never divide by 100 themselves.
 - The **only** place floats are legitimate: index math in `src/lib/inflation/`
   (price relatives and means are ratios, not money) and `package_size`
-  (a physical quantity, stored as `real`).
+  (a physical quantity, stored as `real`). Inside the engine, sums of
+  integer money are still exact (integer addition never rounds in a double),
+  which is what lets the monthly means and expenditure totals be bit-identical
+  for any input order; only the logs and weighted sums are genuine floats, and
+  those iterate in sorted order for the same reason.
 - Zod schemas for money fields are `z.number().int().positive()` — a float
   reaching a `*_cents`/`*_milli` field is a validation bug at the boundary.
 
@@ -132,7 +138,7 @@ which no later screen can repair.
   date library dependency):
 
 ```ts
-// src/lib/inflation/bucketing.ts  [PLANNED — Spec 04]
+// src/lib/inflation/bucketing.ts  (Spec 04, implemented)
 
 // Why 'en-CA': it is the one widely-supported locale whose formatted date
 // parts come out ISO-like ('2026-04'), so no manual part reassembly and no
@@ -189,7 +195,8 @@ Import rules — **what each layer may and must never import**:
 | `src/lib/auth/**` | `lib/db` (adapter needs it), `lib/env` | services, components |
 
 The `db`-singleton carve-out (established by Spec 02's `/api/export` route,
-followed by every Spec 03 page and action): services take the Drizzle handle as
+followed by every Spec 03 page and action and by Spec 04's
+`getPersonalCpi(db, userId)`): services take the Drizzle handle as
 their first parameter, exactly like repositories, so that the confirm flow can
 pass a transaction and the tests can pass a throwaway database. Something has
 to hand them the real one, and the app layer is the only caller. It passes the
@@ -305,7 +312,7 @@ nanoid ids, month keys) are composed from small reusable schemas. Inside the
 service/domain layers, inputs are already typed — do not re-validate.
 
 ```ts
-// Reusable field schemas.  [PLANNED, e.g. src/lib/domain/schemas.ts]
+// Reusable field schemas — src/lib/domain/schemas.ts (Spec 03, implemented)
 export const nanoidSchema = z.string().length(21);
 export const priceCentsSchema = z.number().int().positive();
 export const unitPriceMilliSchema = z.number().int().positive();
@@ -478,14 +485,15 @@ never appear there:
 ```
 segnaprezzi/
 ├── docs/
-│   ├── specs/                  # Specs 00–06. Contract docs — code never imports from here.
+│   ├── specs/                  # Specs 00–08. Contract docs — code never imports from here.
 │   ├── assets/                 # Logo, favicon source SVG (build inputs, not served).
 │   ├── COMMENTS.md
 │   └── DEVELOPMENT_GUIDELINES.md
 ├── data/
 │   └── istat-nic.json          # Committed ISTAT NIC monthly series. Only scripts/update-istat.ts writes it.
 ├── drizzle/                    # Generated SQL migrations + meta. Never hand-edited; always committed.
-├── scripts/                    # tsx entry points: seed.ts, update-istat.ts, generate-icons.ts.
+├── scripts/                    # tsx entry points: seed.ts, update-istat.ts, generate-icons.ts,
+│                               #   plus their pure helpers (seed-ids.ts, seed-users.ts, istat-nic.ts).
 │                               #   Scripts may import src/lib/** but nothing imports scripts/.
 ├── messages/
 │   ├── it.json                 # Default locale. Same key tree as en.json — always.
@@ -911,6 +919,52 @@ fails fast on a missing variable — so the suite would depend on a developer's
 The values there are placeholders on purpose: a real `ANTHROPIC_API_KEY` must
 never be reachable from a test run. Every network call in the suite is mocked.
 
+**4.27 ISTAT's SDMX service needs three things the Spec 04 text did not
+know.** (1) The NIC was rebased to 2025=100 in January 2026: dataflow
+`IT1,167_744,1.0` (base 2015) is frozen at 2025-12, and `IT1,167_745,1.0`
+("Nic - monthly data from 2026 onwards (base 2025)") is the live one — it also
+serves the 1995/2010/2015 bases under distinct `DATA_TYPE` codes, so key
+`M.IT..4.00` returns the whole history back to 1996 and
+`scripts/update-istat.ts` chain-links the bases onto 2025=100 (reference-year
+averages, ISTAT's own "coefficiente di raccordo" method; the pure half lives in
+`scripts/istat-nic.ts`, tested offline). (2) `?format=jsondata` (SDMX-JSON 2.0)
+returns every observation as `null` on this NSI version; negotiate SDMX-JSON
+1.0 with `Accept: application/json`. (3) Node's `fetch` sends
+`accept-language: *` by default and the service answers HTTP 500
+`languageTag1` — send `Accept-Language: en`. Also: the host is slow and
+flaky; the full dataflow catalogue (`/dataflow/IT1?detail=allstubs`) is ~2 MB
+and can take over a minute, and `/data/<flow>/all` times out — always query a
+narrow key. The dashboard loads `data/istat-nic.json` as a static import and
+calls `rebaseIstat(months, series[0].ym)`; it never fetches ISTAT at runtime.
+
+**4.28 `listEntriesForIndex` fills `quantity` with a constant `1` until Spec 07
+adds the column.** Spec 04's `IndexEntry.quantity` (receipt "2 × 1,29" → 2)
+multiplies expenditure weights, but `price_entries.quantity` only arrives with
+Spec 07's migration (Spec 07 §2.3). The engine already multiplies by it, and
+the existing repository test asserts the field; Spec 07 replaces the constant
+with the column in that one projection and nothing else moves.
+
+**4.29 Test the engine's dead branches by removing them, not by faking
+inputs.** Spec 04 asks for ≈100% line coverage of `src/lib/inflation/`; the
+last few uncovered lines were defensive guards that TypeScript narrowing
+needed but no input could reach (a product in the price table with no
+category, a category series with no first priced month, a mover tie-breaker
+between two identical ids). Each was removed by restructuring — derive the
+category's first month from the entries, rely on `Array.prototype.sort` being
+stable over candidates already iterated in sorted id order — rather than by
+writing a test that manufactures an impossible state. Coverage was measured
+with `@vitest/coverage-v8` installed transiently (`pnpm add -D`, measure,
+`git checkout package.json pnpm-lock.yaml && pnpm install --frozen-lockfile`);
+it is deliberately not a project dependency.
+
+**4.30 The Bash tool on this Windows machine truncates long commands (~8 KB).**
+A heredoc that writes a whole TypeScript module, or a Python edit script with
+several large `old`/`new` blocks, fails with `unexpected EOF while looking for
+matching `''` — the command was cut, not mis-quoted. Write new source files
+with the Write tool, make edits with short Python one-liners, and split
+multi-file documentation edits into several calls. Cost the Spec 04 session two
+false starts before the pattern was clear.
+
 ---
 
 ## 5. Spec-Driven Workflow
@@ -927,8 +981,10 @@ never be reachable from a test run. Every network call in the suite is mocked.
 | 05 | `docs/specs/05-ui-design.md` | Full design system + all screens; produces `DESIGN.md`. |
 | 06 | `docs/specs/06-pwa-offline.md` | Serwist, IndexedDB queue, sync manager, install experience, icons. |
 | 07 | `docs/specs/07-receipt-import.md` | Digital receipt → per-line extraction, catalog aliases, review, `source='receipt'` entries. |
+| 08 | `docs/specs/08-go-live.md` | Operations: Turso + Vercel + Blob + Anthropic provisioning, preview/production scope matrix, first live collaudo, runbook. |
 
-Order: **01 → 02 → (03 ∥ 04) → 05 → 06 → 07**. Spec 04 depends on 02 for types
+Order: **01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07**. Spec 08 (go-live) is an
+operations session that must precede Spec 06's real-device PWA checks. Spec 04 depends on 02 for types
 only — it can proceed against the schema definitions without a running DB.
 
 ### 5.2 One spec per session
@@ -968,6 +1024,7 @@ drifts silently.
 | 05 | UI & Design System | 02–04 | Claude Fable 5 + impeccable skill | xhigh |
 | 06 | PWA & Offline | 03, 05 | Claude Opus 5 | high |
 | 07 | Receipt Import | 02, 03, 05 | Claude Opus 5 | high |
+| 08 | Go-live & Operations | 01–04 (05 recommended first) | Claude Sonnet 5 | high |
 
 ### 5.4 Definition of done (every task, not just specs)
 
