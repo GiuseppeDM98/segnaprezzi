@@ -934,10 +934,12 @@ project, in this repository.
 Before writing any code, read IN FULL, in this order:
 1. AGENTS.md
 2. CLAUDE.md
-3. docs/specs/00-overview.md      (canonical contract — names, money rules)
-4. docs/specs/04-inflation-engine.md   (the spec you are implementing)
-5. docs/DEVELOPMENT_GUIDELINES.md (layers, naming, errors, testing)
-6. docs/COMMENTS.md               (comment discipline — teacher/why comments
+3. WORKFLOW.md                    (session/collaboration rules — branch,
+                                   commit, guided-collaudo discipline)
+4. docs/specs/00-overview.md      (canonical contract — names, money rules)
+5. docs/specs/04-inflation-engine.md   (the spec you are implementing)
+6. docs/DEVELOPMENT_GUIDELINES.md (layers, naming, errors, testing)
+7. docs/COMMENTS.md               (comment discipline — teacher/why comments
                                    from the spec must appear in the code)
 
 Then implement Spec 04 fully:

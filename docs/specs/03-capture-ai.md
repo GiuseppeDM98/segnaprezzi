@@ -1982,10 +1982,12 @@ You are implementing Spec 03 (Capture & AI Extraction) of segnaprezzi.
 
 Before writing any code, read IN FULL, in this order:
 1. AGENTS.md and CLAUDE.md (project conventions and current status)
-2. docs/specs/00-overview.md — the canonical contract: names, money rules,
+2. WORKFLOW.md — session/collaboration rules: branch, commit, and
+   guided-collaudo discipline.
+3. docs/specs/00-overview.md — the canonical contract: names, money rules,
    category taxonomy, route map. Never contradict it.
-3. docs/specs/03-capture-ai.md — the spec you are implementing.
-4. docs/DEVELOPMENT_GUIDELINES.md and docs/COMMENTS.md — layered
+4. docs/specs/03-capture-ai.md — the spec you are implementing.
+5. docs/DEVELOPMENT_GUIDELINES.md and docs/COMMENTS.md — layered
    architecture, naming, error handling, and comment discipline for every
    line you write.
 

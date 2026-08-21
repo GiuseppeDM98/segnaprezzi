@@ -19,6 +19,15 @@ After this spec is implemented, the app has:
 6. A deterministic dev seed (`scripts/seed.ts`) so Specs 04 and 05 have realistic data to build against.
 7. `GET /api/export` returning the authenticated user's full dataset as JSON.
 8. Integration tests for every repository against an in-memory libSQL database.
+9. A Playwright E2E suite (`tests/e2e/auth.spec.ts`) covering signup, login,
+   logout, session-cookie behavior, and cross-user data isolation —
+   authenticated via direct calls to Better Auth's `/api/auth/*` routes
+   rather than by driving the login form, so the suite stays fast. **Decision
+   (2026-08-21): pulled forward from Spec 05** — auth is exactly the kind of
+   security-relevant, cross-cutting behavior the guided-collaudo discipline in
+   `WORKFLOW.md` needs automated coverage for as soon as it exists, not five
+   specs later. Spec 05 still owns styling and adds UI-level E2E paths on top
+   of this suite; it does not re-cover what this spec already covers.
 
 **In scope but intentionally minimal**: unstyled but functional `/login` and `/signup` pages (email, password, submit, error text) so the auth flow is testable end-to-end. Spec 05 replaces their UI entirely; do not invest in styling here.
 
@@ -526,6 +535,18 @@ export const auth = betterAuth({
       // a cookie read instead of a DB roundtrip (matters on every request).
       maxAge: 60 * 5,
     },
+  },
+
+  // Why: Better Auth's built-in rate limiter throttles repeated sign-in/
+  // sign-up calls per IP. §10.3's Playwright global-setup logs in two fixed
+  // seed users back-to-back on every run (plus a throwaway signup per test),
+  // all from localhost — enough to trip a per-IP limiter meant for the
+  // public internet, producing flaky 429s that have nothing to do with a
+  // real bug. Disabled outside production; verify this still matches the
+  // installed better-auth version's actual default before relying on it —
+  // don't assume, check.
+  rateLimit: {
+    enabled: process.env.NODE_ENV === 'production',
   },
 
   advanced: {
@@ -1062,9 +1083,10 @@ if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) {
 ```
 
 - Runs with `pnpm db:seed` (env loaded via `tsx --env-file=.env.local`). Requires migrations to be applied first; fail with a clear message if the tables are missing.
-- **Idempotent by wipe**: if a user with the seed email exists, delete it first (`DELETE FROM users WHERE email = ...` — cascades wipe settings, stores, products, sessions, entries). Verify the generated auth schema cascades `sessions`/`accounts`; if not, delete those rows explicitly before the user.
-- Creates the user through `auth.api.signUpEmail({ body: { email, password, name } })` so the password hash is produced by Better Auth itself. Requires `SIGNUP_ENABLED` ≠ `false` locally (the default); abort with a clear message otherwise.
+- **Idempotent by wipe**: if a user with the seed email exists, delete it first (`DELETE FROM users WHERE email = ...` — cascades wipe settings, stores, products, sessions, entries). Verify the generated auth schema cascades `sessions`/`accounts`; if not, delete those rows explicitly before the user. Wipe-and-recreate both seed users (§8.2, §8.4), not just the primary one.
+- Creates each user through `auth.api.signUpEmail({ body: { email, password, name } })` so the password hash is produced by Better Auth itself. Requires `SIGNUP_ENABLED` ≠ `false` locally (the default); abort with a clear message otherwise.
 - All non-auth rows use fixed ids (`seed-store-esselunga`, `seed-prod-spaghetti`, …) so re-runs and tests are reproducible.
+- Credentials for both seed users live in one place, **`scripts/seed-users.ts`** (`SEED_USER`, `SEED_USER_2` — plain `{ email, password, name }` objects, no I/O), imported by `scripts/seed.ts` and by `tests/e2e/fixtures/users.ts` (§10.3). This is the single source of truth for seed credentials — nothing else hardcodes them, so the two can never drift apart.
 
 ### 8.2 Seed credentials
 
@@ -1116,6 +1138,32 @@ if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) {
 - All entries: `currency = 'EUR'`.
 
 Structure the script as small pure builder functions (`buildSeedMonths()`, `buildSeedEntries(months)`) plus one writer that inserts via the repositories (passing the real `db`) — the seed doubles as an end-to-end smoke test of the repository layer.
+
+### 8.4 Second seed user (cross-user isolation)
+
+*Why this exists*: `WORKFLOW.md`'s guided-collaudo discipline requires every
+security guard to be checked as an own-resource/other's-resource **pair**,
+with real data on both sides — a negative test alone (an anonymous or wrong
+user gets refused) never proves the positive case (the rightful owner still
+sees exactly their own data, no more, no less). One seed user can't produce
+that pair. This second, much smaller user exists solely so §10.3's E2E suite
+has two populated, non-overlapping accounts to assert isolation between —
+it does not need to support Specs 04/05 the way §8.3's dataset does.
+
+| Field | Value |
+|---|---|
+| email | `dev2@segnaprezzi.local` |
+| password | `segnaprezzi-dev-2` |
+| name | `Dev User 2` |
+
+One store, one product, one entry — deliberately minimal, fixed ids prefixed
+`seed2-` so they can never collide with §8.3's `seed-*` ids:
+
+| Table | id | Fields |
+|---|---|---|
+| `stores` | `seed2-store-coop` | name `Coop Via Roma`, chain `Coop`, city `Torino`, kind `supermarket` |
+| `products` | `seed2-prod-yogurt` | name `Yogurt bianco 4×125g`, brand `Coop`, category `food`, unitKind `count`, packageSize `4` |
+| `price_entries` | *(app-generated id)* | productId `seed2-prod-yogurt`, storeId `seed2-store-coop`, sessionId `null`, recordedAt = current month day 10 10:30 Europe/Rome, `total_price_cents = 179`, `package_size = 4`, `unit_price_milli = 448` (179 × 10 / 4, rounded), `source = 'manual'`, `is_promo = false`, `currency = 'EUR'` |
 
 ---
 
@@ -1229,8 +1277,147 @@ Conventions: camelCase keys; all timestamps as ISO 8601 UTC strings (human-reada
 | `settings.test.ts` | should create default settings on first read when the row is missing | self-healing `getUserSettings` (promos included, carry-forward 2) |
 | `settings.test.ts` | should persist partial settings updates | `updateUserSettings` patch semantics |
 | `settings.test.ts` | should cascade-delete all user data when the user row is deleted | user delete wipes settings/stores/products/sessions/entries |
+| `auth.test.ts` | should reject signup when disableSignUp is true | construct a standalone `betterAuth` instance (`drizzleAdapter` over a §10.1 in-memory test db, `emailAndPassword: { enabled: true, disableSignUp: true }`) and assert `auth.api.signUpEmail(...)` rejects — this is the one Better Auth config knob worth a direct test, since it is the server-side enforcement of a closed instance, not just wiring |
 
-Auth config itself (Better Auth internals) is **not** unit-tested — it is framework wiring. The signup → `user_settings` hook and login flow are covered by a Playwright smoke test in Spec 05's E2E suite; if a quick check is wanted now, the seed script already exercises `signUpEmail` + the hook.
+Auth config beyond the `disableSignUp` gate above is **not** unit-tested — it is framework wiring. The rest of the signup → `user_settings` hook, login, logout, session-cookie, and cross-user-isolation behavior is covered end-to-end by the Playwright suite in §10.3.
+
+### 10.3 E2E — Playwright
+
+*Why here, not Spec 05*: see the Decision note in §1. This suite authenticates
+by calling Better Auth's own `/api/auth/*` routes directly instead of driving
+the `/login` form — the form itself is a thin client over the same routes
+(§5.7), so testing through it would mean re-testing form plumbing, not auth
+behavior, on every run.
+
+**`scripts/seed-users.ts`** — already introduced in §8.1; both `scripts/seed.ts`
+and the fixture file below import `SEED_USER` / `SEED_USER_2` from here.
+
+**`tests/e2e/fixtures/users.ts`**
+
+```ts
+export { SEED_USER, SEED_USER_2 } from '../../../scripts/seed-users';
+```
+
+**`tests/e2e/helpers/auth.ts`**
+
+```ts
+import type { Page } from '@playwright/test';
+
+/**
+ * Log in through Better Auth's REST route instead of the login form.
+ * `page.request` shares the browser context's cookie jar with `page` itself,
+ * so the Set-Cookie this call receives is immediately usable by a following
+ * page.goto() — no manual storageState plumbing needed within one test.
+ */
+export async function loginViaApi(
+  page: Page,
+  credentials: { email: string; password: string },
+): Promise<void> {
+  const response = await page.request.post('/api/auth/sign-in/email', {
+    data: { email: credentials.email, password: credentials.password },
+  });
+  if (!response.ok()) {
+    throw new Error(`loginViaApi failed: ${response.status()} ${await response.text()}`);
+  }
+}
+```
+
+**`tests/e2e/helpers/db.ts`** — direct-DB cleanup only, mirroring `scripts/seed.ts`'s production guard:
+
+```ts
+import { createClient } from '@libsql/client';
+
+/**
+ * Delete a throwaway E2E signup user by email. Playwright tests assert
+ * through HTTP/DB responses, never by reaching into the DB for behavior —
+ * this is the one exception, and only for cleanup, so repeated local/CI runs
+ * don't accumulate signup-test users that scripts/seed.ts doesn't know about.
+ */
+export async function deleteUserByEmail(email: string): Promise<void> {
+  const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
+  if (!url.startsWith('file:')) {
+    throw new Error('deleteUserByEmail refuses to run against a non-local database.');
+  }
+  const client = createClient({ url });
+  await client.execute({ sql: 'DELETE FROM users WHERE email = ?', args: [email] });
+  client.close();
+}
+```
+
+**`tests/e2e/global-setup.ts`** — logs in both seed users once per run and caches `storageState`, so individual tests never pay for a login:
+
+```ts
+import { chromium, type FullConfig } from '@playwright/test';
+
+import { SEED_USER, SEED_USER_2 } from './fixtures/users';
+import { loginViaApi } from './helpers/auth';
+
+async function saveAuthState(
+  baseURL: string | undefined,
+  user: { email: string; password: string },
+  outFile: string,
+): Promise<void> {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ baseURL });
+  await loginViaApi(page, user);
+  await page.context().storageState({ path: outFile });
+  await browser.close();
+}
+
+export default async function globalSetup(config: FullConfig): Promise<void> {
+  const baseURL = config.projects[0]?.use.baseURL;
+  await saveAuthState(baseURL, SEED_USER, 'playwright/.auth/dev.json');
+  await saveAuthState(baseURL, SEED_USER_2, 'playwright/.auth/dev2.json');
+}
+```
+
+Verify, while implementing, that Playwright's `webServer` is up before
+`globalSetup` runs (current Playwright versions start `webServer` first) — if
+that ordering ever changes, move the login calls into a per-project
+`storageState` fixture instead of a global setup. Don't assume; check against
+the installed version.
+
+**Extends Spec 01's `playwright.config.ts`** — add one top-level key:
+
+```ts
+export default defineConfig({
+  testDir: './tests/e2e',
+  globalSetup: './tests/e2e/global-setup.ts',
+  // ...rest unchanged from Spec 01 §10
+});
+```
+
+**Extends `.gitignore`** — add `playwright/.auth/` (live session cookies; must never be committed, same reasoning as `local.db*`).
+
+**Extends Spec 01's `.github/workflows/ci.yml` `e2e` job** — insert two steps
+between "Install Playwright browser" and "E2E tests", so CI has a migrated,
+seeded database to authenticate against:
+
+```yaml
+      - name: Apply migrations
+        run: pnpm db:migrate
+
+      - name: Seed database
+        run: pnpm db:seed
+```
+
+**`tests/e2e/auth.spec.ts`**
+
+| Test | Verifies |
+|---|---|
+| should create an account, get a session cookie, and provision default settings | POST `/api/auth/sign-up/email` with a throwaway `e2e-signup-<timestamp>@segnaprezzi.local` → 200; `GET /api/export` (same context, cookie already set) → `200`, `settings` matches the databaseHooks default. Cleans up via `deleteUserByEmail` in `afterEach`. |
+| should redirect an anonymous visitor to the locale-correct login page | `page.goto('/')` with no `storageState` → lands on `/login` (or `/en/login`) |
+| should return 401 from GET /api/export when anonymous | no cookie → `401 { error: 'unauthorized' }`, not just a redirect |
+| should reach a protected page without hitting /login (seed user) | `test.use({ storageState: 'playwright/.auth/dev.json' })`, `page.goto('/')` → not redirected |
+| should see only its own data via /api/export (seed user) | `GET /api/export` → `stores` contains `Esselunga Viale Papiniano`, does **not** contain `Coop Via Roma` — the own-resource/other's-resource pair required by `WORKFLOW.md`, positive half |
+| should see only its own data via /api/export (second seed user) | same request under `storageState: 'playwright/.auth/dev2.json'` → `stores` contains `Coop Via Roma`, does **not** contain `Esselunga Viale Papiniano` — the pair's negative half, same assertion shape as the row above so the two are genuinely comparable |
+| should clear the session and redirect protected routes to /login again after logout | seed-user context, `POST /api/auth/sign-out`, then `page.goto('/')` → back to `/login` |
+
+Note what's deliberately **not** in this suite: rejecting signup when
+`SIGNUP_ENABLED=false` needs a second app instance booted with different
+env — out of proportion for one boolean gate, and already covered at the
+right level by the `auth.test.ts` row above (test pyramid: E2E for paths that
+need a real server and browser, unit for a single config branch).
 
 ---
 
@@ -1242,9 +1429,10 @@ Auth config itself (Better Auth internals) is **not** unit-tested — it is fram
 - [ ] Signup creates a `user_settings` row automatically; login/logout work via the minimal pages; `SIGNUP_ENABLED=false` blocks signup server-side (API returns an error, not just hidden UI).
 - [ ] Anonymous visits to any protected route redirect to the locale-correct login page; `redirectTo` round-trips after login; `(app)` layout verifies the session server-side.
 - [ ] All five repository files implemented with the §6 signatures; every function takes `db` and `userId`; no query lacks the `user_id` filter.
-- [ ] `pnpm db:seed` populates the §8 dataset on a local file DB and refuses on a `libsql://` URL.
+- [ ] `pnpm db:seed` populates the §8.3 and §8.4 datasets (both seed users) on a local file DB and refuses on a `libsql://` URL.
 - [ ] `GET /api/export` returns the §9 shape for the seed user and 401 anonymously.
-- [ ] All §10.2 tests pass (`pnpm test`); merge transactionality and user isolation covered.
+- [ ] All §10.2 tests pass (`pnpm test`); merge transactionality, user isolation, and the `disableSignUp` gate covered.
+- [ ] All §10.3 E2E tests pass (`pnpm test:e2e`), including the seed-user/second-seed-user isolation pair; the CI `e2e` job (extended per §10.3) runs migrate → seed → test:e2e green.
 - [ ] `pnpm lint` (Biome) and `pnpm typecheck` pass; comments follow `docs/COMMENTS.md`.
 - [ ] `CLAUDE.md` "Current status" updated; work committed with conventional commits.
 
@@ -1257,30 +1445,37 @@ You are implementing Spec 02 — Database & Auth — of the segnaprezzi project.
 
 Before writing ANY code, read these files in full, in this order:
 1. AGENTS.md and CLAUDE.md (project conventions and current status)
-2. docs/specs/00-overview.md (canonical contract: names, money rules, env vars)
-3. docs/specs/02-database-auth.md (the spec you are implementing — follow it exactly)
-4. docs/DEVELOPMENT_GUIDELINES.md (layers, naming, error handling, testing)
-5. docs/COMMENTS.md (comment discipline — applies to every file you write)
+2. WORKFLOW.md (session/collaboration rules — branch, commit, guided-collaudo discipline)
+3. docs/specs/00-overview.md (canonical contract: names, money rules, env vars)
+4. docs/specs/02-database-auth.md (the spec you are implementing — follow it exactly)
+5. docs/DEVELOPMENT_GUIDELINES.md (layers, naming, error handling, testing)
+6. docs/COMMENTS.md (comment discipline — applies to every file you write)
 
 Then implement Spec 02 completely: Turso/Drizzle wiring, domain constant files,
-the full app schema, Better Auth (CLI-generated auth schema, config, route
-handler, client, session helpers, middleware composition, minimal auth pages),
-all five repositories, the migrations workflow (follow the bootstrap order in
-§7.2 exactly), scripts/seed.ts, GET /api/export, and the full test suite from
-§10.2. Every table, column, index, function name, and file path must match the
-spec verbatim. Every query must be scoped by user_id.
+the full app schema, Better Auth (CLI-generated auth schema, config incl.
+§5.2's rateLimit block, route handler, client, session helpers, middleware
+composition, minimal auth pages), all five repositories, the migrations
+workflow (follow the bootstrap order in §7.2 exactly), scripts/seed-users.ts +
+scripts/seed.ts (both seed users, §8.2 and §8.4), GET /api/export, the unit
+test suite from §10.2, and the Playwright E2E suite from §10.3 (fixtures,
+helpers, global-setup, the extension to Spec 01's playwright.config.ts,
+.gitignore, and the ci.yml e2e job). Every table, column, index, function
+name, and file path must match the spec verbatim. Every query must be scoped
+by user_id.
 
 When you believe you are done:
 - run pnpm lint, pnpm typecheck, and pnpm test — all must pass
 - run pnpm db:migrate and pnpm db:seed against file:local.db and verify
   /api/export returns the seeded dataset for the dev user
+- run pnpm test:e2e and verify the full §10.3 suite passes, including the
+  seed-user / second-seed-user isolation pair
 - work through the Definition of Done checklist in the spec
 - update the "Current status" section of CLAUDE.md
 - commit using conventional commits (split logical units: schema, auth,
-  repositories, seed, export, tests)
+  repositories, seed, export, unit tests, E2E suite)
 ```
 
 **Recommended model:** Claude Sonnet 5
 **Recommended effort:** high
 
-**Prerequisites:** Spec 01 (Foundation & Scaffold) must be implemented — this spec extends its `src/lib/env.ts` and `src/middleware.ts`, and imports `UnauthorizedError` / `NotFoundError` from its `src/lib/errors.ts`.
+**Prerequisites:** Spec 01 (Foundation & Scaffold) must be implemented — this spec extends its `src/lib/env.ts`, `src/middleware.ts`, `playwright.config.ts`, `.gitignore`, and `.github/workflows/ci.yml`, and imports `UnauthorizedError` / `NotFoundError` from its `src/lib/errors.ts`.

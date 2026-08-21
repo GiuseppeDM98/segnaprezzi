@@ -866,10 +866,12 @@ You are implementing Spec 05 — UI & Design System for segnaprezzi.
 Before writing any code, read IN FULL, in this order:
 1. AGENTS.md
 2. CLAUDE.md
-3. docs/specs/00-overview.md   (canonical contract — exact names, money rules)
-4. docs/specs/05-ui-design.md  (the spec you are implementing)
-5. docs/DEVELOPMENT_GUIDELINES.md
-6. docs/COMMENTS.md
+3. WORKFLOW.md                 (session/collaboration rules — branch, commit,
+                                guided-collaudo discipline)
+4. docs/specs/00-overview.md   (canonical contract — exact names, money rules)
+5. docs/specs/05-ui-design.md  (the spec you are implementing)
+6. docs/DEVELOPMENT_GUIDELINES.md
+7. docs/COMMENTS.md
 
 Prerequisites: Specs 01–04 must already be implemented (scaffold + tokens file,
 DB + auth, capture + AI extraction, inflation engine). Verify their status in

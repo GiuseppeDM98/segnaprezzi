@@ -1,5 +1,9 @@
 # CLAUDE.md — segnaprezzi
 
+> Prima di iniziare qualunque sessione di lavoro su questo repo, leggi
+> `WORKFLOW.md` — regole di sessione, branch/commit, e collaudo guidato.
+> Vincolante quanto questo file.
+
 **segnaprezzi** — your personal inflation index. Photograph supermarket shelf
 price tags; Claude Haiku 4.5 extracts product, total price, and unit price; the
 app computes your personal CPI over time and compares it with the official

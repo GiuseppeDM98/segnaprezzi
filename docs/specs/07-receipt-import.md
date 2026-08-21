@@ -1078,12 +1078,14 @@ You are implementing Spec 07 (Receipt Import) of segnaprezzi.
 
 Before writing any code, read IN FULL, in this order:
 1. AGENTS.md and CLAUDE.md (project conventions and current status)
-2. docs/specs/00-overview.md — the canonical contract: names, money rules,
+2. WORKFLOW.md — session/collaboration rules: branch, commit, and
+   guided-collaudo discipline.
+3. docs/specs/00-overview.md — the canonical contract: names, money rules,
    receipt additions to the domain model, route map. Never contradict it.
-3. docs/specs/07-receipt-import.md — the spec you are implementing.
-4. docs/specs/03-capture-ai.md §7–§9 — the AI gateway, product matching and
+4. docs/specs/07-receipt-import.md — the spec you are implementing.
+5. docs/specs/03-capture-ai.md §7–§9 — the AI gateway, product matching and
    review-screen patterns this spec reuses (import, do not duplicate).
-5. docs/DEVELOPMENT_GUIDELINES.md, docs/COMMENTS.md and DESIGN.md.
+6. docs/DEVELOPMENT_GUIDELINES.md, docs/COMMENTS.md and DESIGN.md.
 
 Then implement docs/specs/07-receipt-import.md completely:
 - Create every file in its §1.2 inventory at the exact path, with the exact
