@@ -14,6 +14,7 @@ import {
   createPriceEntriesIgnoringDuplicates,
   listPriceEntryIdsBySession,
 } from '@/lib/db/repositories/price-entries';
+import { updateDefaultPackageSizes } from '@/lib/db/repositories/products';
 import {
   getShoppingSessionById,
   updateShoppingSession,
@@ -107,6 +108,17 @@ export async function confirmShoppingSession(
         aiConfidence: entry.aiConfidence,
         aiModel: entry.aiModel,
         aiRawJson: entry.aiRawJson,
+      })),
+    );
+
+    // Spec 07 §2.2: record each product's newest package size so the next
+    // receipt line for it can resolve a unit price without asking the user.
+    await updateDefaultPackageSizes(
+      tx,
+      userId,
+      input.entries.map((entry, index) => ({
+        productId: productIds[index],
+        packageSize: entry.packageSize,
       })),
     );
 

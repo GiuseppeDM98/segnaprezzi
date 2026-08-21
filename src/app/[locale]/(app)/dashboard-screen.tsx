@@ -6,7 +6,7 @@
  * the top movers. Every number arrives as a ratio/integer and is rendered
  * through src/lib/format.ts here — nothing is formatted upstream.
  */
-import { Camera, Fuel, PencilLine } from 'lucide-react';
+import { Camera, Fuel, PencilLine, ReceiptText } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -291,6 +291,14 @@ function QuickActions() {
       </Button>
       <Button href="/add/fuel" variant="secondary" icon={<Fuel className="size-4" />}>
         {t('quickAddFuel')}
+      </Button>
+      <Button
+        href="/add/receipt"
+        variant="secondary"
+        icon={<ReceiptText className="size-4" />}
+        className="col-span-2"
+      >
+        {t('quickAddReceipt')}
       </Button>
     </section>
   );

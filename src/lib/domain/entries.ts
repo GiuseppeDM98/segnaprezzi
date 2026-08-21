@@ -1,10 +1,11 @@
 /**
  * Text enums stored on price_entries and shopping_sessions (Spec 00 §6).
  */
-// Spec 07 appends 'receipt' (with price_entries.quantity / receipt_id and the
-// receipts + product_aliases tables) in its own migration — Spec 00 §6 lists
-// the full contract.
-export const ENTRY_SOURCES = ['photo', 'manual', 'fuel'] as const;
+// WARNING: adding a source here also requires updating:
+// - messages/it.json and messages/en.json (keys under "productDetail.source")
+// - SOURCE_ICONS in src/components/entries/entry-sheet.tsx
+// Every exhaustive switch on EntrySource is checked by the compiler.
+export const ENTRY_SOURCES = ['photo', 'manual', 'fuel', 'receipt'] as const;
 export type EntrySource = (typeof ENTRY_SOURCES)[number];
 
 export const PROMO_KINDS = ['discount', 'loyalty', 'coupon', 'bundle'] as const;

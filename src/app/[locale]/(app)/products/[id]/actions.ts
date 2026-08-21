@@ -20,6 +20,7 @@ import {
   unitPriceMilliSchema,
 } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
+import { forgetProductAlias } from '@/lib/services/catalog';
 import {
   editPriceEntry as editPriceEntryService,
   removePriceEntry,
@@ -75,5 +76,21 @@ export async function deletePriceEntry(input: { entryId: string }): Promise<Acti
     return { ok: true, data: null };
   } catch (error) {
     return { ok: false, error: toLoggedActionError('deletePriceEntry', error) };
+  }
+}
+
+/** Forget one learned receipt line for this product (Spec 07 §9). */
+export async function deleteProductAlias(input: { aliasId: string }): Promise<ActionResult<null>> {
+  const parsed = z.object({ aliasId: nanoidSchema }).safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+  }
+  try {
+    const user = await requireUser();
+    await forgetProductAlias(db, user.id, parsed.data.aliasId);
+    revalidatePath('/[locale]', 'layout');
+    return { ok: true, data: null };
+  } catch (error) {
+    return { ok: false, error: toLoggedActionError('deleteProductAlias', error) };
   }
 }

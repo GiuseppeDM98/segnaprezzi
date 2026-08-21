@@ -12,7 +12,11 @@ export type CreateStoreInput = Omit<NewStore, 'id' | 'userId' | 'createdAt' | 'u
 export type UpdateStorePatch = Partial<CreateStoreInput>;
 
 /** Insert a store for the user and return the created row. */
-export async function createStore(db: Db, userId: string, input: CreateStoreInput): Promise<Store> {
+export async function createStore(
+  db: Db | DbTransaction,
+  userId: string,
+  input: CreateStoreInput,
+): Promise<Store> {
   const [store] = await db
     .insert(stores)
     .values({ ...input, userId })

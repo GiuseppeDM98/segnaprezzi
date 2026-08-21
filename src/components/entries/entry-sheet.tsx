@@ -6,7 +6,7 @@
  * detail and the timeline; saving and deleting are delegated through
  * callbacks so the component never imports a Server Action.
  */
-import { Camera, Fuel, PencilLine, Trash2 } from 'lucide-react';
+import { Camera, Fuel, PencilLine, ReceiptText, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -65,6 +65,7 @@ export const SOURCE_ICONS: Record<EntrySource, typeof Camera> = {
   photo: Camera,
   manual: PencilLine,
   fuel: Fuel,
+  receipt: ReceiptText,
 };
 
 export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySheetProps) {

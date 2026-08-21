@@ -112,8 +112,14 @@ function buildUserInstruction(storeKind: ExtractPriceTagInput['storeKind']): str
   return `${storeContext}Extract the price tag data from this photo.`;
 }
 
-/** Map SDK failures onto AiGatewayError. Order matters: most specific first. */
-function toAiGatewayError(error: unknown): AiGatewayError {
+/**
+ * Map SDK failures onto AiGatewayError. Order matters: most specific first.
+ *
+ * Exported for the receipt gateway (Spec 07 §6.3), which must classify the
+ * same failures the same way — the offline queue and the receipt route share
+ * one retry policy precisely because they share this function.
+ */
+export function toAiGatewayError(error: unknown): AiGatewayError {
   if (error instanceof AiGatewayError) {
     return error;
   }

@@ -3,7 +3,7 @@
  * userId — see the security rule in §6.1: no cross-user read or write is
  * representable through this layer.
  */
-import { and, asc, count, desc, eq, gte, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 
 import type { Db, DbTransaction } from '@/lib/db/client';
 import {
@@ -255,11 +255,6 @@ export async function listPriceEntries(
  * suggestions, never from history (Spec 00 §6).
  * Deliberately unpaginated — the engine is a pure function over the full
  * series (years of personal data stay in the low tens of thousands of rows).
- *
- * Why `quantity` is a constant 1 here: the `price_entries.quantity` column
- * arrives with Spec 07's receipt import (its migration adds it with default
- * 1), and every photo/manual/fuel observation is one package. Spec 07 only
- * has to replace the constant with the column in this projection.
  */
 export async function listEntriesForIndex(db: Db, userId: string): Promise<IndexEntry[]> {
   const rows = await db
@@ -269,6 +264,10 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
       recordedAt: priceEntries.recordedAt,
       unitPriceMilli: priceEntries.unitPriceMilli,
       totalPriceCents: priceEntries.totalPriceCents,
+      // Spec 07 §2.3: a receipt line bought twice is one observation with
+      // quantity 2 — the monthly mean ignores it, the expenditure weights
+      // multiply by it.
+      quantity: priceEntries.quantity,
       isPromo: priceEntries.isPromo,
     })
     .from(priceEntries)
@@ -276,7 +275,52 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
     .where(eq(priceEntries.userId, userId))
     .orderBy(asc(priceEntries.recordedAt));
 
-  return rows.map((row) => ({ ...row, quantity: 1, recordedAt: row.recordedAt.getTime() }));
+  return rows.map((row) => ({ ...row, recordedAt: row.recordedAt.getTime() }));
+}
+
+export interface ProductDayObservation {
+  productId: string;
+  recordedAt: Date;
+  totalPriceCents: number;
+  unitPriceMilli: number;
+  source: EntrySource;
+}
+
+/**
+ * Observations of the given products inside a time window (Spec 07 §8.1:
+ * the receipt review screen's "already recorded today" hint).
+ *
+ * One query for the whole line list rather than one per line — a 40-line
+ * receipt would otherwise be 40 round trips to say "no duplicates".
+ */
+export async function listObservationsForProductsInRange(
+  db: Db | DbTransaction,
+  userId: string,
+  productIds: string[],
+  from: Date,
+  to: Date,
+): Promise<ProductDayObservation[]> {
+  if (productIds.length === 0) {
+    return [];
+  }
+  return db
+    .select({
+      productId: priceEntries.productId,
+      recordedAt: priceEntries.recordedAt,
+      totalPriceCents: priceEntries.totalPriceCents,
+      unitPriceMilli: priceEntries.unitPriceMilli,
+      source: priceEntries.source,
+    })
+    .from(priceEntries)
+    .where(
+      and(
+        eq(priceEntries.userId, userId),
+        inArray(priceEntries.productId, productIds),
+        gte(priceEntries.recordedAt, from),
+        lte(priceEntries.recordedAt, to),
+      ),
+    )
+    .orderBy(desc(priceEntries.recordedAt));
 }
 
 export type CreatePriceEntryWithIdInput = CreatePriceEntryInput & { id: string };
@@ -319,6 +363,20 @@ export async function listPriceEntryIdsBySession(
     .from(priceEntries)
     .where(and(eq(priceEntries.userId, userId), eq(priceEntries.sessionId, sessionId)))
     .orderBy(asc(priceEntries.recordedAt));
+  return rows.map((row) => row.id);
+}
+
+/** Ids of the entries created from one receipt, oldest first (Spec 07 §8.3). */
+export async function listPriceEntryIdsByReceipt(
+  db: Db | DbTransaction,
+  userId: string,
+  receiptId: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({ id: priceEntries.id })
+    .from(priceEntries)
+    .where(and(eq(priceEntries.userId, userId), eq(priceEntries.receiptId, receiptId)))
+    .orderBy(asc(priceEntries.createdAt));
   return rows.map((row) => row.id);
 }
 
@@ -484,8 +542,10 @@ export async function upsertPriceEntries(
         productId: sql`excluded.product_id`,
         storeId: sql`excluded.store_id`,
         sessionId: sql`excluded.session_id`,
+        receiptId: sql`excluded.receipt_id`,
         recordedAt: sql`excluded.recorded_at`,
         totalPriceCents: sql`excluded.total_price_cents`,
+        quantity: sql`excluded.quantity`,
         packageSize: sql`excluded.package_size`,
         unitPriceMilli: sql`excluded.unit_price_milli`,
         isPromo: sql`excluded.is_promo`,

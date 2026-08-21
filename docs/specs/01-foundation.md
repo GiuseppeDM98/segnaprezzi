@@ -1207,6 +1207,17 @@ Preview deploys: every PR gets a preview URL with the same env vars (Preview
 scope) — use a separate Turso database for previews when Spec 02 lands, never
 the production one.
 
+**Correction (2026-08-21, superseded by Spec 08 §1.1):** there are no preview
+deploys. `vercel.json` limits deployments to `main` and the Preview scope is
+left empty, so a preview cannot exist and could not boot if it did. The
+separate preview database this paragraph asks for was specified in Spec 08's
+first revision and removed on the owner's decision: with one user, one branch,
+and a Playwright suite that already runs against a real production build
+locally, a second database and Blob store bought ordering rules and rotation
+work rather than safety. The reasoning, and what to restore if the project
+ever gains a second contributor, is in
+[Spec 08 §1.1](./08-go-live.md#11-why-one-environment--the-decision-this-revision-records).
+
 ---
 
 ## 13. Definition of Done

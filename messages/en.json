@@ -80,7 +80,8 @@
     "error": {
       "title": "Couldn't compute your index",
       "body": "Something went wrong reading your entries. Try again in a moment."
-    }
+    },
+    "quickAddReceipt": "Receipt"
   },
   "scan": {
     "title": "Shopping trip",
@@ -273,6 +274,83 @@
     },
     "amounts": "Amounts"
   },
+  "receipt": {
+    "title": "Import receipt",
+    "dropzone": "Upload the digital receipt (PDF) or a photo",
+    "dropzoneHint": "One file at a time, up to 5 MB",
+    "choose": "Choose a file",
+    "change": "Change file",
+    "selected": "{name} · {size}",
+    "fileSize": "{size} kB",
+    "offline": "Reading a receipt needs a connection",
+    "reading": "Reading the receipt…",
+    "submit": "Read the receipt",
+    "store": "Store",
+    "detectStore": "Detect from the receipt",
+    "error": "The receipt could not be read",
+    "intro": "Every line of the receipt becomes an observation: the price you actually paid.",
+    "status": {
+      "ready": "Ready",
+      "needsSize": "Size missing",
+      "needsProduct": "Product missing",
+      "needsReview": "Check this"
+    },
+    "review": {
+      "title": "Check the lines",
+      "caption": "{count, plural, one {# line} other {# lines}} · {date}",
+      "headerTitle": "Receipt",
+      "date": "Date",
+      "store": "Store",
+      "noStore": "No store",
+      "createStore": "Create store: {name}",
+      "storeCreated": "The store will be created on confirm",
+      "receiptTotal": "Receipt total",
+      "linesTotal": "Lines total",
+      "totalMismatch": "The lines do not add up to the receipt total: check the highlighted lines",
+      "noTotal": "The receipt shows no legible total",
+      "noDate": "Date not legible: check and correct it",
+      "lowConfidence": "Uncertain reading: check every line",
+      "needsSize": "Give the size (e.g. 500 g) to compute the price per kg",
+      "needsProduct": "Pick or create the product",
+      "lowLineConfidence": "This line was read with low confidence",
+      "qtyPriceMismatch": "Quantity and price do not add up",
+      "zeroPrice": "Price missing",
+      "sameDay": "Already recorded today ({source}): {price}",
+      "learnAlias": "Remember this line",
+      "learnAliasHint": "The next receipt from this chain will recognise the line on its own",
+      "confirm": "Confirm {count, plural, one {# line} other {# lines}}",
+      "excluded": "Excluded",
+      "exclude": "Exclude",
+      "include": "Include",
+      "rawLine": "Original line",
+      "counters": "{ready} ready · {blocked} to fix · {excluded} excluded",
+      "blocked": "{count, plural, one {# line to fix} other {# lines to fix}}",
+      "sizeFromCatalog": "Size from the catalog",
+      "sizeFromReceipt": "Size from the receipt",
+      "sizeWeighed": "Weight from the receipt",
+      "sizeAssumed": "One piece",
+      "archived": "Archived",
+      "discard": "Discard the receipt",
+      "discarded": "Receipt discarded",
+      "discardError": "The receipt could not be discarded",
+      "saved": "{count, plural, one {# observation imported} other {# observations imported}}",
+      "confirmError": "Check the flagged lines and try again",
+      "fields": {
+        "product": "Product",
+        "quantity": "Packages",
+        "packageSize": "Size",
+        "totalPrice": "Price",
+        "unitPrice": "Unit price",
+        "isPromo": "On promotion",
+        "promoKind": "Promotion kind"
+      },
+      "empty": {
+        "title": "No line to check",
+        "body": "The receipt contained no legible product line.",
+        "cta": "Upload another receipt"
+      }
+    }
+  },
   "products": {
     "title": "Products",
     "searchPlaceholder": "Search products",
@@ -338,7 +416,8 @@
     "source": {
       "photo": "From photo",
       "manual": "By hand",
-      "fuel": "Fill-up"
+      "fuel": "Fill-up",
+      "receipt": "Receipt"
     },
     "entry": {
       "title": "Entry",
@@ -363,7 +442,13 @@
     "error": {
       "title": "Couldn't load the product",
       "body": "Try again in a moment."
-    }
+    },
+    "aliasesTitle": "Recognised receipt lines",
+    "aliasHits": "{count, plural, one {# time} other {# times}}",
+    "aliasDelete": "Forget this line",
+    "aliasDeleted": "Line forgotten",
+    "aliasesEmpty": "No receipt line is mapped to this product yet.",
+    "aliasAnyChain": "Any chain"
   },
   "history": {
     "title": "History",
@@ -391,7 +476,8 @@
     "empty": {
       "title": "Your history is empty",
       "body": "Every price you record lands here, day by day.",
-      "cta": "Photograph a price tag"
+      "cta": "Photograph a price tag",
+      "receiptCta": "Got a digital receipt? Import it"
     },
     "filteredEmpty": {
       "title": "Nothing with these filters",
@@ -543,7 +629,13 @@
       "body": "Not your fault. Try again, or go back home.",
       "retry": "Try again",
       "cta": "Back to home"
-    }
+    },
+    "RECEIPT_TOO_LARGE": "The receipt is over 5 MB: upload a lighter one.",
+    "UNSUPPORTED_RECEIPT_TYPE": "Unsupported format: use a PDF or a photo.",
+    "RECEIPT_TOO_LONG": "The receipt has too many pages (10 at most).",
+    "RECEIPT_ALREADY_IMPORTED": "This receipt has already been imported.",
+    "RECEIPT_NOT_FOUND": "Receipt not found.",
+    "RECEIPT_NO_LINES": "No product line was found in this receipt."
   },
   "offline": {
     "offline": "You're offline — photos stay on your phone",

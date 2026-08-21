@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import type { Db } from '@/lib/db/client';
 import { upsertPriceEntries } from '@/lib/db/repositories/price-entries';
+import { upsertProductAliases } from '@/lib/db/repositories/product-aliases';
 import { listProductIds, upsertProducts } from '@/lib/db/repositories/products';
 import { getUserSettings, updateUserSettings } from '@/lib/db/repositories/settings';
 import {
@@ -48,15 +49,25 @@ export async function updateIndexSettings(
 }
 
 /*
- * Backup import. The file is a previous GET /api/export payload (Spec 02
- * §9, schemaVersion 1). Dates travel as ISO strings and become Dates here;
- * ids are re-validated as nanoid(21) so a hand-edited file cannot smuggle
- * arbitrary keys into the tables.
+ * Backup import. The file is a previous GET /api/export payload (Spec 02 §9).
+ * Dates travel as ISO strings and become Dates here; ids are re-validated as
+ * nanoid(21) so a hand-edited file cannot smuggle arbitrary keys into the
+ * tables.
+ *
+ * Both schema versions are accepted: a v1 backup predates Spec 07 and simply
+ * carries no quantity, so it defaults to 1. What a v2 backup does NOT restore
+ * is the `receipts` import records — they hold no observation (the entries
+ * do) and their `ai_raw_json` is deliberately absent from the export, so a
+ * restored row would be a receipt whose audit trail is empty. Entries
+ * therefore come back with `receipt_id` cleared, exactly as they come back
+ * with a store or session id the user no longer owns cleared. The learned
+ * `productAliases` ARE restored: they are fully round-trippable, and losing
+ * them would make every future receipt start from fuzzy matching again.
  */
 const isoDateSchema = z.iso.datetime().transform((value) => new Date(value));
 
 export const exportPayloadSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
   settings: z.object({
     includePromosInIndex: z.boolean(),
     carryForwardMonths: z.number().int().min(0).max(6),
@@ -78,6 +89,7 @@ export const exportPayloadSchema = z.object({
       category: z.enum(CATEGORY_IDS),
       unitKind: z.enum(UNIT_KINDS),
       notes: z.string().max(2000).nullable(),
+      defaultPackageSize: z.number().positive().nullable().default(null),
       isArchived: z.boolean(),
     }),
   ),
@@ -98,6 +110,7 @@ export const exportPayloadSchema = z.object({
       sessionId: nanoidSchema.nullable(),
       recordedAt: isoDateSchema,
       totalPriceCents: z.number().int().min(1),
+      quantity: z.number().int().min(1).max(99).default(1),
       packageSize: z.number().positive(),
       unitPriceMilli: z.number().int().min(1),
       isPromo: z.boolean(),
@@ -110,6 +123,18 @@ export const exportPayloadSchema = z.object({
       aiRawJson: z.string().nullable(),
     }),
   ),
+  productAliases: z
+    .array(
+      z.object({
+        id: nanoidSchema,
+        productId: nanoidSchema,
+        alias: z.string().min(1).max(200),
+        storeChain: z.string().max(100).nullable(),
+        hitCount: z.number().int().min(1),
+        lastSeenAt: isoDateSchema,
+      }),
+    )
+    .default([]),
 });
 
 export type ExportPayloadInput = z.infer<typeof exportPayloadSchema>;
@@ -119,6 +144,7 @@ export interface ImportResult {
   products: number;
   sessions: number;
   entries: number;
+  aliases: number;
   /** Entries dropped because they referenced a product that is not the user's. */
   skippedEntries: number;
 }
@@ -165,8 +191,16 @@ export async function importUserData(db: Db, userId: string, raw: unknown): Prom
         ...entry,
         storeId: entry.storeId && ownedStoreIds.has(entry.storeId) ? entry.storeId : null,
         sessionId: entry.sessionId && ownedSessionIds.has(entry.sessionId) ? entry.sessionId : null,
+        // See the note above the schema: import records are not restored, so
+        // there is nothing for an entry to point at.
+        receiptId: null,
       })),
     );
+
+    const importableAliases = payload.productAliases.filter((alias) =>
+      ownedProductIds.has(alias.productId),
+    );
+    await upsertProductAliases(tx, userId, importableAliases);
 
     await updateUserSettings(tx, userId, payload.settings);
 
@@ -175,6 +209,7 @@ export async function importUserData(db: Db, userId: string, raw: unknown): Prom
       products: payload.products.length,
       sessions: payload.shoppingSessions.length,
       entries: importable.length,
+      aliases: importableAliases.length,
       skippedEntries: payload.entries.length - importable.length,
     };
   });

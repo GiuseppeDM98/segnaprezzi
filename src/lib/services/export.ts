@@ -5,14 +5,20 @@
  */
 import type { Db } from '@/lib/db/client';
 import { listPriceEntries } from '@/lib/db/repositories/price-entries';
+import { listProductAliases } from '@/lib/db/repositories/product-aliases';
 import { listProducts } from '@/lib/db/repositories/products';
+import { listReceipts } from '@/lib/db/repositories/receipts';
 import { getUserSettings } from '@/lib/db/repositories/settings';
 import { listShoppingSessions } from '@/lib/db/repositories/shopping-sessions';
 import { listStores } from '@/lib/db/repositories/stores';
 
-/** Payload returned by GET /api/export. Bump schemaVersion on any shape change. */
+/**
+ * Payload returned by GET /api/export. Bump schemaVersion on any shape
+ * change. Version 2 (Spec 07 §2.6) adds `receipts` and `productAliases`, and
+ * `quantity` / `receiptId` on every entry.
+ */
 export interface ExportPayload {
-  schemaVersion: 1;
+  schemaVersion: 2;
   exportedAt: string;
   settings: {
     includePromosInIndex: boolean;
@@ -34,6 +40,7 @@ export interface ExportPayload {
     category: string;
     unitKind: string;
     notes: string | null;
+    defaultPackageSize: number | null;
     isArchived: boolean;
     createdAt: string;
     updatedAt: string;
@@ -52,8 +59,10 @@ export interface ExportPayload {
     productId: string;
     storeId: string | null;
     sessionId: string | null;
+    receiptId: string | null;
     recordedAt: string;
     totalPriceCents: number;
+    quantity: number;
     packageSize: number;
     unitPriceMilli: number;
     isPromo: boolean;
@@ -67,6 +76,34 @@ export interface ExportPayload {
     createdAt: string;
     updatedAt: string;
   }>;
+  /**
+   * Import records, deliberately WITHOUT `aiRawJson`: it is large, it is only
+   * useful for debugging the extraction, and the entries it produced carry
+   * their own per-line copy already.
+   */
+  receipts: Array<{
+    id: string;
+    storeId: string | null;
+    status: string;
+    purchasedAt: string;
+    receiptTotalCents: number;
+    lineCount: number;
+    contentHash: string;
+    fileKind: string;
+    aiModel: string;
+    confirmedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  productAliases: Array<{
+    id: string;
+    productId: string;
+    alias: string;
+    storeChain: string | null;
+    hitCount: number;
+    lastSeenAt: string;
+    createdAt: string;
+  }>;
 }
 
 /**
@@ -76,12 +113,15 @@ export interface ExportPayload {
  * page size.
  */
 export async function exportUserData(db: Db, userId: string): Promise<ExportPayload> {
-  const [settings, stores, products, shoppingSessions] = await Promise.all([
-    getUserSettings(db, userId),
-    listStores(db, userId),
-    listProducts(db, userId, { includeArchived: true }),
-    listShoppingSessions(db, userId, { limit: 100 }),
-  ]);
+  const [settings, stores, products, shoppingSessions, receipts, productAliases] =
+    await Promise.all([
+      getUserSettings(db, userId),
+      listStores(db, userId),
+      listProducts(db, userId, { includeArchived: true }),
+      listShoppingSessions(db, userId, { limit: 100 }),
+      listReceipts(db, userId),
+      listProductAliases(db, userId),
+    ]);
 
   const entries: ExportPayload['entries'] = [];
   let cursor: string | undefined;
@@ -93,8 +133,10 @@ export async function exportUserData(db: Db, userId: string): Promise<ExportPayl
         productId: entry.productId,
         storeId: entry.storeId,
         sessionId: entry.sessionId,
+        receiptId: entry.receiptId,
         recordedAt: entry.recordedAt.toISOString(),
         totalPriceCents: entry.totalPriceCents,
+        quantity: entry.quantity,
         packageSize: entry.packageSize,
         unitPriceMilli: entry.unitPriceMilli,
         isPromo: entry.isPromo,
@@ -113,7 +155,7 @@ export async function exportUserData(db: Db, userId: string): Promise<ExportPayl
   } while (cursor);
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     exportedAt: new Date().toISOString(),
     settings: {
       includePromosInIndex: settings.includePromosInIndex,
@@ -135,6 +177,7 @@ export async function exportUserData(db: Db, userId: string): Promise<ExportPayl
       category: product.category,
       unitKind: product.unitKind,
       notes: product.notes,
+      defaultPackageSize: product.defaultPackageSize,
       isArchived: product.isArchived,
       createdAt: product.createdAt.toISOString(),
       updatedAt: product.updatedAt.toISOString(),
@@ -149,5 +192,28 @@ export async function exportUserData(db: Db, userId: string): Promise<ExportPayl
       updatedAt: session.updatedAt.toISOString(),
     })),
     entries,
+    receipts: receipts.map((receipt) => ({
+      id: receipt.id,
+      storeId: receipt.storeId,
+      status: receipt.status,
+      purchasedAt: receipt.purchasedAt.toISOString(),
+      receiptTotalCents: receipt.receiptTotalCents,
+      lineCount: receipt.lineCount,
+      contentHash: receipt.contentHash,
+      fileKind: receipt.fileKind,
+      aiModel: receipt.aiModel,
+      confirmedAt: receipt.confirmedAt?.toISOString() ?? null,
+      createdAt: receipt.createdAt.toISOString(),
+      updatedAt: receipt.updatedAt.toISOString(),
+    })),
+    productAliases: productAliases.map((alias) => ({
+      id: alias.id,
+      productId: alias.productId,
+      alias: alias.alias,
+      storeChain: alias.storeChain,
+      hitCount: alias.hitCount,
+      lastSeenAt: alias.lastSeenAt.toISOString(),
+      createdAt: alias.createdAt.toISOString(),
+    })),
   };
 }
