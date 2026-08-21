@@ -17,7 +17,21 @@ export type DomainErrorCode =
   | 'VALIDATION_FAILED'
   | 'UNAUTHORIZED'
   | 'EXTRACTION_FAILED'
-  | 'INTERNAL';
+  | 'INTERNAL'
+  // Spec 03 §2.5 — capture, review, and quick-entry failures.
+  | 'INVALID_INPUT'
+  | 'INVALID_DATE'
+  | 'INVALID_PRICE'
+  | 'INVALID_SIZE'
+  | 'INVALID_STORE_KIND'
+  | 'INCONSISTENT_FUEL_PRICES'
+  | 'SESSION_NOT_FOUND'
+  | 'STORE_NOT_FOUND'
+  | 'PRODUCT_NOT_FOUND'
+  | 'SESSION_CLOSED'
+  | 'PHOTO_TOO_LARGE'
+  | 'UNSUPPORTED_PHOTO_TYPE'
+  | 'EXTRACTION_UNAVAILABLE';
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -62,6 +76,94 @@ export class ExtractionError extends DomainError {
   }
 }
 
+/*
+ * Spec 03 error classes. Each one exists because a caller must be able to
+ * react differently: the offline queue retries EXTRACTION_UNAVAILABLE but
+ * parks EXTRACTION_FAILED, and the review screen sends the user back to the
+ * capture screen on SESSION_CLOSED but to the product picker on
+ * PRODUCT_NOT_FOUND.
+ */
+
+/** The shopping session does not exist, or belongs to another user (Spec 03 §2.2). */
+export class SessionNotFoundError extends DomainError {
+  constructor(sessionId: string) {
+    super('SESSION_NOT_FOUND', `Shopping session ${sessionId} not found`);
+  }
+}
+
+/** The shopping session reached a terminal status and accepts no more writes. */
+export class SessionClosedError extends DomainError {
+  constructor(sessionId: string, status: string) {
+    super('SESSION_CLOSED', `Shopping session ${sessionId} is ${status}`);
+  }
+}
+
+/** The referenced store does not exist for this user. */
+export class StoreNotFoundError extends DomainError {
+  constructor(storeId: string) {
+    super('STORE_NOT_FOUND', `Store ${storeId} not found`);
+  }
+}
+
+/** The referenced product does not exist for this user. */
+export class ProductNotFoundError extends DomainError {
+  constructor(productId: string) {
+    super('PRODUCT_NOT_FOUND', `Product ${productId} not found`);
+  }
+}
+
+/** A fuel entry was attached to a store that is not a fuel station (Spec 03 §11.3). */
+export class InvalidStoreKindError extends DomainError {
+  constructor(message: string) {
+    super('INVALID_STORE_KIND', message);
+  }
+}
+
+/** unitPriceMilli x liters and totalPriceCents disagree beyond pump rounding. */
+export class InconsistentFuelPricesError extends DomainError {
+  constructor(message: string) {
+    super('INCONSISTENT_FUEL_PRICES', message);
+  }
+}
+
+/** recordedAt falls outside the accepted window (Spec 03 §10.3). */
+export class InvalidDateError extends DomainError {
+  constructor(message: string) {
+    super('INVALID_DATE', message);
+  }
+}
+
+/** A money field is outside its accepted range (Spec 03 §10.3). */
+export class InvalidPriceError extends DomainError {
+  constructor(message: string) {
+    super('INVALID_PRICE', message);
+  }
+}
+
+/** packageSize is outside its accepted range (Spec 03 §10.3). */
+export class InvalidSizeError extends DomainError {
+  constructor(message: string) {
+    super('INVALID_SIZE', message);
+  }
+}
+
+/** Input failed boundary (Zod) validation — the generic 400 of this spec. */
+export class InvalidInputError extends DomainError {
+  readonly issues: string[];
+
+  constructor(message: string, issues: string[] = []) {
+    super('INVALID_INPUT', message);
+    this.issues = issues;
+  }
+}
+
+/** The extraction upstream is temporarily unavailable; the caller should retry. */
+export class ExtractionUnavailableError extends DomainError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super('EXTRACTION_UNAVAILABLE', message, options);
+  }
+}
+
 /** Serializable error shape returned by Server Actions. */
 export type ActionError = {
   code: DomainErrorCode;
@@ -78,7 +180,7 @@ export type ActionError = {
  * must never reach the client.
  */
 export function toActionError(error: unknown): ActionError {
-  if (error instanceof ValidationError) {
+  if (error instanceof ValidationError || error instanceof InvalidInputError) {
     return { code: error.code, message: error.message, issues: error.issues };
   }
   if (error instanceof DomainError) {
@@ -90,3 +192,25 @@ export function toActionError(error: unknown): ActionError {
 // Guide: every Server Action returns this discriminated shape — the client
 // narrows on `ok` and translates `error.code` on failure.
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: ActionError };
+
+/**
+ * Map a thrown value to an ActionError, logging whatever was not expected.
+ *
+ * DomainError subclasses are the anticipated failures of a use case and need
+ * no log line — the client will show them to the user. Anything else is a bug
+ * or an outage: it must leave a traceable entry with its context while the
+ * client still only ever sees a generic INTERNAL error.
+ *
+ * @param operation - Name of the failing use case, for the log line
+ * @param context - Extra identifiers worth having when reading the log
+ */
+export function toLoggedActionError(
+  operation: string,
+  error: unknown,
+  context: Record<string, unknown> = {},
+): ActionError {
+  if (!(error instanceof DomainError)) {
+    console.error(`${operation} failed`, { ...context, cause: error });
+  }
+  return toActionError(error);
+}

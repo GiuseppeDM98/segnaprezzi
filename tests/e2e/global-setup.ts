@@ -29,6 +29,10 @@ async function warmUpRoutes(baseURL: string | undefined): Promise<void> {
   const page = await browser.newPage({ baseURL, storageState: 'playwright/.auth/dev.json' });
   await page.request.get('/');
   await page.request.get('/en');
+  await page.request.get('/scan');
+  await page.request.get('/scan/review');
+  await page.request.get('/add/manual');
+  await page.request.get('/add/fuel');
   await browser.close();
 }
 

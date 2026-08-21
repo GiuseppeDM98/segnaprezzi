@@ -1,0 +1,24 @@
+import { getTranslations } from 'next-intl/server';
+
+import { requireUser } from '@/lib/auth/session';
+import { db } from '@/lib/db/client';
+import { getManualEntryContext } from '@/lib/services/capture-context';
+import { ManualEntryForm } from './manual-entry-form';
+
+/**
+ * Manual price entry (Spec 03 §10). Online-only: the form is built around
+ * the user's existing catalog and stores, which it needs to resolve before
+ * anything can be saved.
+ */
+export default async function AddManualPage() {
+  const user = await requireUser();
+  const context = await getManualEntryContext(db, user.id);
+  const t = await getTranslations('addManual');
+
+  return (
+    <main className="flex min-h-dvh flex-col gap-4 p-4">
+      <h1 className="font-semibold text-xl">{t('title')}</h1>
+      <ManualEntryForm context={context} />
+    </main>
+  );
+}

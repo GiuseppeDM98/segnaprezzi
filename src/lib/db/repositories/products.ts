@@ -3,7 +3,7 @@
  * see the security rule in §6.1: no cross-user read or write is
  * representable through this layer.
  */
-import { and, asc, eq, like, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, like, or, sql } from 'drizzle-orm';
 
 import type { Db, DbTransaction } from '@/lib/db/client';
 import { type NewProduct, type Product, priceEntries, products } from '@/lib/db/schema/app';
@@ -23,7 +23,7 @@ export interface ListProductsOptions {
 
 /** Insert a product for the user and return the created row. */
 export async function createProduct(
-  db: Db,
+  db: Db | DbTransaction,
   userId: string,
   input: CreateProductInput,
 ): Promise<Product> {
@@ -36,7 +36,7 @@ export async function createProduct(
 
 /** List the user's products with optional filters, ordered by name. */
 export async function listProducts(
-  db: Db,
+  db: Db | DbTransaction,
   userId: string,
   options: ListProductsOptions = {},
 ): Promise<Product[]> {
@@ -145,4 +145,24 @@ export async function mergeProducts(
 
     return { movedEntriesCount: moved.length };
   });
+}
+
+/**
+ * Fetch the given product ids that belong to this user, in one IN (...)
+ * query. Used by the batch-confirm flow (Spec 03 §9.3 step 3) to verify a
+ * whole review batch's product picks without an N+1 loop; ids that belong to
+ * another user (or do not exist) are simply absent from the result.
+ */
+export async function listProductsByIds(
+  db: Db | DbTransaction,
+  userId: string,
+  productIds: string[],
+): Promise<Product[]> {
+  if (productIds.length === 0) {
+    return [];
+  }
+  return db
+    .select()
+    .from(products)
+    .where(and(eq(products.userId, userId), inArray(products.id, productIds)));
 }

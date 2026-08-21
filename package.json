@@ -23,9 +23,13 @@
     "auth:generate": "pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
     "@libsql/client": "^0.17.4",
+    "@vercel/blob": "^2.8.0",
     "better-auth": "^1.7.1",
+    "dexie": "^4.4.5",
     "drizzle-orm": "^0.45.2",
+    "motion": "^13.1.0",
     "nanoid": "^6.0.1",
     "next": "16.3.1",
     "next-intl": "^4.13.0",

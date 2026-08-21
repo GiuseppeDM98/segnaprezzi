@@ -5,7 +5,7 @@
  */
 import { and, asc, eq } from 'drizzle-orm';
 
-import type { Db } from '@/lib/db/client';
+import type { Db, DbTransaction } from '@/lib/db/client';
 import { type NewStore, type Store, stores } from '@/lib/db/schema/app';
 
 export type CreateStoreInput = Omit<NewStore, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
@@ -26,7 +26,11 @@ export async function listStores(db: Db, userId: string): Promise<Store[]> {
 }
 
 /** Fetch one store by id, or null if it does not exist for this user. */
-export async function getStoreById(db: Db, userId: string, storeId: string): Promise<Store | null> {
+export async function getStoreById(
+  db: Db | DbTransaction,
+  userId: string,
+  storeId: string,
+): Promise<Store | null> {
   const [store] = await db
     .select()
     .from(stores)

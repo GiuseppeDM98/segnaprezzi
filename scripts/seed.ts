@@ -23,6 +23,7 @@ import {
 import { products, shoppingSessions, stores } from '@/lib/db/schema/app';
 import { users } from '@/lib/db/schema/auth';
 import { env } from '@/lib/env';
+import { seedId } from './seed-ids';
 import { SEED_USER, SEED_USER_2 } from './seed-users';
 
 // Why: seeding must be impossible against production. The remote Turso URL
@@ -102,7 +103,7 @@ function buildSeedMonths(): YearMonth[] {
 // ---------------------------------------------------------------------------
 
 const STORE_ESSELUNGA = {
-  id: 'seed-store-esselunga',
+  id: seedId('seed-store-esselunga'),
   name: 'Esselunga Viale Papiniano',
   chain: 'Esselunga',
   city: 'Milano',
@@ -110,7 +111,7 @@ const STORE_ESSELUNGA = {
 };
 
 const STORE_ENI = {
-  id: 'seed-store-eni',
+  id: seedId('seed-store-eni'),
   name: 'Eni Station Via Lorenteggio',
   chain: 'Eni',
   city: 'Milano',
@@ -136,7 +137,7 @@ interface GroceryProductDef {
 
 const GROCERY_PRODUCTS: GroceryProductDef[] = [
   {
-    id: 'seed-prod-spaghetti',
+    id: seedId('seed-prod-spaghetti'),
     name: 'Spaghetti n.5 500g',
     brand: 'Barilla',
     category: 'food',
@@ -147,7 +148,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     photoMonthIndex: 3,
   },
   {
-    id: 'seed-prod-latte',
+    id: seedId('seed-prod-latte'),
     name: 'Latte intero UHT 1L',
     brand: 'Granarolo',
     category: 'food',
@@ -157,7 +158,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     secondEntryDay18: true,
   },
   {
-    id: 'seed-prod-olio',
+    id: seedId('seed-prod-olio'),
     name: 'Olio extravergine di oliva 1L',
     brand: 'Monini',
     category: 'food',
@@ -168,7 +169,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     photoMonthIndex: 3,
   },
   {
-    id: 'seed-prod-pane',
+    id: seedId('seed-prod-pane'),
     name: 'Pane casereccio',
     brand: null,
     category: 'food',
@@ -177,7 +178,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     prices: [4380, 4380, 4580, 4580],
   },
   {
-    id: 'seed-prod-parmigiano',
+    id: seedId('seed-prod-parmigiano'),
     name: 'Parmigiano Reggiano 24 mesi',
     brand: null,
     category: 'food',
@@ -186,7 +187,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     prices: [19900, 20500, 20500, 21200],
   },
   {
-    id: 'seed-prod-caffe',
+    id: seedId('seed-prod-caffe'),
     name: 'Caffè macinato Qualità Rossa 250g',
     brand: 'Lavazza',
     category: 'food',
@@ -196,7 +197,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     promo: { monthIndex: 2, kind: 'discount' },
   },
   {
-    id: 'seed-prod-acqua',
+    id: seedId('seed-prod-acqua'),
     name: 'Acqua naturale 6×1.5L',
     brand: 'San Benedetto',
     category: 'beverages',
@@ -205,7 +206,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     prices: [290, 290, 312, 312],
   },
   {
-    id: 'seed-prod-succo',
+    id: seedId('seed-prod-succo'),
     name: "Succo d'arancia 1L",
     brand: 'Yoga',
     category: 'beverages',
@@ -214,7 +215,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     prices: [1990, 1990, 2090, 2090],
   },
   {
-    id: 'seed-prod-piatti',
+    id: seedId('seed-prod-piatti'),
     name: 'Detersivo piatti limone 900ml',
     brand: 'Nelsen',
     category: 'household',
@@ -223,7 +224,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     prices: [1990, 2100, 2100, 2100],
   },
   {
-    id: 'seed-prod-carta',
+    id: seedId('seed-prod-carta'),
     name: 'Carta igienica 4 rotoli',
     brand: 'Regina',
     category: 'household',
@@ -232,7 +233,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     prices: [623, 623, 675, 675],
   },
   {
-    id: 'seed-prod-shampoo',
+    id: seedId('seed-prod-shampoo'),
     name: 'Shampoo antiforfora 250ml',
     brand: 'H&S',
     category: 'personal-care',
@@ -241,7 +242,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     prices: [15960, 15960, 17160, 17160],
   },
   {
-    id: 'seed-prod-crocchette',
+    id: seedId('seed-prod-crocchette'),
     name: 'Croccantini gatto salmone 2kg',
     brand: 'Purina',
     category: 'pets',
@@ -252,8 +253,10 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
 ];
 
 const FUEL_PRODUCT = {
-  id: 'seed-prod-benzina',
-  name: 'Benzina self',
+  id: seedId('seed-prod-benzina'),
+  // Must match FUEL_QUICK_PICKS' canonical name, or a real refuelling would
+  // create a second product and split this history in two (Spec 03 §11.1).
+  name: 'Benzina',
   brand: null as string | null,
   category: 'fuel' as const,
   unitKind: 'volume' as const,
@@ -402,7 +405,9 @@ async function seedPrimaryUser(): Promise<void> {
   ]);
 
   const months = buildSeedMonths();
-  const sessionIdByMonthIndex = ['m3', 'm2', 'm1', 'm0'].map((suffix) => `seed-session-${suffix}`);
+  const sessionIdByMonthIndex = ['m3', 'm2', 'm1', 'm0'].map((suffix) =>
+    seedId(`seed-session-${suffix}`),
+  );
   await db.insert(shoppingSessions).values(
     months.map((ym, monthIndex) => ({
       id: sessionIdByMonthIndex[monthIndex],
@@ -431,14 +436,14 @@ async function seedSecondUser(): Promise<void> {
   const userId = await createSeedUser(SEED_USER_2);
 
   const STORE_COOP = {
-    id: 'seed2-store-coop',
+    id: seedId('seed2-store-coop'),
     name: 'Coop Via Roma',
     chain: 'Coop',
     city: 'Torino',
     kind: 'supermarket' as const,
   };
   const PRODUCT_YOGURT = {
-    id: 'seed2-prod-yogurt',
+    id: seedId('seed2-prod-yogurt'),
     name: 'Yogurt bianco 4×125g',
     brand: 'Coop',
     category: 'food' as const,
