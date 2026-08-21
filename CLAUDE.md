@@ -88,19 +88,21 @@ populates a deterministic four-month dataset for both seed users;
 `GET /api/export` returns the full dataset. 28 unit tests + 9 Playwright E2E
 tests green, alongside `pnpm lint`/`typecheck`/`build`.
 
-Three verified corrections to Spec 02's literal text — RESTRICT→NO ACTION on
+Four verified corrections to Spec 02's literal text — RESTRICT→NO ACTION on
 `price_entries.productId` (SQLite checks RESTRICT immediately per-row, not
 deferred like every other action, which broke the full-account-wipe cascade);
 the `@better-auth/cli` version pin (`^1.7.0` doesn't exist; used `1.4.22`)
 plus a hand-patched `issuer` column the CLI doesn't yet emit but core 1.7.1
 needs at runtime; the test DB factory using a uniquely-named temp file
 instead of `:memory:` (an anonymous in-memory libSQL connection resets
-itself the instant a `db.transaction()` throws) — plus one addition no spec
-version mentions (WAL + busy_timeout on the local file DB, without which a
-few concurrent requests threw `SQLITE_BUSY`). Full rationale in
-`docs/specs/02-database-auth.md`'s inline correction notes and `AGENTS.md`
-§4.15–§4.20 — read those before touching the DB client, the auth schema, or
-the test DB factory.
+itself the instant a `db.transaction()` throws); `db:seed` using
+`--env-file-if-exists` instead of `--env-file` (Node throws if the file is
+missing, which it always is in CI — caught by the `e2e` CI job) — plus one
+addition no spec version mentions (WAL + busy_timeout on the local file DB,
+without which a few concurrent requests threw `SQLITE_BUSY`). Full rationale
+in `docs/specs/02-database-auth.md`'s inline correction notes and
+`AGENTS.md` §4.15–§4.21 — read those before touching the DB client, the auth
+schema, the test DB factory, or any `tsx --env-file` script.
 
 Not yet done: Vercel project connection/deploy (no account access yet, carried
 over since Spec 01); the WORKFLOW.md guided-collaudo phase-by-phase review

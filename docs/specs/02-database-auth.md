@@ -1070,8 +1070,17 @@ export async function updateUserSettings(
 | `db:generate` | `drizzle-kit generate` | Diff schema → SQL migration in `drizzle/` |
 | `db:migrate` | `drizzle-kit migrate` | Apply pending migrations to the configured DB |
 | `db:studio` | `drizzle-kit studio` | Inspect the DB in the browser |
-| `db:seed` | `tsx --env-file=.env.local scripts/seed.ts` | Populate local dev data (§8) |
-| `auth:generate` | `pnpm dlx @better-auth/cli@^1.7.0 generate --yes` | Regenerate `schema/auth.ts` (§5.1; row lives in the canonical scripts table, Spec 01 §4) |
+| `db:seed` | `tsx --env-file-if-exists=.env.local scripts/seed.ts` | Populate local dev data (§8) |
+| `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Regenerate `schema/auth.ts` (§5.1; row lives in the canonical scripts table, Spec 01 §4) |
+
+**Correction (2026-08-21, verified during implementation):** `db:seed` must use
+`--env-file-if-exists`, not `--env-file`. Node's `--env-file` throws
+(`.env.local: not found`) when the file is absent — which it always is in CI,
+where env vars come from the workflow's `env:` block instead. `drizzle-kit`
+doesn't have this problem because `drizzle.config.ts` loads `.env.local` via
+the `dotenv` package's `config()`, which silently no-ops on a missing file;
+Node's own `--env-file` does not. (The `auth:generate` row above carries the
+same correction as §5.1 — see that section for the full rationale.)
 
 Rules:
 
@@ -1112,7 +1121,7 @@ if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) {
 }
 ```
 
-- Runs with `pnpm db:seed` (env loaded via `tsx --env-file=.env.local`). Requires migrations to be applied first; fail with a clear message if the tables are missing.
+- Runs with `pnpm db:seed` (env loaded via `tsx --env-file-if-exists=.env.local` — see the §7.1 correction). Requires migrations to be applied first; fail with a clear message if the tables are missing.
 - **Idempotent by wipe**: if a user with the seed email exists, delete it first (`DELETE FROM users WHERE email = ...` — cascades wipe settings, stores, products, sessions, entries). Verify the generated auth schema cascades `sessions`/`accounts`; if not, delete those rows explicitly before the user. Wipe-and-recreate both seed users (§8.2, §8.4), not just the primary one.
 - Creates each user through `auth.api.signUpEmail({ body: { email, password, name } })` so the password hash is produced by Better Auth itself. Requires `SIGNUP_ENABLED` ≠ `false` locally (the default); abort with a clear message otherwise.
 - All non-auth rows use fixed ids (`seed-store-esselunga`, `seed-prod-spaghetti`, …) so re-runs and tests are reproducible.

@@ -15,7 +15,7 @@ you where the law is and how to work under it.
 > file and the spec's own inline correction notes (search the spec for
 > "Correction") describe what was actually verified to work — a handful of
 > Spec 02's literal snippets didn't survive contact with the real dependency
-> versions (see §4.15–§4.20).
+> versions (see §4.15–§4.21).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
@@ -577,7 +577,7 @@ are listed now and marked; do not invent different names for them.
 | `db:generate` | `drizzle-kit generate` | Spec 02 | After every schema change: emits SQL migration into `drizzle/`. |
 | `db:migrate` | `drizzle-kit migrate` | Spec 02 | Apply pending migrations to the DB in `TURSO_DATABASE_URL`. |
 | `db:studio` | `drizzle-kit studio` | Spec 02 | Browse/edit data in a local GUI while debugging. |
-| `db:seed` | `tsx --env-file=.env.local scripts/seed.ts` | Spec 02 | Populate the local DB with demo data (products, entries across months). |
+| `db:seed` | `tsx --env-file-if-exists=.env.local scripts/seed.ts` | Spec 02 | Populate the local DB with demo data (products, entries across months). Not `--env-file` — see §4.21. |
 | `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Spec 02 | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (§3.5, §4.2, §4.16). |
 | `icons` | `tsx scripts/generate-icons.ts` | Spec 06 | Regenerate PWA icon set from `docs/assets/logo.svg` into `public/`. |
 | `istat:update` | `tsx scripts/update-istat.ts` | Spec 04 | Refresh `data/istat-nic.json` from ISTAT; commit the diff. |
@@ -824,6 +824,17 @@ now does one serial warm-up `page.request.get()` per route before the
 parallel run starts — stable across repeated runs since. Add a warm-up call
 there for any new top-level route a future spec's E2E suite hits from
 multiple parallel tests.
+
+**4.21 Node's `--env-file` throws if the file is missing — CI has no
+`.env.local`, so any `tsx --env-file=...` script fails there.** Caught by
+the CI `e2e` job: `pnpm db:seed` worked locally and failed in CI with
+`.env.local: not found`, because CI injects env vars via the workflow's
+`env:` block, not a file. `drizzle-kit` doesn't hit this — `drizzle.config.ts`
+loads `.env.local` through the `dotenv` package's `config()`, which silently
+no-ops on a missing file. Use `--env-file-if-exists=.env.local` (Node 20.12+)
+for any `tsx` script invoked by both a local dev workflow and CI/production —
+never bare `--env-file` unless the file's presence is actually guaranteed
+everywhere the script runs.
 
 ---
 
