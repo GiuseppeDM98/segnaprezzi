@@ -35,6 +35,15 @@
 - The dashboard now says so when you are offline and the numbers you are looking at were computed earlier
 - When a new version of the app is available it offers to update instead of reloading under you — your half-finished review is never lost
 
+- Added receipt import — upload the digital receipt your supermarket e-mails you (PDF) or a photo of a paper one, and every product line on it becomes its own price observation, at the price you actually paid
+- Receipt lines are matched against your catalog automatically, and every correction is remembered: the next receipt from the same chain recognises "PASTA BAR SPAGH N5 500G" on its own, with nothing for you to do
+- Receipt lines that don't state a package size ask you for it — once — and then take it from your catalog forever after, so "1,09" becomes a comparable €/L
+- "2 × 1,09" is understood as one price bought twice, and goods sold by weight ("0,812 kg × 1,49") use the weight the scale printed
+- Discounts printed on their own line are folded into the product above them, and loyalty prices are recorded as such
+- Nothing from a receipt is saved until you confirm it, and you can exclude any line you don't want
+- Uploading the same receipt twice picks up where you left off instead of paying to read it again — and refuses outright once it has been imported
+- Product pages now list the receipt lines they have learned, so a mapping that went wrong can be forgotten with one tap
+
 ## 🔧 Improvements
 
 - The offline pill no longer polls: it reacts the instant a photo's status changes, including when the upload happened in the background with the app closed
@@ -57,11 +66,14 @@
 - Importing a backup can only ever touch your own rows: ids that belong to someone else are skipped, never overwritten
 - Deleting your account asks for your password and wipes everything in one go
 
+- Receipt files are never stored. A receipt carries the shop, the date and time, often a loyalty number and the last digits of your card — so it is read, turned into prices, and dropped; only the transcribed lines are kept, as the record you can check the numbers against
+
 ## 📚 Documentation
 
 - Added `DESIGN.md`, the recorded design system (tokens, type, layout, motion, do's and don'ts) that every UI change must follow, and `PRODUCT.md` with the product truth behind it
 - README now describes the design, the accessibility bar and how to run the end-to-end suite on a custom port
 - README and CONTRIBUTING now explain how to try the app offline or install it locally (`pnpm build && pnpm start` — the service worker is switched off in development) and document `pnpm icons` for regenerating the app icons
+- README now covers receipt import, and CONTRIBUTING documents `pnpm receipt:fixture` — the sample receipt the test suite uses is generated, never a real one
 
 ## 🏗️ Technical
 
@@ -78,4 +90,9 @@
 - Retrying a photo upload after a dropped connection now overwrites the same stored photo instead of leaving a duplicate behind, and confirming a shopping trip twice can never create the same entry twice
 - Every screen passes automated accessibility checks (axe) in both themes on phone and desktop, and scores 100 on Lighthouse accessibility
 - Charts are hand-drawn SVG with a hidden data table for screen readers — no charting library
+
+- Receipts are read by Claude Haiku 4.5 directly from the PDF — no PDF library, no server-side rendering — for roughly three cents a receipt
+- Uploaded files are checked by their actual content, not just their declared type, and capped at 5 MB and 10 pages
+- A receipt already imported is recognised by a fingerprint of the file, so a re-upload can never duplicate a shopping trip; confirming one is a single transaction that either records every line or none
+- The index now counts quantities: a line bought twice weighs twice as much in what you spent, without counting as two price observations
 - Added an accessibility end-to-end suite and a desktop Playwright project alongside the mobile one

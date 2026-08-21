@@ -27,7 +27,8 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 
 1. **Snap.** While shopping, photograph the shelf tag of each item you put in the cart. Photos are captured and queued locally — the app is offline-first, because supermarkets have terrible connectivity. Zero signal is fine; everything syncs when the network returns.
 2. **Extract.** Claude Haiku 4.5 reads each photo and pulls out the product, brand, category, total price, and unit price (€/kg, €/L, €/piece), normalized to comparable base units. You review every extraction before anything is saved — the AI proposes, you confirm.
-3. **Track.** The app buckets your entries by month, chains matched products into a personal CPI (base month = 100), and shows headline numbers ("your inflation: +4.2% YoY"), category breakdowns, per-product price histories, and a comparison against the official ISTAT index.
+3. **Or import.** Got the digital receipt your supermarket e-mailed you? Upload the PDF (or a photo of a paper one) and every product line on it becomes its own observation — at the price you actually paid. The app matches each abbreviated line to your catalog and remembers your corrections, so the next receipt from that chain resolves itself. The file is read and discarded, never stored.
+4. **Track.** The app buckets your entries by month, chains matched products into a personal CPI (base month = 100), and shows headline numbers ("your inflation: +4.2% YoY"), category breakdowns, per-product price histories, and a comparison against the official ISTAT index.
 
 **The honesty principle:** a personal index built from a few dozen products is statistically thin, and the app never pretends otherwise. Every number ships with its coverage stats — how many products were compared, which categories had data, how much was imputed — so you always know how much to trust what you see.
 
@@ -36,6 +37,7 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 The project is fully specified up front; each spec lands in its own session, and features are checked off as they actually ship. See [Project status](#project-status--roadmap).
 
 - [x] **Tag scanning** — photograph shelf price tags; Claude Haiku 4.5 extracts product, total price, and unit price with a review-before-save flow
+- [x] **Receipt import** — one PDF or photo becomes N observations: per-line extraction, automatic matching against your catalog, learned aliases so the next receipt from the same chain needs no work, and the file itself is never kept
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
 - [x] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and a one-tap ISTAT comparison rebased to your own starting month, on a dashboard that leads with your year-over-year number and its coverage line
 - [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, and duplicate-product merging
@@ -115,12 +117,12 @@ All variables are validated with Zod at boot (`src/lib/env.ts`); a misconfigured
 
 ## Local development
 
-> **Note:** Specs 01–05 are implemented — a real local database, sign-up/login,
-> the full capture flow (camera, AI extraction, review, quick entry), the
-> personal inflation engine with the official ISTAT series, and every screen
-> of the app (dashboard, products, history, stores, settings), plus the
-> installable PWA with its offline sync engine. What is left before a public
-> deployment is the go-live runbook (Spec 08) and receipt import (Spec 07).
+> **Note:** Specs 01–07 are implemented — a real local database, sign-up/login,
+> the full capture flow (camera, AI extraction, review, quick entry), receipt
+> import, the personal inflation engine with the official ISTAT series, and
+> every screen of the app (dashboard, products, history, stores, settings),
+> plus the installable PWA with its offline sync engine. What is left before a
+> public deployment is the go-live runbook (Spec 08).
 
 Requirements: Node 22+ and pnpm.
 
@@ -153,7 +155,7 @@ The service worker is disabled under `pnpm dev`. To try the app offline or insta
 
 ## Project status & roadmap
 
-**Current status: Spec 05 (UI & Design System) implemented — Spec 08 (Go-live & Operations) next.**
+**Current status: Specs 01–07 implemented — Spec 08 (Go-live & Operations) is the last one.**
 
 segnaprezzi is built specs-first: every part of the system is fully specified — exact schemas, algorithms with worked numeric examples, prompts, test plans — before a line of application code is written. Each spec is then implemented in its own focused session. The specs are public and are the best way to understand the project in depth:
 
@@ -166,10 +168,10 @@ segnaprezzi is built specs-first: every part of the system is fully specified �
 | [04 — Inflation Engine](docs/specs/04-inflation-engine.md) | Pure index math: bucketing, chaining, weighting, coverage stats, exhaustive test plan |
 | [05 — UI & Design System](docs/specs/05-ui-design.md) | Design system, dashboard, charts, all screens — the shipped system is recorded in [`DESIGN.md`](DESIGN.md) |
 | [06 — PWA & Offline](docs/specs/06-pwa-offline.md) | Serwist service worker, IndexedDB photo queue, sync manager ✅ |
-| [07 — Receipt Import](docs/specs/07-receipt-import.md) | Digital receipt (PDF) → per-line extraction, catalog aliases, review, `source='receipt'` entries |
-| [08 — Go-live & Operations](docs/specs/08-go-live.md) | Turso + Vercel + Blob + Anthropic provisioning, preview/production environments, first live collaudo, runbook |
+| [07 — Receipt Import](docs/specs/07-receipt-import.md) | Digital receipt (PDF) → per-line extraction, catalog aliases, review, `source='receipt'` entries ✅ |
+| [08 — Go-live & Operations](docs/specs/08-go-live.md) | Turso + Vercel + Blob + Anthropic provisioning for a single environment, first live collaudo, runbook |
 
-Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07. Spec 06 was in fact built before Spec 08, since it needs no live infrastructure; what still waits for a real HTTPS origin is the on-device install and background-sync check.
+Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07. Specs 06 and 07 were in fact built before Spec 08, since neither needs live infrastructure; what still waits for a real deployment is the on-device install and background-sync check, and one real supermarket PDF read by the real model.
 
 ### After v1
 

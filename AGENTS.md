@@ -7,23 +7,26 @@ you where the law is and how to work under it.
 
 > **Reality check**: Specs 01 (Foundation & Scaffold), 02 (Database & Auth),
 > 03 (Capture & AI Extraction), 04 (Inflation Engine), 05 (UI & Design
-> System) and 06 (PWA & Offline) are implemented — there is a real DB, real auth, real repositories,
-> a real Anthropic extraction gateway, the pure personal-CPI engine with its
-> service and the committed ISTAT series, every screen of the Spec 00
-> route map in the "tabulato a modulo continuo" visual world recorded in
-> **`DESIGN.md`** (mandatory reading before any UI work), and a real service
-> worker with the sync engine that drains the photo queue. The current
-> implementation state is tracked in **`CLAUDE.md` → "Current status"** —
-> read it first, trust it over any assumption. Sections below marked
-> **[PLANNED]** describe code that does not exist yet (Spec 07/08) but
-> whose shape is already decided; build exactly that shape. Where a spec's
-> literal code text and the actually-implemented code differ, this file and
-> the spec's own inline correction notes (search the spec for "Correction")
-> describe what was actually verified to work — a handful of Spec 02's, 03's,
-> 04's, 05's and 06's literal snippets didn't survive contact with the real
-> dependency versions, the Next.js runtime, the live ISTAT service, the
-> accessibility gates, Turbopack, Serwist's precache manifest and Better
-> Auth's production rate limiter (see §4.15–§4.48).
+> System), 06 (PWA & Offline) and 07 (Receipt Import) are implemented — there
+> is a real DB, real auth, real repositories, two real Anthropic gateways
+> (shelf tags and receipts), the pure personal-CPI engine with its service
+> and the committed ISTAT series, every screen of the Spec 00 route map in
+> the "tabulato a modulo continuo" visual world recorded in **`DESIGN.md`**
+> (mandatory reading before any UI work), a real service worker with the sync
+> engine that drains the photo queue, and the receipt pipeline with its
+> learned `product_aliases`. **Spec 08 (Go-live & Operations) is the only
+> unimplemented one.** The current implementation state is tracked in
+> **`CLAUDE.md` → "Current status"** — read it first, trust it over any
+> assumption. Sections below marked **[PLANNED]** describe code that does not
+> exist yet (Spec 08) but whose shape is already decided; build exactly that
+> shape. Where a spec's literal code text and the actually-implemented code
+> differ, this file and the spec's own inline correction notes (search the
+> spec for "Correction") describe what was actually verified to work — a
+> handful of Spec 02's, 03's, 04's, 05's, 06's and 07's literal snippets
+> didn't survive contact with the real dependency versions, the Next.js
+> runtime, the live ISTAT service, the accessibility gates, Turbopack,
+> Serwist's precache manifest, SQLite's NULL semantics and Better Auth's
+> production rate limiter (see §4.15–§4.53).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
@@ -247,8 +250,13 @@ export type DomainErrorCode =
 // INVALID_DATE, INVALID_PRICE, INVALID_SIZE, INVALID_STORE_KIND,
 // INCONSISTENT_FUEL_PRICES, SESSION_NOT_FOUND, STORE_NOT_FOUND,
 // PRODUCT_NOT_FOUND, SESSION_CLOSED, PHOTO_TOO_LARGE,
-// UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE. The code→HTTP mapping
-// lives in src/app/api/extract/route.ts.
+// UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE; Spec 07 added
+// RECEIPT_TOO_LARGE, UNSUPPORTED_RECEIPT_TYPE, RECEIPT_TOO_LONG,
+// RECEIPT_ALREADY_IMPORTED, RECEIPT_NOT_FOUND and RECEIPT_NO_LINES.
+// The code→HTTP mapping is duplicated in BOTH route handlers
+// (src/app/api/extract/route.ts and src/app/api/extract-receipt/route.ts) as
+// an exhaustive Record<DomainErrorCode, number> — which is what makes the
+// compiler, not a reviewer, catch a code added without a status.
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -383,9 +391,10 @@ The complete list (overview §9):
 |---|---|
 | `/api/auth/[...all]` | Better Auth owns this surface |
 | `/api/extract` | Called by the offline sync manager / service worker with a binary photo body |
+| `/api/extract-receipt` | Multipart upload of a PDF/image the user picked from disk (Spec 07 §4) |
 | `/api/export` | Streams a downloadable JSON file |
 
-Adding a fourth route handler requires a justification of this kind in the PR
+Adding a fifth route handler requires a justification of this kind in the PR
 description. "It felt more RESTful" is not one.
 
 ### 1.11 i18n rules (next-intl, `it` + `en`)
@@ -424,6 +433,7 @@ Namespace map **[decided]** — top-level keys of both message files:
 | `categories` | One label per taxonomy id (`food`, …, `other`) |
 | `units` | Unit labels and formats (kg, L, piece, €/kg, €/L) |
 | `pwa` | Install prompt, update toast |
+| `receipt` | Receipt upload, line review, per-line statuses |
 
 ### 1.12 Design tokens (semantic only)
 
@@ -535,6 +545,7 @@ segnaprezzi/
 │   │   ├── charts/             # Hand-rolled SVG: area-chart, category-bars, sparkline, trend-badge,
 │   │   │                       #   number-ticker + scale.ts (pure, tested).
 │   │   ├── capture/            # camera-view, photo-tray, extraction-card, match-picker, store-picker-sheet.
+│   │   ├── receipt/            # receipt-dropzone, receipt-line-card, receipt-summary-bar.
 │   │   ├── entries/            # entry-sheet (view/edit/delete one observation; detail + timeline).
 │   │   ├── auth/               # auth-form (progressive-reveal login/signup form).
 │   │   └── layout/             # app-shell, nav-rail, screen-header, offline-banner.
@@ -550,7 +561,8 @@ segnaprezzi/
 │   │   │   └── repositories/   # One module per aggregate. Queries only, all userId-scoped.
 │   │   ├── services/           # Use cases: record-entry.ts, merge-products.ts, compute-index.ts...
 │   │   │                       #   Orchestration only — no SQL, no HTTP, no JSX.
-│   │   ├── ai/                 # Anthropic gateway: extraction call, prompt, response schema.
+│   │   ├── ai/                 # Anthropic gateways: tag + receipt calls, prompts, response schemas.
+│   │   │                       #   One AiGatewayError mapping, shared by both.
 │   │   ├── blob/               # Vercel Blob gateway: upload/delete photo.
 │   │   ├── offline/            # CLIENT-side: Dexie schema, photo queue, sync manager.
 │   │   │                       #   Never imported by server code.
@@ -609,6 +621,12 @@ the matching `errors.<CODE>` message to **both** `messages/it.json` and
 the Zod schema at every boundary that accepts it, both message files if it is
 user-visible, and the extraction schema/prompt if the AI can emit it.
 
+**Adding an `EntrySource`** (`src/lib/domain/entries.ts`): add the
+`productDetail.source.<id>` label to **both** message files and an icon to
+`SOURCE_ICONS` in `src/components/entries/entry-sheet.tsx` (a `Record<EntrySource, …>`,
+so the compiler names the site). The history filter chips and the export
+schema iterate `ENTRY_SOURCES` and need nothing.
+
 **Adding or renaming a fuel quick pick** (`src/lib/domain/fuel-products.ts`):
 add the `addFuel.products.<key>` label to **both** message files, and give the
 pick the `unitKind` it is actually sold in (§1.3). Renaming a `canonicalName`
@@ -652,6 +670,7 @@ are listed now and marked; do not invent different names for them.
 | `db:seed` | `tsx --env-file-if-exists=.env.local scripts/seed.ts` | Spec 02 | Populate the local DB with demo data (products, entries across months). Not `--env-file` — see §4.21. |
 | `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Spec 02 | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (§3.5, §4.2, §4.16). |
 | `icons` | `tsx scripts/generate-icons.ts` | Spec 06 | Regenerate PWA icon set from `docs/assets/logo.svg` into `public/`. |
+| `receipt:fixture` | `tsx scripts/make-receipt-fixture.ts` | Spec 07 | Regenerate the synthetic receipt PDF the E2E suite uploads. Changing it changes its SHA-256, which the idempotency test derives at runtime — no constant to update. |
 | `istat:update` | `tsx scripts/update-istat.ts` | Spec 04 | Refresh `data/istat-nic.json` from ISTAT; commit the diff. |
 
 `tsx` is a devDependency — scripts run TypeScript directly, no build step.
@@ -974,13 +993,6 @@ and can take over a minute, and `/data/<flow>/all` times out — always query a
 narrow key. The dashboard loads `data/istat-nic.json` as a static import and
 calls `rebaseIstat(months, series[0].ym)`; it never fetches ISTAT at runtime.
 
-**4.28 `listEntriesForIndex` fills `quantity` with a constant `1` until Spec 07
-adds the column.** Spec 04's `IndexEntry.quantity` (receipt "2 × 1,29" → 2)
-multiplies expenditure weights, but `price_entries.quantity` only arrives with
-Spec 07's migration (Spec 07 §2.3). The engine already multiplies by it, and
-the existing repository test asserts the field; Spec 07 replaces the constant
-with the column in that one projection and nothing else moves.
-
 **4.29 Test the engine's dead branches by removing them, not by faking
 inputs.** Spec 04 asks for ≈100% line coverage of `src/lib/inflation/`; the
 last few uncovered lines were defensive guards that TypeScript narrowing
@@ -1133,6 +1145,57 @@ error. Spec 06's icon pipeline writes the `public/` one, so the App Router
 convention file was deleted; `generateMetadata` declares `/favicon.ico`
 explicitly.
 
+**4.49 SQLite treats NULLs as DISTINCT inside a UNIQUE index, so
+`ON CONFLICT` never fires for a nullable key column.** `product_aliases` is
+unique on `(user_id, alias, store_chain)` and `store_chain` is NULL for an
+alias learned from a receipt with no known chain — two such rows do NOT
+collide, and an `onConflictDoUpdate` upsert silently inserts a duplicate
+instead of incrementing `hit_count`.
+`src/lib/db/repositories/product-aliases.ts` therefore reads the row before
+it writes (with `isNull()`, not `eq(col, null)`, which is never true in SQL).
+Both callers run inside a transaction, so the read-then-write is atomic. The
+corollary is that `moveProductAliases`'s "sum hit_count on conflict" branch
+is only reachable for chain-less aliases brought in by a restored backup —
+its test seeds that state directly, because the repository's own upsert
+cannot produce it.
+
+**4.50 A `biome-ignore` suppression must be ONE comment node.** Four
+consecutive `//` lines are four comments, and Biome only reads the first as
+the suppression — it then reports both `suppressions/unused` on the comment
+*and* the original rule on the node below. Use a `/* … */` block for any
+justification that needs more than one line (`{/* … */}` inside JSX
+children), and keep it directly above the node.
+
+**4.51 Don't reach for `client.withOptions()` when a gateway needs different
+SDK options — give it its own `Anthropic` instance.** `src/lib/ai/`'s test
+seam is an injected client shaped `{ messages: { parse } }` (Spec 03 §13.1);
+a `withOptions({ timeout })` call inside the gateway means every mock must
+also implement `withOptions`, which is a lot of ceremony to express "receipts
+get 45 s instead of 30". `extract-receipt.ts` constructs its own client and
+re-uses `extract-price-tag.ts`'s exported `toAiGatewayError` for the failure
+mapping, so the classification still lives in exactly one place.
+
+**4.52 `test.beforeEach` in a `describe.configure({ mode: 'serial' })` group
+wipes the state the next test depends on.** The receipt E2E suite's second
+test asserts that re-uploading an already-confirmed receipt is refused — which
+only means anything if the first test's confirm is still there. Use
+`beforeAll` for the reset in a serial group: Playwright re-runs it on a retry
+of the group, so the idempotency of the fixture is preserved either way.
+
+**4.53 An all-ASCII binary fixture needs a `.gitattributes` entry, or
+`core.autocrlf` silently corrupts it.** The E2E receipt fixture is a
+hand-written PDF (`scripts/make-receipt-fixture.ts`) with no compressed
+streams, so git's content heuristic classifies it as *text* and rewrites its
+line endings on checkout under Windows' `core.autocrlf=true`. Every byte
+offset in the PDF's xref table then points one byte early per preceding line,
+and the file stops being a document any reader can open — while still
+*passing* the idempotency test, which derives the SHA-256 at runtime from
+whatever is on disk. `.gitattributes` declares `*.pdf` (and the image
+formats) `binary`; verify with
+`git cat-file -p :<path> | sha256sum` against the file on disk. This is the
+failure mode that looks like "the model can't read our fixture" three weeks
+later, on somebody else's clone.
+
 ---
 
 ## 5. Spec-Driven Workflow
@@ -1148,12 +1211,19 @@ explicitly.
 | 04 | `docs/specs/04-inflation-engine.md` | Pure index engine: bucketing, carry-forward, Jevons, weighting, chaining, ISTAT comparison, exhaustive tests. |
 | 05 | `docs/specs/05-ui-design.md` | Full design system + all screens; produced `DESIGN.md` (implemented 2026-08-21). |
 | 06 | `docs/specs/06-pwa-offline.md` | Serwist, IndexedDB queue, sync manager, install experience, icons. **Implemented 2026-08-21.** |
-| 07 | `docs/specs/07-receipt-import.md` | Digital receipt → per-line extraction, catalog aliases, review, `source='receipt'` entries. |
-| 08 | `docs/specs/08-go-live.md` | Operations: Turso + Vercel + Blob + Anthropic provisioning, preview/production scope matrix, first live collaudo, runbook. |
+| 07 | `docs/specs/07-receipt-import.md` | Digital receipt → per-line extraction, catalog aliases, review, `source='receipt'` entries. **Implemented 2026-08-21.** |
+| 08 | `docs/specs/08-go-live.md` | Operations: Turso + Vercel + Blob + Anthropic provisioning for **one** environment (previews deliberately off — §1.1), the accumulated collaudo for Specs 05–08, runbook. |
 
-Order: **01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07**. Spec 08 (go-live) is an
-operations session that must precede Spec 06's real-device PWA checks. Spec 04 depends on 02 for types
-only — it can proceed against the schema definitions without a running DB.
+Planned order: **01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07**. Spec 04 depends
+on 02 for types only — it can proceed against the schema definitions without a
+running DB.
+
+**Actual order: 08 came last.** It was deferred twice for the same reason —
+it provisions live infrastructure and needs the owner's accounts, which no
+coding session can stand in for — and neither Spec 06 nor Spec 07 turned out
+to have a runtime dependency on it. What waited for a deployment instead are
+the *manual* checks those specs could not answer, which Spec 08 §7.2 now owns
+as one accumulated collaudo.
 
 ### 5.2 One spec per session
 
@@ -1211,7 +1281,7 @@ drifts silently.
 | Document | What it governs | When to read |
 |---|---|---|
 | `docs/specs/00-overview.md` | The contract: names, shapes, decisions | Every session, before writing code |
-| `docs/specs/01–06` | Per-area implementation specs | The one you are implementing, in full |
+| `docs/specs/01–08` | Per-area implementation specs | The one you are implementing, in full |
 | `docs/DEVELOPMENT_GUIDELINES.md` | Layers, naming, errors, testing, security, performance | Once fully; re-check when unsure |
 | `docs/COMMENTS.md` | Comment types and discipline | Before writing any code with comments |
 | `DESIGN.md` | Tokens, typography, layout vocabulary, animation, anti-patterns — generated by the impeccable documenter from the shipped Spec 05 build | **Mandatory before any UI work** |

@@ -52,6 +52,7 @@ async function warmUpRoutes(baseURL: string | undefined): Promise<void> {
   await page.request.get('/scan/review');
   await page.request.get('/add/manual');
   await page.request.get('/add/fuel');
+  await page.request.get('/add/receipt');
   await page.request.get('/products');
   await page.request.get('/history');
   await page.request.get('/stores');

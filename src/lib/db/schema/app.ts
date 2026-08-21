@@ -31,11 +31,12 @@
  * still blocked — but checks at end-of-statement, so it no longer races the
  * user-cascade's own price_entries cleanup within the same statement.
  */
-import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { nanoid } from 'nanoid';
 
 import type { CategoryId } from '@/lib/domain/categories';
 import type { EntrySource, PromoKind, SessionStatus } from '@/lib/domain/entries';
+import type { ReceiptFileKind, ReceiptStatus } from '@/lib/domain/receipts';
 import type { StoreKind } from '@/lib/domain/stores';
 import type { UnitKind } from '@/lib/domain/units';
 import { users } from './auth';
@@ -100,6 +101,10 @@ export const products = sqliteTable(
     category: text('category').$type<CategoryId>().notNull(),
     unitKind: text('unit_kind').$type<UnitKind>().notNull(),
     notes: text('notes'),
+    // Why (Spec 07 §2.2): receipt lines rarely print a package size, and the
+    // last confirmed size of a product is the best guess for its next line.
+    // Tags and manual entries write it; receipts read it.
+    defaultPackageSize: real('default_package_size'),
     isArchived: integer('is_archived', { mode: 'boolean' }).notNull().default(false),
     createdAt: createdAtColumn(),
     updatedAt: updatedAtColumn(),
@@ -124,6 +129,45 @@ export const shoppingSessions = sqliteTable(
   (table) => [index('shopping_sessions_user_id_idx').on(table.userId)],
 );
 
+/**
+ * One imported receipt (Spec 07 §2.4). An import record, never an
+ * observation: the price observations it produces are the price_entries
+ * rows created when the user confirms it.
+ *
+ * The file itself is deliberately NOT stored (Spec 07 §5): a receipt carries
+ * the loyalty-card number, the last digits of a payment card and a full
+ * picture of what a person buys — too sensitive for the public Blob URLs a
+ * shelf-tag photo can live behind. What survives is the structured
+ * extraction (every rawLine included, the audit trail the review screen
+ * reads back) and the content hash that makes a re-upload idempotent.
+ */
+export const receipts = sqliteTable(
+  'receipts',
+  {
+    id: idColumn(),
+    userId: userIdColumn(),
+    storeId: text('store_id').references(() => stores.id, { onDelete: 'set null' }),
+    status: text('status').$type<ReceiptStatus>().notNull().default('extracted'),
+    // Why: the receipt's own date, not the upload moment — users import last
+    // week's e-mails. Falls back to upload time when unreadable.
+    purchasedAt: integer('purchased_at', { mode: 'timestamp_ms' }).notNull(),
+    receiptTotalCents: integer('receipt_total_cents').notNull(),
+    lineCount: integer('line_count').notNull(),
+    // Why: idempotency and duplicate protection without storing the file.
+    contentHash: text('content_hash').notNull(),
+    fileKind: text('file_kind').$type<ReceiptFileKind>().notNull(),
+    aiModel: text('ai_model').notNull(),
+    aiRawJson: text('ai_raw_json').notNull(),
+    confirmedAt: integer('confirmed_at', { mode: 'timestamp_ms' }),
+    createdAt: createdAtColumn(),
+    updatedAt: updatedAtColumn(),
+  },
+  (table) => [
+    index('receipts_user_id_idx').on(table.userId),
+    uniqueIndex('receipts_user_hash_idx').on(table.userId, table.contentHash),
+  ],
+);
+
 export const priceEntries = sqliteTable(
   'price_entries',
   {
@@ -140,8 +184,16 @@ export const priceEntries = sqliteTable(
     sessionId: text('session_id').references(() => shoppingSessions.id, {
       onDelete: 'set null',
     }),
+    // Why nullable + set null (Spec 07 §2.3): an entry outlives the import
+    // record it came from, exactly as it outlives its store or session.
+    receiptId: text('receipt_id').references(() => receipts.id, { onDelete: 'set null' }),
     recordedAt: integer('recorded_at', { mode: 'timestamp_ms' }).notNull(),
     totalPriceCents: integer('total_price_cents').notNull(),
+    // Why (Spec 07 §2.3): "2 x 1,29" on a receipt is ONE observation of the
+    // price 1,29 bought twice. Two rows would double-weight that month's
+    // mean; a quantity keeps the mean honest while letting Spec 04's
+    // expenditure weights count what was actually spent.
+    quantity: integer('quantity').notNull().default(1),
     packageSize: real('package_size').notNull(),
     unitPriceMilli: integer('unit_price_milli').notNull(),
     isPromo: integer('is_promo', { mode: 'boolean' }).notNull().default(false),
@@ -167,6 +219,47 @@ export const priceEntries = sqliteTable(
   ],
 );
 
+/**
+ * Learned receipt-line → product mappings (Spec 07 §2.5). This table is what
+ * makes the second receipt from a chain resolve itself: the abbreviation the
+ * printer used is remembered, per user, next to the product the user chose
+ * for it.
+ *
+ * Cascade on product delete is correct — an alias without its product means
+ * nothing. Product MERGE has to move them instead (see moveProductAliases in
+ * the product-aliases repository), or the survivor would lose everything the
+ * archived duplicate had learned.
+ */
+export const productAliases = sqliteTable(
+  'product_aliases',
+  {
+    id: idColumn(),
+    userId: userIdColumn(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    // Normalized receipt description — see normalizeAlias in domain/receipt-lines.
+    alias: text('alias').notNull(),
+    // Why: the same abbreviation can mean different things at different
+    // chains; NULL = learned from a receipt without a known chain.
+    storeChain: text('store_chain'),
+    hitCount: integer('hit_count').notNull().default(1),
+    lastSeenAt: integer('last_seen_at', { mode: 'timestamp_ms' }).notNull(),
+    createdAt: createdAtColumn(),
+  },
+  (table) => [
+    // WARNING: SQLite treats NULLs as distinct in a UNIQUE index, so this
+    // constraint does NOT collapse two chain-less aliases. The repository
+    // upserts by explicit lookup rather than ON CONFLICT for that reason.
+    uniqueIndex('product_aliases_user_alias_chain_idx').on(
+      table.userId,
+      table.alias,
+      table.storeChain,
+    ),
+    index('product_aliases_product_idx').on(table.productId),
+  ],
+);
+
 // Inferred row types — the canonical TypeScript shapes used across layers.
 export type UserSettings = typeof userSettings.$inferSelect;
 export type Store = typeof stores.$inferSelect;
@@ -177,3 +270,7 @@ export type ShoppingSession = typeof shoppingSessions.$inferSelect;
 export type NewShoppingSession = typeof shoppingSessions.$inferInsert;
 export type PriceEntry = typeof priceEntries.$inferSelect;
 export type NewPriceEntry = typeof priceEntries.$inferInsert;
+export type Receipt = typeof receipts.$inferSelect;
+export type NewReceipt = typeof receipts.$inferInsert;
+export type ProductAlias = typeof productAliases.$inferSelect;
+export type NewProductAlias = typeof productAliases.$inferInsert;

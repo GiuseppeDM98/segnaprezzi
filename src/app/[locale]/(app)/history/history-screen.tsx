@@ -247,6 +247,11 @@ export function HistoryScreen({ firstPage, stores }: HistoryScreenProps) {
             body={t('empty.body')}
             data-testid="history-empty"
             action={<Button href="/scan">{t('empty.cta')}</Button>}
+            secondaryAction={
+              <Button href="/add/receipt" variant="ghost">
+                {t('empty.receiptCta')}
+              </Button>
+            }
           />
         )
       ) : (

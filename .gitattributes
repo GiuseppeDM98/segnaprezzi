@@ -1,0 +1,12 @@
+# The E2E receipt fixture is a hand-written PDF (scripts/make-receipt-fixture.ts):
+# pure ASCII, so git's content heuristic reads it as text and core.autocrlf
+# rewrites its line endings on checkout — which shifts every byte offset in its
+# xref table and leaves an invalid PDF behind. Declaring the binary formats
+# explicitly is the fix; without it the file survives hashing (the test derives
+# the SHA-256 at runtime) but stops being a document any reader can open.
+*.pdf   binary
+*.png   binary
+*.ico   binary
+*.webp  binary
+*.jpg   binary
+*.jpeg  binary

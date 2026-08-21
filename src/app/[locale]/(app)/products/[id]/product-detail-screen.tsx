@@ -6,7 +6,7 @@
  * a range toggle, the four stat tiles, the per-store comparison and the
  * entries list with the shared entry sheet.
  */
-import { Archive, ArchiveRestore, MoreHorizontal, PencilLine } from 'lucide-react';
+import { Archive, ArchiveRestore, MoreHorizontal, PencilLine, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
@@ -41,7 +41,7 @@ import {
 import { useRouter } from '@/lib/i18n/navigation';
 import type { ProductDetail } from '@/lib/services/product-detail';
 import { editProduct, setProductArchived } from '../actions';
-import { deletePriceEntry, editPriceEntry } from './actions';
+import { deletePriceEntry, deleteProductAlias, editPriceEntry } from './actions';
 
 type ChartRange = '12' | 'all';
 
@@ -305,6 +305,8 @@ export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps
                 })}
               </ul>
             </section>
+
+            <AliasSection aliases={detail.aliases} />
           </>
         )}
       </div>
@@ -419,5 +421,55 @@ function MenuRow({
       {icon}
       {label}
     </button>
+  );
+}
+
+/**
+ * The receipt lines this product has learned (Spec 07 §9).
+ *
+ * Visible because an alias is invisible machinery until it goes wrong: when
+ * a receipt keeps resolving "LATTE PS UHT" to the wrong milk, this list is
+ * the only place a user can undo the lesson.
+ */
+function AliasSection({ aliases }: { aliases: ProductDetail['aliases'] }) {
+  const t = useTranslations('productDetail');
+  const { toast } = useToast();
+  const router = useRouter();
+
+  if (aliases.length === 0) {
+    return null;
+  }
+
+  async function handleDelete(aliasId: string): Promise<void> {
+    const result = await deleteProductAlias({ aliasId });
+    if (result.ok) {
+      toast({ kind: 'success', message: t('aliasDeleted') });
+      router.refresh();
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>{t('aliasesTitle')}</SectionHeading>
+      <ul className="zebra -mx-1" data-testid="alias-list">
+        {aliases.map((alias) => (
+          <li key={alias.id} className="flex min-h-12 items-center gap-3 px-3">
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-mono text-[13px] text-text">{alias.alias}</span>
+              <span className="truncate font-sans text-[12px] text-text-muted">
+                {alias.storeChain ?? t('aliasAnyChain')} ·{' '}
+                {t('aliasHits', { count: alias.hitCount })}
+              </span>
+            </span>
+            <IconButton
+              icon={<X />}
+              label={t('aliasDelete')}
+              onClick={() => void handleDelete(alias.id)}
+              data-testid="alias-delete"
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

@@ -80,7 +80,8 @@
     "error": {
       "title": "Non riesco a calcolare l'indice",
       "body": "Qualcosa è andato storto nel leggere le tue rilevazioni. Riprova tra un momento."
-    }
+    },
+    "quickAddReceipt": "Scontrino"
   },
   "scan": {
     "title": "Spesa in corso",
@@ -273,6 +274,83 @@
     },
     "amounts": "Importi"
   },
+  "receipt": {
+    "title": "Importa scontrino",
+    "dropzone": "Carica lo scontrino digitale (PDF) o una foto",
+    "dropzoneHint": "Un file alla volta, fino a 5 MB",
+    "choose": "Scegli un file",
+    "change": "Cambia file",
+    "selected": "{name} · {size}",
+    "fileSize": "{size} kB",
+    "offline": "Serve la connessione per leggere uno scontrino",
+    "reading": "Leggo lo scontrino…",
+    "submit": "Leggi lo scontrino",
+    "store": "Punto vendita",
+    "detectStore": "Rileva dallo scontrino",
+    "error": "Non sono riuscito a leggere lo scontrino",
+    "intro": "Ogni riga dello scontrino diventa una rilevazione: il prezzo che hai pagato davvero.",
+    "status": {
+      "ready": "Pronta",
+      "needsSize": "Manca il formato",
+      "needsProduct": "Manca il prodotto",
+      "needsReview": "Da controllare"
+    },
+    "review": {
+      "title": "Controlla le righe",
+      "caption": "{count, plural, one {# riga} other {# righe}} · {date}",
+      "headerTitle": "Scontrino",
+      "date": "Data",
+      "store": "Punto vendita",
+      "noStore": "Nessun punto vendita",
+      "createStore": "Crea punto vendita: {name}",
+      "storeCreated": "Il punto vendita sarà creato alla conferma",
+      "receiptTotal": "Totale scontrino",
+      "linesTotal": "Totale righe",
+      "totalMismatch": "Il totale delle righe non torna con lo scontrino: controlla le righe evidenziate",
+      "noTotal": "Lo scontrino non riporta un totale leggibile",
+      "noDate": "Data non leggibile: controlla e correggi",
+      "lowConfidence": "Lettura incerta: controlla tutte le righe",
+      "needsSize": "Indica il formato (es. 500 g) per calcolare il prezzo al kg",
+      "needsProduct": "Scegli o crea il prodotto",
+      "lowLineConfidence": "Riga letta con poca sicurezza",
+      "qtyPriceMismatch": "Quantità e prezzo non tornano",
+      "zeroPrice": "Prezzo mancante",
+      "sameDay": "Già rilevato oggi ({source}): {price}",
+      "learnAlias": "Ricorda questa riga",
+      "learnAliasHint": "Il prossimo scontrino di questa catena riconoscerà la riga da solo",
+      "confirm": "Conferma {count, plural, one {# riga} other {# righe}}",
+      "excluded": "Esclusa",
+      "exclude": "Escludi",
+      "include": "Includi",
+      "rawLine": "Riga originale",
+      "counters": "{ready} pronte · {blocked} da sistemare · {excluded} escluse",
+      "blocked": "{count, plural, one {# riga da sistemare} other {# righe da sistemare}}",
+      "sizeFromCatalog": "Formato dal catalogo",
+      "sizeFromReceipt": "Formato dallo scontrino",
+      "sizeWeighed": "Peso dallo scontrino",
+      "sizeAssumed": "Un pezzo",
+      "archived": "Archiviato",
+      "discard": "Scarta lo scontrino",
+      "discarded": "Scontrino scartato",
+      "discardError": "Non sono riuscito a scartare lo scontrino",
+      "saved": "{count, plural, one {# rilevazione importata} other {# rilevazioni importate}}",
+      "confirmError": "Controlla le righe segnalate e riprova",
+      "fields": {
+        "product": "Prodotto",
+        "quantity": "Confezioni",
+        "packageSize": "Formato",
+        "totalPrice": "Prezzo",
+        "unitPrice": "Prezzo unitario",
+        "isPromo": "In offerta",
+        "promoKind": "Tipo di offerta"
+      },
+      "empty": {
+        "title": "Nessuna riga da controllare",
+        "body": "Lo scontrino non conteneva righe prodotto leggibili.",
+        "cta": "Carica un altro scontrino"
+      }
+    }
+  },
   "products": {
     "title": "Prodotti",
     "searchPlaceholder": "Cerca un prodotto",
@@ -338,7 +416,8 @@
     "source": {
       "photo": "Da foto",
       "manual": "A mano",
-      "fuel": "Rifornimento"
+      "fuel": "Rifornimento",
+      "receipt": "Scontrino"
     },
     "entry": {
       "title": "Rilevazione",
@@ -363,7 +442,13 @@
     "error": {
       "title": "Non riesco a caricare il prodotto",
       "body": "Riprova tra un momento."
-    }
+    },
+    "aliasesTitle": "Righe scontrino riconosciute",
+    "aliasHits": "{count, plural, one {# volta} other {# volte}}",
+    "aliasDelete": "Dimentica questa riga",
+    "aliasDeleted": "Riga dimenticata",
+    "aliasesEmpty": "Nessuna riga di scontrino associata a questo prodotto.",
+    "aliasAnyChain": "Tutte le catene"
   },
   "history": {
     "title": "Cronologia",
@@ -391,7 +476,8 @@
     "empty": {
       "title": "La tua cronologia è vuota",
       "body": "Ogni prezzo che registri finisce qui, giorno per giorno.",
-      "cta": "Fotografa un cartellino"
+      "cta": "Fotografa un cartellino",
+      "receiptCta": "Hai uno scontrino digitale? Importalo"
     },
     "filteredEmpty": {
       "title": "Niente con questi filtri",
@@ -543,7 +629,13 @@
       "body": "Non è colpa tua. Riprova, o torna alla home.",
       "retry": "Riprova",
       "cta": "Torna alla home"
-    }
+    },
+    "RECEIPT_TOO_LARGE": "Lo scontrino supera 5 MB: caricane uno più leggero.",
+    "UNSUPPORTED_RECEIPT_TYPE": "Formato non supportato: usa un PDF o una foto.",
+    "RECEIPT_TOO_LONG": "Lo scontrino ha troppe pagine (massimo 10).",
+    "RECEIPT_ALREADY_IMPORTED": "Questo scontrino è già stato importato.",
+    "RECEIPT_NOT_FOUND": "Scontrino non trovato.",
+    "RECEIPT_NO_LINES": "Non ho trovato righe prodotto in questo scontrino."
   },
   "offline": {
     "offline": "Sei offline — le foto restano sul telefono",

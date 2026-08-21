@@ -118,6 +118,21 @@ helpers, merge moves aliases), `src/lib/services/merge-products.ts` (alias
 move), `src/lib/services/export-user-data.ts` (`schemaVersion: 2`, §2.6),
 bottom-sheet "Add" menu (Spec 05) gains a "Scontrino" action.
 
+**Correction (2026-08-21, verified during implementation):** three names in
+this inventory do not exist in the shipped tree. The merge transaction lives
+in `src/lib/db/repositories/products.ts` (`mergeProducts`), not in a
+`services/merge-products.ts`, so the alias move happens there; the export
+service is `src/lib/services/export.ts`; and Spec 05 shipped no bottom-sheet
+"Add" menu — the entry points are the dashboard's quick-action row (which
+gains a full-width "Scontrino" button) and the `/history` empty state. Three
+files are added beyond the table, following the convention every Spec 05
+screen already uses: `add/receipt/receipt-upload-screen.tsx` and
+`add/receipt/review/receipt-review-screen.tsx` are the Client Components
+their Server Component pages render, and `add/receipt/review/schema.ts`
+exists because a `"use server"` module may only export async functions
+(AGENTS.md §4.22). `src/lib/domain/receipts.ts` is likewise absent from the
+table but required by §2.4.
+
 ---
 
 ## 2. Domain & Schema Changes
@@ -252,6 +267,18 @@ meaningless); product **merge** (Spec 03/05 feature) must move aliases to the
 surviving product — `moveAliases(fromProductId, toProductId)` in the
 repository, called inside the merge transaction, with `onConflictDoUpdate`
 summing `hit_count` when both products had the same alias.
+
+**Correction (2026-08-21, verified during implementation):** `ON CONFLICT`
+cannot be used on this key. SQLite treats NULLs as **distinct** inside a
+UNIQUE index, so two aliases learned with `store_chain IS NULL` never collide
+and `onConflictDoUpdate` silently inserts a duplicate instead of incrementing
+`hit_count`. Both writers in `src/lib/db/repositories/product-aliases.ts`
+(`learnProductAliases`, `moveProductAliases`) therefore look the row up first
+— with `isNull()`, since `eq(col, null)` is never true in SQL — and update it
+explicitly; both run inside the caller's transaction, so the read-then-write
+is atomic. The same NULL rule means the "sum on conflict" branch is only
+reachable for chain-less aliases brought in by a restored backup, which is
+how its test seeds it.
 
 ### 2.6 Export payload
 
@@ -661,7 +688,12 @@ Notes:
 
 - The gateway client for receipts uses `timeout: 45_000` (own instance or
   `client.withOptions({ timeout: 45_000 })`); Spec 03's 30 s is tuned for a
-  single tag.
+  single tag. **Correction (2026-08-21):** the own-instance option is the one
+  that shipped. `src/lib/ai/`'s test seam is an injected client shaped
+  `{ messages: { parse } }` (Spec 03 §13.1), and a per-call `withOptions`
+  would force every mock in the codebase to implement it too.
+  `toAiGatewayError` is exported from `extract-price-tag.ts` and re-used, so
+  the failure classification still lives in exactly one place.
 - `max_tokens` stop is treated as a hard failure, not a partial success: a
   truncated line list would silently drop the bottom of the receipt.
 - No prompt caching: the system prompt is ~1.4K tokens, above the cacheable
@@ -808,6 +840,27 @@ Status precedence: `needs-size` > `needs-product` (no alias and no suggestion
 others are checked once the user resolves them. A line may also be
 **excluded** by the user (swipe / toggle) — it stays in `ai_raw_json`, no
 entry is created.
+
+**Correction (2026-08-21, deliberate — the shipped rule inverts the literal
+one):** as written, `needs-product` marks the line with **no** candidate and
+leaves the *ambiguous* one — a suggestion scoring 0.5, above the 0.4
+suggestion bar but below the 0.7 preselect bar — as `ready`. That is
+backwards for the only failure that costs anything. A line with no candidate
+at all becomes a genuinely new product, and `resolveProductPicks` (Spec 03
+§9.3 step 2) still dedupes it against the catalog by normalized name+brand;
+a line the matcher *half* recognised is exactly the one that silently creates
+a duplicate of an existing product, and a duplicate removes that product from
+every month-over-month relative it should have contributed to (Spec 04 §7.2).
+`resolveStatus` therefore reads: needs-product means **no product is
+preselected and there were candidates to choose among**.
+
+The pre-check rule shipped as its complement rather than literally: every
+line is included by default (importing the whole receipt is the point), and
+the summary bar's confirm is disabled while an *included* line is
+`needs-size` or `needs-product`, exactly as §8.1 specifies. Blocking every
+unmatched line instead would make the first receipt from a chain thirty
+mandatory taps — a different way of losing the user, and the one the alias
+learning of §9 exists to avoid on the second receipt.
 
 ---
 
@@ -961,6 +1014,12 @@ UX copy (IT primary, EN mirrored) under the `receipt.*` namespace:
 | `receipt.status.ready` / `needsSize` / `needsProduct` / `needsReview` | Pronta / Manca il formato / Manca il prodotto / Da controllare |
 | `history.source.receipt` | Scontrino |
 
+**Correction (2026-08-21):** the shipped key is
+`productDetail.source.receipt`. The `source.*` labels have lived under the
+`productDetail` namespace since Spec 05 — `/history`, the entry sheet and the
+product detail all read them from there — so a second home for one value
+would have been the inconsistency, not the fix.
+
 ---
 
 ## 11. Tests
@@ -1001,7 +1060,10 @@ package 1, 450 ct → 4500 `assumed-one`; weight with no size → `missing`.
 - Status precedence: `needs-size` > `needs-product` > `needs-review` > `ready`.
 - Weighed line: `quantity 1`, `packageSize 0.812`, `sizeSource 'weighed'`.
 
-### 11.5 `src/lib/services/import-receipt.test.ts` (in-memory libSQL, Spec 02 §10 harness)
+### 11.5 `src/lib/services/import-receipt.test.ts` (Spec 02 §10 harness)
+
+*(The harness creates a uniquely-named temp file per test, not `:memory:` —
+AGENTS.md §4.17 records why the in-memory variant was abandoned.)*
 
 - Same hash twice while `extracted` → second call returns without calling
   the gateway (mock asserts zero calls).
@@ -1055,7 +1117,11 @@ receipt chip → re-upload → `RECEIPT_ALREADY_IMPORTED` toast.
       `photo_url NULL`; aliases learned; `default_package_size` back-filled.
 - [ ] Second import from the same chain resolves previously confirmed lines
       as `alias` matches with no user action (manual test on two synthetic
-      receipts).
+      receipts). **Correction (2026-08-21):** automated instead, in
+      `src/lib/services/import-receipt.test.ts` — it confirms one receipt and
+      then imports a second file printing the same `rawLine`, asserting the
+      line comes back as an `alias` match with the catalog supplying the
+      package size. A check a machine can run should not be left to a human.
 - [ ] Product merge moves aliases; `/products/[id]` lists and deletes them.
 - [ ] The repository projection feeding Spec 04 maps `quantity`; Spec 04
       tests still pass unchanged.
