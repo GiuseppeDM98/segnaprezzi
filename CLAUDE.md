@@ -151,6 +151,7 @@ ISTAT overlay for real.
 | Spec 06 — PWA & Offline | ☐ |
 | DESIGN.md (generated after Spec 05) | ☐ |
 | Spec 07 — Receipt Import | ☐ |
+| Spec 08 — Go-live & Operations | ☐ |
 
 *Status last updated: 2026-08-21 (Spec 04 implemented).*
 
@@ -166,7 +167,7 @@ above **in the same commit** as the milestone.
 2. Canonical table/column/route/env names live in `docs/specs/00-overview.md`
    — use them exactly. Money is integer only: `total_price_cents` (euro
    cents), `unit_price_milli` (milli-euros per base unit kg/L/piece).
-3. **One spec per session**, in order 01 → 02 → (03 ∥ 04) → 05 → 06 → 07, using the
+3. **One spec per session**, in order 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07, using the
    Implementation Prompt at the end of the spec file, with the recommended
    model/effort:
 
@@ -179,6 +180,7 @@ above **in the same commit** as the milestone.
    | 05 | Claude Fable 5 + impeccable skill | xhigh |
    | 06 | Claude Opus 5 | high |
    | 07 | Claude Opus 5 | high |
+   | 08 | Claude Sonnet 5 | high |
 
 4. **Never contradict 00-overview.** If a spec must deviate, change
    `docs/specs/00-overview.md` (and the spec file) in the same PR as the code.

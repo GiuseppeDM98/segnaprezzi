@@ -1226,8 +1226,9 @@ the production one.
       and no secret appears in any committed file.
 - [x] `.github/workflows/ci.yml` present; both jobs green on GitHub.
 - [ ] Vercel project connected, `fra1` region set, Spec 01 shell deployed —
-      **not done this session** (no Vercel account access); do this manually
-      or in a follow-up session before Spec 02 needs a live preview.
+      **not done this session** (no Vercel account access). Owned by
+      **Spec 08 — Go-live & Operations** (`docs/specs/08-go-live.md`), which
+      closes this item.
 - [x] `CLAUDE.md` "Current status" updated; all commits follow Conventional
       Commits.
 

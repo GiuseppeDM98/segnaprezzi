@@ -485,7 +485,7 @@ never appear there:
 ```
 segnaprezzi/
 ├── docs/
-│   ├── specs/                  # Specs 00–06. Contract docs — code never imports from here.
+│   ├── specs/                  # Specs 00–08. Contract docs — code never imports from here.
 │   ├── assets/                 # Logo, favicon source SVG (build inputs, not served).
 │   ├── COMMENTS.md
 │   └── DEVELOPMENT_GUIDELINES.md
@@ -981,8 +981,10 @@ false starts before the pattern was clear.
 | 05 | `docs/specs/05-ui-design.md` | Full design system + all screens; produces `DESIGN.md`. |
 | 06 | `docs/specs/06-pwa-offline.md` | Serwist, IndexedDB queue, sync manager, install experience, icons. |
 | 07 | `docs/specs/07-receipt-import.md` | Digital receipt → per-line extraction, catalog aliases, review, `source='receipt'` entries. |
+| 08 | `docs/specs/08-go-live.md` | Operations: Turso + Vercel + Blob + Anthropic provisioning, preview/production scope matrix, first live collaudo, runbook. |
 
-Order: **01 → 02 → (03 ∥ 04) → 05 → 06 → 07**. Spec 04 depends on 02 for types
+Order: **01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07**. Spec 08 (go-live) is an
+operations session that must precede Spec 06's real-device PWA checks. Spec 04 depends on 02 for types
 only — it can proceed against the schema definitions without a running DB.
 
 ### 5.2 One spec per session
@@ -1022,6 +1024,7 @@ drifts silently.
 | 05 | UI & Design System | 02–04 | Claude Fable 5 + impeccable skill | xhigh |
 | 06 | PWA & Offline | 03, 05 | Claude Opus 5 | high |
 | 07 | Receipt Import | 02, 03, 05 | Claude Opus 5 | high |
+| 08 | Go-live & Operations | 01–04 (05 recommended first) | Claude Sonnet 5 | high |
 
 ### 5.4 Definition of done (every task, not just specs)
 

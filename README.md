@@ -159,8 +159,9 @@ segnaprezzi is built specs-first: every part of the system is fully specified �
 | [05 — UI & Design System](docs/specs/05-ui-design.md) | Design system, dashboard, charts, all screens |
 | [06 — PWA & Offline](docs/specs/06-pwa-offline.md) | Serwist service worker, IndexedDB photo queue, sync manager |
 | [07 — Receipt Import](docs/specs/07-receipt-import.md) | Digital receipt (PDF) → per-line extraction, catalog aliases, review, `source='receipt'` entries |
+| [08 — Go-live & Operations](docs/specs/08-go-live.md) | Turso + Vercel + Blob + Anthropic provisioning, preview/production environments, first live collaudo, runbook |
 
-Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 06 → 07.
+Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07 (08 is the go-live session; it precedes the PWA spec because service-worker and install checks need a real HTTPS origin).
 
 ### After v1
 
