@@ -1,7 +1,7 @@
 import { chromium, type FullConfig } from '@playwright/test';
 
-import { SEED_USER, SEED_USER_2 } from './fixtures/users';
-import { loginViaApi } from './helpers/auth';
+import { PWA_E2E_USER, SEED_USER, SEED_USER_2 } from './fixtures/users';
+import { loginViaApi, signUpViaApi } from './helpers/auth';
 
 async function saveAuthState(
   baseURL: string | undefined,
@@ -16,13 +16,32 @@ async function saveAuthState(
 }
 
 /**
- * Hit the dashboard route once per locale before the parallel test run
- * starts. Why: Next.js dev (Turbopack) compiles a route on its first
- * request; several tests request '/' and '/en' as their very first action,
- * and when multiple parallel workers race to be that first request, the
- * dev server has (verified, reproduced twice) intermittently returned a
- * truncated response ("Unexpected end of JSON input") instead of queuing
- * them. A single serial warm-up request per route avoids the race.
+ * Create (or reuse) the throwaway account the Spec 06 suites run as, and
+ * cache its session.
+ *
+ * Sign-up 4xxs when a previous run died before its teardown; signing in is
+ * then the right recovery, because the account is disposable either way.
+ */
+async function savePwaAuthState(baseURL: string | undefined, outFile: string): Promise<void> {
+  const browser = await chromium.launch();
+  const page = await browser.newPage({ baseURL });
+  const signUpResponse = await signUpViaApi(page, PWA_E2E_USER);
+  if (!signUpResponse.ok()) {
+    await loginViaApi(page, PWA_E2E_USER);
+  }
+  await page.context().storageState({ path: outFile });
+  await browser.close();
+}
+
+/**
+ * Hit every route once, serially, before the parallel run starts.
+ *
+ * Originally a workaround for `next dev` compiling a route on its first
+ * request, which made parallel workers race to be that request and
+ * intermittently receive a truncated response. Since Spec 06 the suite runs
+ * against a production build where nothing compiles on demand, but the pass
+ * costs a second and still warms the server's module graph and the DB
+ * connection, so a first assertion never pays for them.
  */
 async function warmUpRoutes(baseURL: string | undefined): Promise<void> {
   const browser = await chromium.launch();
@@ -45,5 +64,6 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   const baseURL = config.projects[0]?.use.baseURL;
   await saveAuthState(baseURL, SEED_USER, 'playwright/.auth/dev.json');
   await saveAuthState(baseURL, SEED_USER_2, 'playwright/.auth/dev2.json');
+  await savePwaAuthState(baseURL, 'playwright/.auth/pwa.json');
   await warmUpRoutes(baseURL);
 }

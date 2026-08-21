@@ -8,7 +8,14 @@
  * when correcting a number. Edits therefore live in React state only, and
  * every card must be resolved (a product picked, no "not legible" zeros left)
  * before the batch can be confirmed. Nothing reaches the database until then.
+ *
+ * Spec 06 §6.3 makes the screen live: the queue is read through a live query,
+ * so a photo that finishes extracting — in this tab or in the service
+ * worker's background drain — turns into an editable card without a refresh,
+ * and the ones still travelling are shown as pending cards rather than being
+ * silently absent.
  */
+import { useLiveQuery } from 'dexie-react-hooks';
 import { AnimatePresence, motion } from 'motion/react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -36,6 +43,7 @@ import {
   listSessionPhotos,
   readActiveSessionId,
 } from '@/lib/offline/photo-queue';
+import { notifySessionCompleted } from '@/lib/offline/use-pwa-install';
 import type { ProductSuggestion } from '@/lib/services/match-products';
 import { beginSessionReview, confirmShoppingSession, searchProducts } from './actions';
 import type { ConfirmShoppingSessionInput } from './schema';
@@ -69,17 +77,14 @@ export interface ReviewEntryDraft {
   isUnitPriceEdited: boolean;
 }
 
-type LoadState = 'loading' | 'ready';
-
 export function ReviewScreen() {
   const t = useTranslations('review');
   const locale = useLocale() as AppLocale;
   const router = useRouter();
   const { toast } = useToast();
   const { isReduced, spring, fade } = useAppMotion();
-  const [loadState, setLoadState] = useState<LoadState>('loading');
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
+  const [hasResolvedSession, setHasResolvedSession] = useState(false);
   const [drafts, setDrafts] = useState<ReviewEntryDraft[]>([]);
   const [discarded, setDiscarded] = useState<Map<string, ReviewEntryDraft>>(new Map());
   const [matchFor, setMatchFor] = useState<string | null>(null);
@@ -92,21 +97,38 @@ export function ReviewScreen() {
   useEffect(() => {
     const activeSessionId = readActiveSessionId();
     setSessionId(activeSessionId);
+    setHasResolvedSession(true);
     if (!activeSessionId) {
-      setLoadState('ready');
       return;
     }
-
     // Best effort: an offline review never reports the transition, and
     // confirm accepts an `active` session anyway (§2.1).
     void beginSessionReview({ sessionId: activeSessionId });
-
-    void listSessionPhotos(activeSessionId).then((photos) => {
-      setPendingPhotos(photos);
-      setDrafts(photos.filter(hasExtraction).map(toDraft));
-      setLoadState('ready');
-    });
   }, []);
+
+  const pendingPhotos = useLiveQuery(
+    () => (sessionId ? listSessionPhotos(sessionId) : Promise.resolve([])),
+    [sessionId],
+  );
+
+  /*
+   * Adopt each newly extracted photo as a card, and only once: the drafts
+   * hold the user's in-progress edits, so a live-query tick must never
+   * rebuild the ones already on screen (nor resurrect a discarded one).
+   */
+  useEffect(() => {
+    if (!pendingPhotos) {
+      return;
+    }
+    setDrafts((current) => {
+      const known = new Set(current.map((draft) => draft.id));
+      const fresh = pendingPhotos
+        .filter(hasExtraction)
+        .filter((photo) => !known.has(photo.id) && !discarded.has(photo.id))
+        .map(toDraft);
+      return fresh.length > 0 ? [...current, ...fresh] : current;
+    });
+  }, [pendingPhotos, discarded]);
 
   const updateDraft = useCallback(
     (id: string, patch: (draft: ReviewEntryDraft) => ReviewEntryDraft) => {
@@ -219,7 +241,7 @@ export function ReviewScreen() {
     setErrorCode(null);
     const result = await confirmShoppingSession({
       sessionId,
-      storeId: pendingPhotos.find((photo) => photo.storeId)?.storeId ?? null,
+      storeId: photos.find((photo) => photo.storeId)?.storeId ?? null,
       entries: drafts.map(toConfirmEntry),
     });
     setIsSubmitting(false);
@@ -232,6 +254,9 @@ export function ReviewScreen() {
     await clearSessionPhotos(sessionId);
     clearActiveSessionId();
     setIsSuccess(true);
+    // A completed spesa is the one honest moment to offer the install
+    // (Spec 06 §7.2); the provider decides whether it may actually ask.
+    notifySessionCompleted();
     window.setTimeout(
       () => {
         toast({ kind: 'success', message: t('saved') });
@@ -241,11 +266,19 @@ export function ReviewScreen() {
     );
   }
 
-  // The batch is all-or-nothing: a photo still travelling would be silently
-  // dropped from the spesa if we let the user confirm around it.
-  const hasUnfinishedPhotos = pendingPhotos.some(
+  const photos = pendingPhotos ?? [];
+  const isLoading = !hasResolvedSession || (sessionId !== null && pendingPhotos === undefined);
+  /*
+   * Photos still travelling get their own cards (§6.3) instead of being
+   * invisible. The batch stays all-or-nothing, though: confirming completes
+   * the spesa and clears its queue, so a photo left mid-flight would be
+   * destroyed rather than merely omitted — a correction to Spec 06 §6.3's
+   * "never blocked by pending items", recorded in the spec.
+   */
+  const unfinishedPhotos = photos.filter(
     (photo) => photo.status !== 'extracted' && !discarded.has(photo.id),
   );
+  const hasUnfinishedPhotos = unfinishedPhotos.length > 0;
   const flaggedCount = drafts.filter(
     (draft) => draft.needsReview || !isDraftResolved(draft),
   ).length;
@@ -255,8 +288,8 @@ export function ReviewScreen() {
     ? drafts.filter((draft) => draft.needsReview || !isDraftResolved(draft))
     : drafts;
   const activeMatchDraft = drafts.find((draft) => draft.id === matchFor) ?? null;
-  const captionDate = pendingPhotos[0]
-    ? formatDate(pendingPhotos[0].createdAt, locale)
+  const captionDate = photos[0]
+    ? formatDate(photos[0].createdAt, locale)
     : formatDate(Date.now(), locale);
 
   return (
@@ -264,11 +297,7 @@ export function ReviewScreen() {
       <ScreenHeader
         title={t('title')}
         backHref="/scan"
-        caption={
-          loadState === 'ready'
-            ? t('caption', { count: pendingPhotos.length, date: captionDate })
-            : undefined
-        }
+        caption={isLoading ? undefined : t('caption', { count: photos.length, date: captionDate })}
         actions={
           flaggedCount > 0 ? (
             <Chip
@@ -284,9 +313,9 @@ export function ReviewScreen() {
       />
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 pt-4 pb-28">
-        {loadState === 'loading' ? (
+        {isLoading ? (
           <SkeletonCards />
-        ) : drafts.length === 0 ? (
+        ) : drafts.length === 0 && !hasUnfinishedPhotos ? (
           <EmptyState
             title={t('empty.title')}
             body={t('empty.body')}
@@ -323,6 +352,8 @@ export function ReviewScreen() {
                 </motion.li>
               ))}
             </AnimatePresence>
+            {!isFlaggedOnly &&
+              unfinishedPhotos.map((photo) => <PendingCard key={photo.id} photo={photo} />)}
           </ul>
         )}
       </div>
@@ -430,6 +461,55 @@ function SuccessOverlay({ isVisible }: { isVisible: boolean }) {
       )}
     </AnimatePresence>
   );
+}
+
+/**
+ * A photo that has not been extracted yet (Spec 06 §6.3): its own thumbnail
+ * from IndexedDB, the queue status, and a line saying it will fill itself in.
+ * It is a placeholder with a face, not a grey box — the user recognises the
+ * shelf they photographed and knows nothing was lost.
+ */
+function PendingCard({ photo }: { photo: PendingPhoto }) {
+  const t = useTranslations('review');
+  const tScan = useTranslations('scan');
+  const thumbnailUrl = useObjectUrl(photo.blob);
+
+  return (
+    <li
+      data-testid="review-pending-card"
+      className="flex items-center gap-3 rounded-control border border-border border-dashed bg-surface p-3"
+    >
+      {/* biome-ignore lint/performance/noImgElement: a local blob: URL for a
+          photo that never reached a server — next/image cannot optimize it
+          and would only add a failing request. */}
+      <img
+        src={thumbnailUrl}
+        alt=""
+        className="size-20 shrink-0 rounded-control bg-band object-cover opacity-70"
+      />
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <Chip variant="status" tone={photo.status === 'failed' ? 'negative' : 'neutral'}>
+          {tScan(`status.${photo.status}`)}
+        </Chip>
+        <p className="font-sans text-[13px] text-text-muted leading-snug">
+          {photo.status === 'failed' ? t('pendingFailed') : t('pendingHint')}
+        </p>
+      </div>
+    </li>
+  );
+}
+
+/** One object URL per blob, revoked when the card unmounts. */
+function useObjectUrl(blob: Blob): string | undefined {
+  const [url, setUrl] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(blob);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [blob]);
+
+  return url;
 }
 
 function SkeletonCards() {

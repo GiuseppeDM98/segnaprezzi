@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { signUpViaApi } from './helpers/auth';
 import { deleteUserByEmail } from './helpers/db';
 
 /*
@@ -17,8 +18,10 @@ test.describe('anonymous visitors', () => {
   }) => {
     const email = `e2e-signup-${Date.now()}@segnaprezzi.local`;
     try {
-      const signUpResponse = await page.request.post('/api/auth/sign-up/email', {
-        data: { email, password: 'e2e-signup-password', name: 'E2E Signup' },
+      const signUpResponse = await signUpViaApi(page, {
+        email,
+        password: 'e2e-signup-password',
+        name: 'E2E Signup',
       });
       expect(signUpResponse.ok()).toBe(true);
 

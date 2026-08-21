@@ -84,7 +84,9 @@ For E2E work, install the Playwright browsers once: `pnpm exec playwright instal
 | `pnpm lint` | Biome — lint + format check |
 | `pnpm typecheck` | TypeScript compiler, no emit |
 | `pnpm test` | Vitest unit/integration tests |
-| `pnpm test:e2e` | Playwright E2E tests |
+| `pnpm test:e2e` | Playwright E2E tests (builds and starts a production server itself) |
+| `pnpm build` + `pnpm start` | The only way to exercise the service worker: it is disabled in dev |
+| `pnpm icons` | Regenerate the PWA icon set from `docs/assets/logo.svg` |
 | `pnpm db:migrate` | Apply pending Drizzle migrations |
 | `pnpm db:seed` | Load demo data into the local DB |
 | `pnpm db:studio` | Browse the local DB with Drizzle Studio |

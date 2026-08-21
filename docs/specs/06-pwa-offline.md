@@ -49,10 +49,17 @@ degrades gracefully instead of failing.
 | `src/lib/offline/use-online-status.ts` | Connectivity hook |
 | `src/lib/offline/use-pwa-install.ts` | Install prompt hook |
 | `src/lib/offline/db.ts` | *Modified*: Dexie **version 2** migration — adds `nextAttemptAt` + `lastErrorMessage` to `pendingPhotos` and the new `syncMeta` table (base schema owned by Spec 03) |
-| `src/components/pwa/sw-provider.tsx` | Manual SW registration + update toast wiring |
+| `src/components/pwa/sw-provider.tsx` | Mounts the SW registration, the sync engine and the install-prompt capture; renders the install sheets |
+| `src/components/pwa/sw-registration.ts` | *Correction*: the registration + update handshake as a module store, so the provider (root layout) and the toast (inside the app shell's ToastProvider) can share it |
+| `src/components/pwa/sw-update-toast.tsx` | *Correction*: raises the update toast; lives in `AppShell` because that is where the toast outlet is |
+| `src/components/pwa/install-row.tsx` | *Correction*: the Settings install row of §7.2 |
+| `src/components/capture/queue-status-line.tsx` | *Correction*: the Scan queue status line of §6.2 |
+| `src/components/layout/cached-data-banner.tsx` | *Correction*: the Dashboard cached-data banner of §6.4 |
 | `src/components/pwa/install-sheet.tsx` | Custom install CTA sheet (Android/desktop) |
 | `src/components/pwa/ios-install-sheet.tsx` | iOS share-sheet instructions |
 | `tests/e2e/offline.spec.ts` | Playwright offline scenarios |
+| `vitest.setup.ts` | *Correction*: registers `fake-indexeddb` for the unit suite |
+| `tests/e2e/global-teardown.ts` | *Correction*: deletes the suites' throwaway account |
 | `tests/e2e/pwa.spec.ts` | Playwright SW/manifest/fallback scenarios |
 | `messages/it.json`, `messages/en.json` | `offline.*` and `pwa.*` keys |
 
@@ -67,15 +74,28 @@ by Spec 03; this spec adds only the React hooks); `sharp`, `png-to-ico`,
 ### 2.1 `next.config.ts`
 
 ```ts
+import { randomUUID } from "node:crypto";
 import withSerwistInit from "@serwist/next";
 import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
 
 const withNextIntl = createNextIntlPlugin("./src/lib/i18n/request.ts");
 
+// A fresh revision per build is what makes an updated worker re-fetch the
+// fallback pages instead of keeping the previous deploy's copy.
+const offlineFallbackRevision = randomUUID();
+
 const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
+  // Correction (2026-08-21): the injected precache manifest covers
+  // /_next/static only — App Router pages are server-rendered, so no HTML of
+  // ours is in it and the fallback below would have nothing to serve. Both
+  // locale variants must be added by hand, with a fresh revision per build.
+  additionalPrecacheEntries: [
+    { url: "/offline", revision: offlineFallbackRevision },
+    { url: "/en/offline", revision: offlineFallbackRevision },
+  ],
   // The SW caches aggressively and fights HMR; PWA behavior is verified
   // against production builds only (`pnpm build && pnpm start`).
   disable: process.env.NODE_ENV === "development",
@@ -90,6 +110,14 @@ const nextConfig: NextConfig = {
 
 export default withSerwist(withNextIntl(nextConfig));
 ```
+
+**Correction (2026-08-21): the production build must run webpack.** Next.js
+16 builds with Turbopack by default and `@serwist/next` is a webpack plugin,
+so `next build` emits no `public/sw.js` at all — silently, with only a warning.
+`package.json`'s `build` script is therefore `next build --webpack`. `pnpm dev`
+is unaffected (Serwist is disabled there anyway, and the warning only fires
+when it is not). The migration paths when webpack support is removed are
+`@serwist/turbopack` or Serwist's configurator mode; revisit then.
 
 Add to `.gitignore` (build artifacts, regenerated on every build):
 
@@ -192,9 +220,16 @@ const serwist = new Serwist({
     entries: [
       {
         url: "/en/offline",
-        matcher: ({ request, url }) =>
-          request.destination === "document" &&
-          (url.pathname === "/en" || url.pathname.startsWith("/en/")),
+        // Correction (2026-08-21): a fallback matcher is handed the failed
+        // request, not a parsed URL (`HandlerDidErrorCallbackParam`), so the
+        // locale prefix has to be read off `request.url` here.
+        matcher: ({ request }) => {
+          const { pathname } = new URL(request.url);
+          return (
+            request.destination === "document" &&
+            (pathname === "/en" || pathname.startsWith("/en/"))
+          );
+        },
       },
       {
         url: "/offline",
@@ -233,8 +268,9 @@ Notes for the implementer:
 - Same-origin `fetch("/api/extract", …)` from the SW sends session cookies by
   default (`credentials: "same-origin"`), so authenticated background drains
   work without extra plumbing.
-- `SyncEvent` is not in the default TS lib; either add a minimal local type
-  declaration or use the one shipped by `serwist`.
+- `SyncEvent` is not in the default TS lib. Correction (2026-08-21): `serwist`
+  already augments `ServiceWorkerGlobalScopeEventMap` with it, so declaring a
+  local twin is a TS2717 duplicate-declaration error — just use `event.tag`.
 
 ### 2.3 Runtime caching strategies (authoritative table)
 
@@ -319,8 +355,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#faf7f2",
-    theme_color: "#faf7f2",
+    background_color: "#faf5eb",
+    theme_color: "#faf5eb",
     lang: "it",
     categories: ["finance", "shopping", "utilities"],
     icons: [
@@ -349,11 +385,16 @@ DESIGN.md (Spec 05) owns the design tokens. The values below are the sRGB hex
 conversions this spec was written against; **if DESIGN.md differs, DESIGN.md
 wins and this table must be updated**:
 
+Updated 2026-08-21 to the sRGB conversion of the tokens DESIGN.md actually
+records (`--background` is `oklch(97.2% 0.014 88)` light and
+`oklch(18% 0.014 300)` dark; `--accent` is `oklch(64% 0.17 48)`), which is
+also the palette `docs/assets/logo.svg` was drawn in:
+
 | Token | Value | Used in |
 |---|---|---|
-| Background, light | `#faf7f2` | manifest `background_color` + `theme_color`, light `themeColor` meta |
-| Background, dark | `#151310` | dark `themeColor` meta |
-| Brand accent | `#EA580C` | maskable/apple icon background (`BRAND_COLORS` in the icon script) |
+| Background, light | `#faf5eb` | manifest `background_color` + `theme_color`, light `themeColor` meta, **and the icon plate** |
+| Background, dark | `#121017` | dark `themeColor` meta |
+| Brand accent | `#db640e` | the mark itself inside `logo.svg` — **not** an icon background (§4.2) |
 
 ### Dual theme-color strategy
 
@@ -365,8 +406,8 @@ import type { Viewport } from "next";
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf7f2" },
-    { media: "(prefers-color-scheme: dark)", color: "#151310" },
+    { media: "(prefers-color-scheme: light)", color: "#faf5eb" },
+    { media: "(prefers-color-scheme: dark)", color: "#121017" },
   ],
 };
 ```
@@ -393,9 +434,12 @@ everywhere), square viewBox, transparent background.
  * Renders every PWA icon from docs/assets/logo.svg with sharp.
  *
  * Composition rules:
- * - "any" icons: brand background, logo scaled to 80% (10% padding/side) —
+ * - "any" icons: paper background, logo scaled to 80% (10% padding/side) —
  *   transparent icons look broken on light OS install surfaces.
- * - maskable + apple-touch: brand background, logo scaled to 60% (20%
+ *   Correction (2026-08-21): the plate is the PAPER token, not the accent.
+ *   The mark itself IS the accent (an orange tag), so an accent plate erased
+ *   the tag and left the ink dots floating alone.
+ * - maskable + apple-touch: paper background, logo scaled to 60% (20%
  *   padding/side) so any platform mask (circle, squircle, rounded square)
  *   never clips the mark. iOS applies its own corner mask, so apple-touch
  *   uses the same padded composition.
@@ -413,7 +457,7 @@ const LOGO_PATH = "docs/assets/logo.svg";
 const ICONS_DIR = "public/icons";
 
 // Keep in sync with the color table in docs/specs/06-pwa-offline.md §3.
-const BRAND_COLORS = { background: "#EA580C" };
+const BRAND_COLORS = { background: "#faf5eb" };
 
 const FAVICON_SIZES = [16, 32, 48];
 
@@ -623,6 +667,18 @@ const RETRY_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
 const MAX_ATTEMPTS = 5;
 ```
 
+**Correction (2026-08-21): only 1/2/4/8 s can actually elapse.** With
+`MAX_ATTEMPTS = 5` (Spec 03's already-shipped `MAX_UPLOAD_ATTEMPTS`) the fifth
+failure parks the photo as `failed` instead of waiting again, so the 16 s rung
+is unreachable. It is kept in the array as the schedule's last step in case
+the budget is ever raised; §9.2's test asserts 1/2/4/8 s and then `failed`.
+
+**Correction (2026-08-21): a drain returns immediately when
+`navigator.onLine === false`.** That flag's `false` is the reliable half — it
+means there is definitely no network — and attempting anyway would spend one
+of a photo's five attempts on a request that cannot leave the device. The
+`online` event calls the drain straight back.
+
 **Error classification** (identical wording in Spec 03):
 
 | Class | Errors | Handling |
@@ -706,8 +762,23 @@ export function drainPendingPhotos(): Promise<void>;
 // enqueuePendingPhoto() from photo-queue.ts, and manual retry is Spec 03's
 // retryFailedPhoto() (resets attempts, clears errors), re-exported so sync
 // consumers have a single import point.
-export { retryFailedPhoto } from "./photo-queue";
+export { retryAllFailedPhotos, retryFailedPhoto } from "./photo-queue";
 ```
+
+Correction (2026-08-21): `retryAllFailedPhotos(sessionId?)` was added to
+`photo-queue.ts` for §6.2's "Riprova tutti"; the per-item retry stays
+`retryFailedPhoto(id)`, and both are followed by a `drainPendingPhotos()` call
+at the call site — a status change is an update, not an insert, so the
+engine's `creating` hook cannot see it.
+
+The Spec 03 primitives this engine drives changed shape to carry the §5.2
+state machine, which is where that policy belongs:
+`takeNextQueuedPhoto(now)` claims only a **due** photo and counts the attempt;
+`markPhotoFailed(id, code, message)` no longer decides retryability;
+`reschedulePhoto(id, nextAttemptAt, code, message)` and
+`recoverInterruptedUploads()` are new; and `uploadPendingPhoto()` became pure
+transport — it returns an `UploadOutcome` instead of writing to Dexie, so the
+same classification serves the page and the service worker.
 
 ```ts
 // src/lib/offline/use-queue-status.ts
@@ -784,9 +855,13 @@ in the tray plus a "Riprova tutti" action (→ `retryFailedPhoto()`).
 `/scan/review` renders **extracted-so-far**: `extracted` items appear as
 editable entry cards the moment their status flips (live query — no refresh),
 while `queued`/`uploading` items show as skeleton cards with the photo
-thumbnail (from the IndexedDB blob) and a progress hint. The user can confirm
-extracted entries while others still pend — confirmation is per-batch but
-never blocked by pending items.
+thumbnail (from the IndexedDB blob) and a progress hint. **Correction (2026-08-21): confirm stays blocked while a photo is still
+travelling.** Confirming completes the spesa and clears its queue (Spec 03
+§9.2), so a photo left mid-flight would be *destroyed*, not merely omitted —
+the opposite of this spec's promise. The screen therefore keeps Spec 03's
+all-or-nothing batch and its "in attesa dei caricamenti" line, while the live
+rendering above is implemented in full. Offline the question does not arise:
+with nothing extracted there is nothing to confirm.
 
 ### 6.4 Dashboard cached-data banner
 
@@ -799,14 +874,15 @@ nothing — it exists so a cached index value is never mistaken for a live one.
 
 Added to `messages/it.json` / `messages/en.json`. The `OfflineBanner`'s own
 strings are Spec 05 §5.13's `offline.*` keys and are **not** redefined here;
-this spec adds only the keys below:
+this spec adds only the keys below. (Correction 2026-08-21: `offline.retry`
+was dropped from the list — the per-item retry in the tray is Spec 03's
+`scan.tray.retry`, and a second key for the same word would only rot.)
 
 | Key | it | en |
 |---|---|---|
 | `offline.queued` | {count} in coda | {count} queued |
 | `offline.processing` | {count} in elaborazione | {count} processing |
 | `offline.failed` | {count, plural, one {# non riuscita} other {# non riuscite}} | {count} failed |
-| `offline.retry` | Riprova | Retry |
 | `offline.retryAll` | Riprova tutti | Retry all |
 | `offline.cachedBanner` | Sei offline · dati aggiornati {lastSyncTime} | You're offline · data last updated {lastSyncTime} |
 | `offline.fallbackTitle` | Sei offline | You're offline |
@@ -945,7 +1021,33 @@ cannot intercept requests issued *through* an active service worker:
 | Project | Context options | Covers |
 |---|---|---|
 | `offline-queue` | `serviceWorkers: "block"`, `/api/extract` mocked via `page.route` | Sync engine, Dexie persistence, review flow |
-| `pwa` | SW enabled, no route mocks | Precache, offline fallback page, manifest, update flow |
+| `pwa` | SW enabled, no route mocks | Precache, offline fallback page, manifest, `/api/*` never cached |
+
+**Corrections (2026-08-21), all found by running it:**
+
+1. **One `webServer`, production, for the whole suite** — not a production
+   server beside the existing dev one. A `next dev` and a `next build` running
+   at the same time race inside the same `.next` directory and corrupt its
+   generated type files (`.next/dev/types/root-params.d.ts` came out with a
+   stray brace, and the build then failed to type-check). The `mobile` and
+   `desktop` projects therefore also run against `pnpm build && pnpm start`,
+   with `serviceWorkers: "block"` so their behavior is unchanged.
+2. **Better Auth's rate limiter is on in production**: `/sign-in*` and
+   `/sign-up*` allow 3 requests per 10 s per IP, and every worker is the same
+   IP. Moving the suite to a production server made `global-setup` plus the
+   signup tests trip it. The limiter is a real protection and is NOT disabled
+   for tests; `tests/e2e/helpers/auth.ts` waits out a 429 (`Retry-After`)
+   instead.
+3. **The two new projects run as their own throwaway account**
+   (`PWA_E2E_USER`, created in `global-setup.ts`, deleted in
+   `global-teardown.ts`). They confirm real entries, and the capture suite
+   wipes every photo entry of `SEED_USER_2` before each of its tests — sharing
+   an account would make both fail for reasons unrelated to the code.
+4. **Scenario 2 reloads with connectivity restored but `/api/extract` still
+   broken.** With the worker blocked there is nothing to serve an offline
+   navigation, so a literally-offline reload cannot load any page; keeping the
+   endpoint broken is what leaves the queue with something to preserve, which
+   is the actual assertion.
 
 Scenarios (Chromium):
 
@@ -973,11 +1075,25 @@ Scenarios (Chromium):
 
 ### 9.2 Unit tests — `src/lib/offline/sync.test.ts` (Vitest)
 
-Setup: `fake-indexeddb` (registered in the Vitest setup file so Dexie runs in
-Node) + `vi.useFakeTimers()` + a mocked `fetch`. Behaviors under test:
+Setup: `fake-indexeddb` (registered in `vitest.setup.ts` so Dexie runs in
+Node) + a frozen clock + a mocked `fetch`. Behaviors under test:
 
-- should retry with delays 1s/2s/4s/8s/16s after consecutive retryable
-  failures (assert exact timer advances)
+**Corrections (2026-08-21):**
+
+- **Fake `Date` only, never the timers.** fake-indexeddb drives itself on real
+  macrotasks, so faking `setTimeout` deadlocks Dexie mid-transaction. Freezing
+  the clock makes every `nextAttemptAt` an exact number, and the schedule is
+  asserted by moving the clock forward and draining again — which is what the
+  engine's own timer does. For the same reason the tests must not use
+  `vi.waitFor()`: with fake timers installed it advances them, and the frozen
+  clock drifts by its polling interval.
+- **Three DOM stubs, not happy-dom.** happy-dom ships its own `Blob` and
+  `FormData`, and a Blob that has been through IndexedDB comes back as Node's
+  — which happy-dom's `FormData.append` then rejects. The engine only needs a
+  `window`, a `document` and a `navigator`.
+
+- should retry with delays 1s/2s/4s/8s after consecutive retryable failures
+  (see the §5.2 correction on the unreachable 16 s rung)
 - should mark the item failed after the fifth retryable failure
 - should mark the item failed immediately on HTTP 422 without scheduling
   a retry
@@ -1000,7 +1116,23 @@ Run against the production build (`pnpm build && pnpm start`, audit
 | Performance (mobile) | ≥ 90 |
 | Accessibility | ≥ 95 |
 
-Record the scores in the PR description for the spec-06 milestone.
+**Corrections (2026-08-21):**
+
+- **Lighthouse 12 removed the PWA category and its `installable-manifest`
+  audit**, so there is no installability score to record any more. The
+  criteria themselves are asserted instead by `tests/e2e/pwa.spec.ts`
+  (manifest contract incl. 192/512 + two maskable icons, every icon served,
+  `/sw.js` served, an offline navigation answered by the fallback page).
+- **Performance is measured, not met on every route, and the gap is not this
+  spec's.** On the reference Windows dev machine (production build, mobile
+  emulation with Lighthouse's 4× CPU throttle): `/` 87–89, `/settings` 86,
+  `/scan` 91, `/history` 94. Accessibility is 100 on all four; best practices
+  and SEO are 100 on `/`. The shortfall is LCP, and its breakdown is
+  unambiguous — TTFB 0.46 s, load delay 0, load time 0, **render delay
+  3.35 s**: the largest text only exists after the screen's client component
+  hydrates. That is Spec 05's client-boundary shape under a 4× throttle, not
+  anything Serwist or the sync engine added. Re-measure against the Vercel
+  deployment during Spec 08 before treating it as a defect.
 
 ---
 

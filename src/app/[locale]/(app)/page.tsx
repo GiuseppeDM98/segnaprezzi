@@ -28,5 +28,8 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const data = await getDashboardDataCached(db, user.id);
 
-  return <DashboardScreen data={data} />;
+  // Why a server timestamp: offline the page is served from the SW cache, and
+  // this value — baked into that cached HTML — is what the "data as of" banner
+  // reads (Spec 06 §6.4).
+  return <DashboardScreen data={data} generatedAt={Date.now()} />;
 }

@@ -24,10 +24,19 @@ const AUTO_DISMISS_MS = 4000;
 
 export type ToastKind = 'success' | 'error' | 'info';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastInput {
   kind: ToastKind;
   message: string;
-  action?: { label: string; onClick: () => void };
+  action?: ToastAction;
+  /** A quieter second choice, shown before the action (Spec 06 §8: "Più tardi"). */
+  secondaryAction?: ToastAction;
+  /** Keep the toast until the user answers — for a decision, not a report. */
+  isPersistent?: boolean;
 }
 
 interface ToastItem extends ToastInput {
@@ -54,7 +63,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (input: ToastInput) => {
       const id = nextId.current++;
       setToasts((current) => [...current, { ...input, id }]);
-      window.setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
+      if (!input.isPersistent) {
+        window.setTimeout(() => dismiss(id), AUTO_DISMISS_MS);
+      }
     },
     [dismiss],
   );
@@ -121,6 +132,18 @@ export function ToastOutlet({ className }: { className?: string }) {
               )}
             />
             <span className="flex-1 font-sans text-[15px] leading-snug">{item.message}</span>
+            {item.secondaryAction && (
+              <button
+                type="button"
+                onClick={() => {
+                  item.secondaryAction?.onClick();
+                  context.dismiss(item.id);
+                }}
+                className="h-9 shrink-0 rounded-control px-3 font-sans text-sm text-text-muted hover:bg-band"
+              >
+                {item.secondaryAction.label}
+              </button>
+            )}
             {item.action && (
               <button
                 type="button"

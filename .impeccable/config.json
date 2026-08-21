@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "#121017",
+        "createdAt": "2026-08-21T13:36:37.517Z",
+        "reason": "Spec 06 §3 dual theme-color: browser-chrome meta and manifest JSON cannot express oklch(); this is the exact sRGB conversion of the DESIGN.md dark background token oklch(18% 0.014 300)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#faf5eb",
+        "createdAt": "2026-08-21T13:36:37.656Z",
+        "reason": "Spec 06 §3 dual theme-color: manifest JSON and theme-color meta cannot express oklch(); exact sRGB conversion of the DESIGN.md light background token oklch(97.2% 0.014 88)"
+      }
+    ]
+  }
+}

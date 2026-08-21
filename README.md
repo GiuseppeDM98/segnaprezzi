@@ -41,7 +41,7 @@ The project is fully specified up front; each spec lands in its own session, and
 - [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, and duplicate-product merging
 - [x] **History & stores** — every observation day by day with shopping trips grouped under their total, filters by category/store/promo/source, and store management
 - [x] **Promo tracking** — flag discounts, loyalty prices, coupons, and bundles; choose whether promos count toward your index
-- [ ] **Offline-first PWA** — installable on your phone, captures photos with zero connectivity, syncs later *(the offline photo queue ships; installability and background sync are next)*
+- [x] **Offline-first PWA** — installable on your phone, captures photos with zero connectivity, drains the queue by itself when the signal returns, and shows a localized offline page instead of a browser error
 - [x] **Accounts & private data** — email + password sign-up/login; every price, product, and store is scoped to your account alone
 - [x] **Italian + English** — full i18n from day one
 - [x] **Dark / light theme**
@@ -118,9 +118,9 @@ All variables are validated with Zod at boot (`src/lib/env.ts`); a misconfigured
 > **Note:** Specs 01–05 are implemented — a real local database, sign-up/login,
 > the full capture flow (camera, AI extraction, review, quick entry), the
 > personal inflation engine with the official ISTAT series, and every screen
-> of the app (dashboard, products, history, stores, settings). What is left
-> before a public deployment is the go-live runbook (Spec 08), the installable
-> PWA with background sync (Spec 06) and receipt import (Spec 07).
+> of the app (dashboard, products, history, stores, settings), plus the
+> installable PWA with its offline sync engine. What is left before a public
+> deployment is the go-live runbook (Spec 08) and receipt import (Spec 07).
 
 Requirements: Node 22+ and pnpm.
 
@@ -147,7 +147,9 @@ capture screen, the queue, the review screen and both quick-entry forms still
 work; only the extraction call itself fails (and the queue treats it as
 retryable, so the photo waits rather than being lost).
 
-Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright — two projects, `mobile` and `desktop`, including the axe accessibility suite; if port 3000 is busy, `PORT=3001 pnpm test:e2e` with the dev server started as `BETTER_AUTH_URL=http://localhost:3001 pnpm dev --port 3001`), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm db:studio` (browse the local DB), `pnpm istat:update` (refresh the bundled ISTAT NIC series in `data/istat-nic.json`).
+Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright — four projects: `mobile`, `desktop`, `offline-queue` and `pwa`, including the axe accessibility suite; it builds and starts a production server itself, because the service worker exists only there, so `PORT=3001 pnpm test:e2e` is all you need if port 3000 is busy), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm icons` (regenerate the PWA icons from `docs/assets/logo.svg`), `pnpm db:studio` (browse the local DB), `pnpm istat:update` (refresh the bundled ISTAT NIC series in `data/istat-nic.json`).
+
+The service worker is disabled under `pnpm dev`. To try the app offline or install it, run `pnpm build && pnpm start` and open http://localhost:3000 — localhost counts as a secure origin.
 
 ## Project status & roadmap
 
@@ -163,11 +165,11 @@ segnaprezzi is built specs-first: every part of the system is fully specified �
 | [03 — Capture & AI Extraction](docs/specs/03-capture-ai.md) | Camera flow, `/api/extract`, Claude prompt and schema, review screen, product matching |
 | [04 — Inflation Engine](docs/specs/04-inflation-engine.md) | Pure index math: bucketing, chaining, weighting, coverage stats, exhaustive test plan |
 | [05 — UI & Design System](docs/specs/05-ui-design.md) | Design system, dashboard, charts, all screens — the shipped system is recorded in [`DESIGN.md`](DESIGN.md) |
-| [06 — PWA & Offline](docs/specs/06-pwa-offline.md) | Serwist service worker, IndexedDB photo queue, sync manager |
+| [06 — PWA & Offline](docs/specs/06-pwa-offline.md) | Serwist service worker, IndexedDB photo queue, sync manager ✅ |
 | [07 — Receipt Import](docs/specs/07-receipt-import.md) | Digital receipt (PDF) → per-line extraction, catalog aliases, review, `source='receipt'` entries |
 | [08 — Go-live & Operations](docs/specs/08-go-live.md) | Turso + Vercel + Blob + Anthropic provisioning, preview/production environments, first live collaudo, runbook |
 
-Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07 (08 is the go-live session; it precedes the PWA spec because service-worker and install checks need a real HTTPS origin).
+Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07. Spec 06 was in fact built before Spec 08, since it needs no live infrastructure; what still waits for a real HTTPS origin is the on-device install and background-sync check.
 
 ### After v1
 

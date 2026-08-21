@@ -9,6 +9,7 @@
 import { motion } from 'motion/react';
 import { type ReactNode, useEffect, useState } from 'react';
 
+import { SwUpdateToast } from '@/components/pwa/sw-update-toast';
 import { TabBar } from '@/components/ui/tab-bar';
 import { ToastOutlet, ToastProvider } from '@/components/ui/toast';
 import { cx } from '@/lib/cx';
@@ -51,6 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       {!isImmersive && <TabBar isHidden={isBarHidden} />}
       <OfflineBanner />
+      <SwUpdateToast />
       <ToastOutlet className="bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] rail:bottom-6" />
     </ToastProvider>
   );

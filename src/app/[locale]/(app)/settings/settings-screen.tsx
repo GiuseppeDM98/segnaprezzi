@@ -10,6 +10,7 @@ import { Download, ExternalLink, LogOut, Store as StoreIcon, Trash2, Upload } fr
 import { useLocale, useTranslations } from 'next-intl';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 
+import { InstallRow } from '@/components/pwa/install-row';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -272,6 +273,7 @@ export function SettingsScreen({ email, indexSettings, appVersion, repoUrl }: Se
       {/* Data */}
       <section aria-labelledby="settings-data" className="flex flex-col gap-3">
         <SectionHeading id="settings-data">{t('data.title')}</SectionHeading>
+        <InstallRow />
         <DataRow
           title={t('data.export')}
           body={t('data.exportHelp')}

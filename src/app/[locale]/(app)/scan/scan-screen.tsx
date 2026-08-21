@@ -7,17 +7,21 @@
  * through the shared layoutId.
  *
  * Design: the spesa is client-owned. The session id is minted on the first
- * shutter press and never waits for the network; uploads are fired and
- * forgotten. Everything the user sees comes from Dexie, so a lost connection
- * changes only the status chips, never what is on screen.
+ * shutter press and never waits for the network; the shutter's only job is
+ * to put a compressed photo in Dexie. Spec 06's sync engine takes it from
+ * there — the screen never uploads anything itself and never polls, it just
+ * renders the live queue, so a lost connection changes only the status
+ * chips, never what is on screen.
  */
+import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronDown, Store as StoreIcon, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { CameraView } from '@/components/capture/camera-view';
 import { PhotoTray } from '@/components/capture/photo-tray';
+import { QueueStatusLine } from '@/components/capture/queue-status-line';
 import { type StoreOption, StorePickerSheet } from '@/components/capture/store-picker-sheet';
 import { Button } from '@/components/ui/button';
 import { SCAN_MORPH_LAYOUT_ID } from '@/components/ui/fab';
@@ -27,7 +31,6 @@ import { cx } from '@/lib/cx';
 import { useRouter } from '@/lib/i18n/navigation';
 import { useAppMotion } from '@/lib/motion';
 import { compressPhoto } from '@/lib/offline/compress';
-import type { PendingPhoto } from '@/lib/offline/db';
 import {
   clearActiveSessionId,
   clearSessionPhotos,
@@ -36,10 +39,9 @@ import {
   enqueuePendingPhoto,
   listSessionPhotos,
   readActiveSessionId,
-  retryFailedPhoto,
   writeActiveSessionId,
 } from '@/lib/offline/photo-queue';
-import { uploadPendingPhoto } from '@/lib/offline/upload-photo';
+import { drainPendingPhotos, retryFailedPhoto } from '@/lib/offline/sync';
 import type { ScanContext } from '@/lib/services/capture-context';
 import { createStore } from '../stores/actions';
 import { discardShoppingSession } from './actions';
@@ -56,25 +58,23 @@ export function ScanScreen({ context }: ScanScreenProps) {
   const router = useRouter();
   const { isReduced, spring } = useAppMotion();
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [stores, setStores] = useState<StoreOption[]>(context.stores);
   const [storeId, setStoreId] = useState<string | null>(context.defaultStoreId);
   const [isStorePickerOpen, setIsStorePickerOpen] = useState(false);
   const [isResumeDismissed, setIsResumeDismissed] = useState(false);
   const [hasCapturedOnce, setHasCapturedOnce] = useState(false);
 
-  const refreshPhotos = useCallback(async (activeSessionId: string) => {
-    setPhotos(await listSessionPhotos(activeSessionId));
-  }, []);
+  // The tray is a live view of Dexie: statuses flip under it as the sync
+  // engine drains, including from the service worker, with no polling here.
+  const photos =
+    useLiveQuery(
+      () => (sessionId ? listSessionPhotos(sessionId) : Promise.resolve([])),
+      [sessionId],
+    ) ?? [];
 
   useEffect(() => {
-    const storedSessionId = readActiveSessionId();
-    if (!storedSessionId) {
-      return;
-    }
-    setSessionId(storedSessionId);
-    void refreshPhotos(storedSessionId);
-  }, [refreshPhotos]);
+    setSessionId(readActiveSessionId());
+  }, []);
 
   /** Mint the spesa id on first use — no network call, works in airplane mode. */
   function ensureSessionId(): string {
@@ -91,39 +91,22 @@ export function ScanScreen({ context }: ScanScreenProps) {
     const activeSessionId = ensureSessionId();
     setHasCapturedOnce(true);
     const compressed = await compressPhoto(source);
-    const photo = await enqueuePendingPhoto({
+    // The shutter ends here. The sync engine observes the insert and takes
+    // over — uploading now, or whenever signal returns (Spec 06 §5.3).
+    await enqueuePendingPhoto({
       sessionId: activeSessionId,
       storeId: storeId ?? undefined,
       blob: compressed.blob,
     });
-    await refreshPhotos(activeSessionId);
-
-    // Fire-and-forget: the shutter must never wait for the network. Spec 06's
-    // sync engine owns retries; this is only the optimistic first attempt.
-    if (navigator.onLine) {
-      void uploadPendingPhoto(photo).then(() => refreshPhotos(activeSessionId));
-    }
   }
 
   async function handleRetry(photoId: string): Promise<void> {
-    if (!sessionId) {
-      return;
-    }
     await retryFailedPhoto(photoId);
-    await refreshPhotos(sessionId);
-    const photo = (await listSessionPhotos(sessionId)).find((item) => item.id === photoId);
-    if (photo && navigator.onLine) {
-      await uploadPendingPhoto(photo);
-      await refreshPhotos(sessionId);
-    }
+    await drainPendingPhotos();
   }
 
   async function handleDelete(photoId: string): Promise<void> {
-    if (!sessionId) {
-      return;
-    }
     await deletePendingPhoto(photoId);
-    await refreshPhotos(sessionId);
   }
 
   async function handleDiscard(targetSessionId: string): Promise<void> {
@@ -139,7 +122,6 @@ export function ScanScreen({ context }: ScanScreenProps) {
       clearActiveSessionId();
       setSessionId(null);
     }
-    setPhotos([]);
     setIsResumeDismissed(true);
   }
 
@@ -147,7 +129,6 @@ export function ScanScreen({ context }: ScanScreenProps) {
     writeActiveSessionId(serverSessionId);
     setSessionId(serverSessionId);
     setIsResumeDismissed(true);
-    void refreshPhotos(serverSessionId);
   }
 
   async function handleCreateStore(name: string): Promise<StoreOption | null> {
@@ -217,6 +198,7 @@ export function ScanScreen({ context }: ScanScreenProps) {
               onDelete={handleDelete}
               isOnCamera={isOnCamera}
             />
+            <QueueStatusLine sessionId={sessionId} isOnCamera={isOnCamera} />
             {reviewableCount > 0 && (
               <Button href="/scan/review" size="lg" data-testid="review-cta" className="w-full">
                 {t('review', { count: reviewableCount })}

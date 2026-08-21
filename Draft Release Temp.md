@@ -26,7 +26,20 @@
 - Added an offline pill that tells you how many photos are waiting on your phone, and a success toast when they are synced
 - Login and signup now reveal one field at a time, show inline errors, and let you peek at the password
 
+- segnaprezzi can now be installed like an app — from Chrome with one tap, from iPhone with step-by-step instructions for Safari's share sheet — and opens full screen, without a browser bar
+- Added a real offline mode: once you have opened the app, its pages keep working without signal, and any page it cannot reach shows a calm "You're offline" screen in your language instead of the browser's error
+- Photos you take with no signal now upload themselves as soon as the signal comes back — while the app is open, when you switch back to it, and on Android even after you have closed the tab
+- Added a queue line on the camera screen that says exactly what is happening ("3 queued · 1 processing"), flags anything that failed, and offers "Retry all"
+- Uploads that fail keep retrying on their own, spacing attempts out instead of hammering a bad connection, and only ask you to step in after five tries
+- The review screen now fills in by itself: each price tag turns into an editable card the moment it has been read, while the ones still uploading wait there as their own photo
+- The dashboard now says so when you are offline and the numbers you are looking at were computed earlier
+- When a new version of the app is available it offers to update instead of reloading under you — your half-finished review is never lost
+
 ## 🔧 Improvements
+
+- The offline pill no longer polls: it reacts the instant a photo's status changes, including when the upload happened in the background with the app closed
+- Photos left half-uploaded by a crash or a closed tab are picked up again the next time the app starts, instead of sitting there forever
+- Retrying a failed photo is now one tap for all of them at once
 
 - Fuel entries now keep the three decimals petrol pumps actually display (€1.799/L), instead of rounding them away
 - Methane is measured in kilograms, the way Italian pumps sell it, rather than being forced into litres
@@ -48,8 +61,14 @@
 
 - Added `DESIGN.md`, the recorded design system (tokens, type, layout, motion, do's and don'ts) that every UI change must follow, and `PRODUCT.md` with the product truth behind it
 - README now describes the design, the accessibility bar and how to run the end-to-end suite on a custom port
+- README and CONTRIBUTING now explain how to try the app offline or install it locally (`pnpm build && pnpm start` — the service worker is switched off in development) and document `pnpm icons` for regenerating the app icons
 
 ## 🏗️ Technical
+
+- Added the service worker (Serwist): app pages are served from the network with a 3-second patience and from the cache after that, photo thumbnails are cached with a 50-item limit, and your account data is never cached at all — so no trace of it can be read from a shared device's browser cache
+- Added the web app manifest and a generated icon set (192/512 plus maskable and Apple touch icons, rebuilt from the source logo with one command), and browser chrome that follows your light or dark theme
+- Added the sync engine behind the photo queue, with its own tests: five attempts spaced 1, 2, 4 and 8 seconds apart, at most two uploads at a time, one drain at a time across the page and the background worker, and the same photo id on every attempt so a retry can never duplicate an entry
+- The end-to-end suite now runs against a real production build with the service worker installed, covering offline capture, reconnection, backoff and the offline fallback page
 
 - Added the personal inflation engine: your entries are bucketed into calendar months (Italian time), each product is compared with itself month over month, products within a category are combined with a geometric mean, and categories are weighted by what you actually spent over the last twelve months — giving a chained index (first month = 100) with month-over-month, year-over-year and since-start figures, per-category series, and your top risers and fallers
 - Added honesty stats next to every index number — how many products were compared, how many categories, how much was carried forward from earlier months, which months had nothing to compare, and how many suspicious jumps were capped — so a thin history never looks more solid than it is

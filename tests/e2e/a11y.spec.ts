@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { type BrowserContext, expect, type Page, test } from '@playwright/test';
 
 import { seedId } from '../../scripts/seed-ids';
+import { signUpViaApi } from './helpers/auth';
 import { deleteUserByEmail } from './helpers/db';
 
 /*
@@ -113,8 +114,10 @@ for (const theme of THEMES) {
       }) => {
         const email = `e2e-a11y-${theme}-${Date.now()}@segnaprezzi.local`;
         try {
-          const signUp = await page.request.post('/api/auth/sign-up/email', {
-            data: { email, password: 'e2e-a11y-password', name: 'E2E A11y' },
+          const signUp = await signUpViaApi(page, {
+            email,
+            password: 'e2e-a11y-password',
+            name: 'E2E A11y',
           });
           expect(signUp.ok()).toBe(true);
           await setTheme(context, theme);

@@ -199,7 +199,9 @@
       "loyalty": "Loyalty card",
       "coupon": "Coupon",
       "bundle": "Multi-buy"
-    }
+    },
+    "pendingHint": "Still processing: it will show up here as soon as it's ready.",
+    "pendingFailed": "Upload failed: retry it from the capture screen."
   },
   "addManual": {
     "title": "Add a price",
@@ -548,7 +550,15 @@
     "offlineWithQueue": "You're offline — {count, plural, one {# photo stays} other {# photos stay}} on your phone",
     "syncing": "Syncing… {count, plural, one {# queued} other {# queued}}",
     "synced": "All synced",
-    "needsConnection": "Needs a connection"
+    "needsConnection": "Needs a connection",
+    "queued": "{count} queued",
+    "processing": "{count} processing",
+    "failed": "{count, plural, one {# failed} other {# failed}}",
+    "retryAll": "Retry all",
+    "cachedBanner": "You're offline · data last updated {lastSyncTime}",
+    "fallbackTitle": "You're offline",
+    "fallbackBody": "No problem: your captured photos are safe and will be processed when the signal returns.",
+    "fallbackRetry": "Try again"
   },
   "categories": {
     "food": "Food",
@@ -579,5 +589,22 @@
       "count": "€/pc"
     }
   },
-  "pwa": {}
+  "pwa": {
+    "install": {
+      "cta": "Install the app",
+      "title": "Take segnaprezzi with you",
+      "body": "Install it to open like an app and capture even with no signal.",
+      "notNow": "Not now",
+      "iosTitle": "Add to Home Screen",
+      "iosStep1": "Tap the Share button in Safari",
+      "iosStep2": "Choose “Add to Home Screen”",
+      "iosStep3": "Tap “Add”",
+      "iosWarning": "Without installing, Safari may delete queued photos after 7 days of inactivity."
+    },
+    "update": {
+      "title": "New version available",
+      "action": "Update",
+      "later": "Later"
+    }
+  }
 }
