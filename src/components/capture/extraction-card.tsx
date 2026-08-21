@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * One editable review card (Spec 05 §6.3, §5.3): thumbnail, the extraction
+ * One editable review card: thumbnail, the extraction
  * fields, the match row and the needsReview flag. The card is a printed
  * block on the sheet: a hairline frame, the flag as a warning-tinted header
  * row (never a thick colored border), the money fields in the print face.

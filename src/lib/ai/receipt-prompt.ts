@@ -1,5 +1,5 @@
 /**
- * System prompt for receipt extraction (Spec 07 §6.1, verbatim).
+ * System prompt for receipt extraction, verbatim.
  *
  * Design: everything the model needs to be *decisive* is stated as a rule,
  * not left to judgement — what counts as a product line, what a discount
@@ -11,8 +11,7 @@
 
 // WARNING: the category list in this prompt must stay in sync with
 // CATEGORY_IDS in src/lib/domain/categories.ts, with the extraction prompt
-// in src/lib/ai/extraction-prompt.ts (Spec 03 §7.1), and with both message
-// files (see the taxonomy checklist in docs/specs/00-overview.md §6).
+// in src/lib/ai/extraction-prompt.ts, and with both message files.
 export const RECEIPT_SYSTEM_PROMPT = `You read Italian supermarket receipts (scontrini) — digital PDF receipts or
 photos of paper receipts — and extract EVERY product line as structured data.
 The goal is the price of each single item, never the trip total.
@@ -30,7 +29,12 @@ WHAT IS A PRODUCT LINE
   "ABBUONO", "PROMO", percentage lines) are NOT separate product lines: attach
   each one to the product line it refers to — normally the line immediately
   above it, or the line named in the discount text. Reduce that line's
-  lineTotalCents by the discount and record the amount in discountCents.
+  lineTotalCents by the discount and record the amount in discountCents. This
+  still applies when the discount line itself carries the same VAT% column
+  every line has — "SCONTO % CLIE 40.00%    4,00%    -1,92" is a discount to
+  attach to the line above, not a priced product of its own: the 4,00% is the
+  VAT column repeating, the 40.00% inside the text is the discount rate, and
+  -1,92 is the amount. A discount line never gets its own lineTotalCents.
 - Deposit/return lines ("CAUZIONE", "VUOTO A RENDERE", negative returns):
   skip; do not attach to a product.
 
@@ -65,7 +69,9 @@ DESCRIPTION AND BRAND
   readable Italian, without the brand and without the price: "PASTA BAR SPAGH
   N5 500G" → description "Spaghetti n.5 500g", brand "Barilla". Keep the size
   in the description when printed. If an abbreviation is ambiguous, keep it as
-  printed rather than guessing, and lower that line's confidence.
+  printed rather than guessing, and lower that line's confidence — e.g. "F/F"
+  on a Coop receipt is the "Fior Fiore" private-label line, not "farina di
+  frumento" or any other expansion; when in doubt, "F/F" stays "F/F".
 - brand: the brand when recognizable from the abbreviation (BAR → Barilla,
   MUTTI, COOP, ESSEL → Esselunga, CONAD). Private labels are brands. Else null.
 
@@ -116,4 +122,20 @@ Output lines:
   3. description "Banane", brand null, quantity 0.812 kg,
      unitPriceCentsOnReceipt 149, lineTotalCents 121, discountCents 0,
      packageSizeHint 0.812, unitKindHint "weight", isPromo false, food.
-  (IMPOSTA SACCHETTO and TOTALE are skipped.) receiptTotalCents 431.`;
+  (IMPOSTA SACCHETTO and TOTALE are skipped.) receiptTotalCents 431.
+
+WORKED EXAMPLE 2 (a discount line carrying the receipt's own VAT% column)
+Input lines:
+  M-T UVA S/SEMI B.CA FF          4,00%      4,78
+  SCONTO % CLIE 40.00%            4,00%     -1,92
+Output line:
+  description "Uva senza semi bianca FF" — "S/SEMI" confidently expands to
+  "senza semi", but "FF" is ambiguous (could be a variety code or a
+  private-label line like "Fior Fiore"; nothing here confirms which), so it
+  stays as printed rather than being guessed at, per the abbreviation rule
+  above; brand null, quantity 1 pieces, unitPriceCentsOnReceipt null,
+  lineTotalCents 286 (478 minus the 192 discount), discountCents 192,
+  packageSizeHint null, unitKindHint null, isPromo true, promoKind
+  "discount", food. The 4,00% on the discount line is the same VAT column as
+  the line above, not a second discount — it is never a reason to emit a
+  separate line.`;

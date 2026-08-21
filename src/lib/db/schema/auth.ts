@@ -2,7 +2,7 @@ import { relations, sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // Correction (2026-08-21, verified during implementation): this file is
-// normally 100% CLI-generated and read-only (Spec 02 §5.1), but the
+// normally 100% CLI-generated and read-only, but the
 // published @better-auth/cli tops out around 1.4.x/1.5-beta while the
 // installed better-auth core is 1.7.1 — the CLI can't yet emit a schema
 // matching what core 1.7 actually requires. Signup fails at runtime

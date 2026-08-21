@@ -1,7 +1,6 @@
 /**
- * User settings repository (Spec 02 §6.6). Every function is scoped by
- * userId — see the security rule in §6.1: no cross-user read or write is
- * representable through this layer.
+ * User settings repository. Every function is scoped by userId — no
+ * cross-user read or write is representable through this layer.
  */
 import { eq } from 'drizzle-orm';
 

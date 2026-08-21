@@ -1,5 +1,5 @@
 /**
- * Turn extracted receipt lines into reviewable drafts (Spec 07 §7).
+ * Turn extracted receipt lines into reviewable drafts.
  *
  * Design: this is the heart of receipt import, and it is deliberately pure —
  * the caller fetches the catalog and the aliases, this decides. The value of
@@ -10,7 +10,7 @@
  * Three ways to get there, in order of confidence: an alias the user taught
  * the app on a previous receipt, a fuzzy match against the catalog, or a new
  * product. Only the first needs no human at all, which is why alias learning
- * (§9) is what makes the second import of a chain fast.
+ * is what makes the second import of a chain fast.
  */
 
 import type { LineReviewReason } from '@/lib/ai/flag-receipt';
@@ -31,7 +31,7 @@ import {
   suggestProductMatches,
 } from './match-products';
 
-/** Above this score the top suggestion is safe to preselect (Spec 03 §9.1). */
+/** Above this score the top suggestion is safe to preselect. */
 const PRESELECT_SCORE_THRESHOLD = 0.7;
 
 /** Only the first three suggestions ever reach a card. */
@@ -46,7 +46,7 @@ export interface ResolveCandidateProduct extends MatchCandidate {
    * Archived products stay reachable through an alias — the user merged or
    * retired them deliberately, and their history is still the right place
    * for this line — but they are kept out of fuzzy suggestions, exactly as
-   * Spec 03 §8 keeps them out of the capture matcher.
+   * they are kept out of the capture matcher.
    */
   isArchived: boolean;
 }
@@ -177,16 +177,16 @@ export function resolveReceiptLines(input: ResolveReceiptLinesInput): ResolvedRe
 }
 
 /**
- * Status precedence (Spec 07 §7.4): a missing size blocks harder than an
+ * Status precedence: a missing size blocks harder than an
  * undecided product, which blocks harder than a flag the user only has to
  * look at.
  *
- * Deviation from §7.4's literal rule, deliberate: the spec assigns
- * `needs-product` to lines with NO candidate and leaves an ambiguous one (a
- * suggestion scoring 0.5, below the 0.7 preselect bar) as `ready`. That is
- * backwards for the only failure that actually costs something. A line with
- * no candidate becomes a genuinely new product — and `resolveProductPicks`
- * still dedupes it against the catalog by normalized name — whereas a line
+ * Deliberate design choice, not the naive rule: a line with NO candidate does
+ * NOT block — it becomes a genuinely new product, and `resolveProductPicks`
+ * still dedupes it against the catalog by normalized name — while an
+ * ambiguous one (a suggestion scoring 0.5, below the 0.7 preselect bar)
+ * becomes `needs-product` and blocks. That looks backwards until you
+ * consider the only failure that actually costs something: whereas a line
  * the matcher *half* recognised is exactly the one that silently creates a
  * duplicate of an existing product, and a duplicate removes that product
  * from every month-over-month relative it should have contributed to.
@@ -219,7 +219,7 @@ type AliasIndex = {
   anyChain: Map<string, string>;
 };
 
-/** Three lookup tables so §7.2's alias precedence is three Map.get calls. */
+/** Three lookup tables so alias precedence is three Map.get calls. */
 function buildAliasIndex(aliases: ResolveAlias[]): AliasIndex {
   const byChain = new Map<string, string>();
   const byAliasOnly = new Map<string, string>();
@@ -243,7 +243,7 @@ function aliasChainKey(alias: string, storeChain: string): string {
   return `${normalizeProductName(storeChain)} ${alias}`;
 }
 
-/** Alias exact → fuzzy → new, first hit wins (Spec 07 §7.2). */
+/** Alias exact → fuzzy → new, first hit wins. */
 function matchLine(
   line: ReceiptLine,
   normalizedAlias: string,

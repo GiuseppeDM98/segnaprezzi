@@ -11,7 +11,6 @@ Photograph supermarket price tags, let AI read them, and watch *your* cost of li
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/GiuseppeDM98/segnaprezzi/actions/workflows/ci.yml/badge.svg)](https://github.com/GiuseppeDM98/segnaprezzi/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
-[![Status](https://img.shields.io/badge/status-spec%2003%20implemented-blueviolet.svg)](docs/specs/)
 
 </div>
 
@@ -34,8 +33,6 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 
 ## Features
 
-The project is fully specified up front; each spec lands in its own session, and features are checked off as they actually ship. See [Project status](#project-status--roadmap).
-
 - [x] **Tag scanning** — photograph shelf price tags; Claude Haiku 4.5 extracts product, total price, and unit price with a review-before-save flow
 - [x] **Receipt import** — one PDF or photo becomes N observations: per-line extraction, automatic matching against your catalog, learned aliases so the next receipt from the same chain needs no work, and the file itself is never kept
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
@@ -49,7 +46,7 @@ The project is fully specified up front; each spec lands in its own session, and
 - [x] **Dark / light theme**
 - [x] **Data export** — your complete data as JSON, always
 - [x] **Backup import** — restore a previous export into your account, merged by id and never wiped
-- [ ] **Self-hostable** — your prices live in your own database, on your own deployment (everything runs locally today; the go-live runbook is Spec 08)
+- [x] **Self-hostable** — your prices live in your own database, on your own deployment (see [Self-hosting](#self-hosting) below)
 
 ## Design
 
@@ -75,19 +72,15 @@ The interface is a *tabulato a modulo continuo* — your index printed as a cont
 | Testing | Vitest (unit/integration) + Playwright (E2E, with axe-core accessibility checks) |
 | Package manager | pnpm |
 
-Exact versions the specs were written against are listed in [Spec 00, section 4](docs/specs/00-overview.md#4-tech-stack-versions-current-as-of-2026-08-20).
-
 ## Self-hosting
 
-> **Note:** these steps apply once v1 is implemented — see [Project status](#project-status--roadmap).
-
-segnaprezzi is designed to run on free tiers: Vercel Hobby, Turso's free plan, and an Anthropic API key (a photo extraction costs well under €0.01 — even 200 photos a month is pocket change).
+segnaprezzi is designed to run on free tiers: Vercel Hobby, Turso's free plan, and an Anthropic API key with a spend cap (a tag photo costs well under €0.01, a receipt about €0.03 — a few hundred a month is pocket change). It is meant to run as **one** environment — no preview deployments, no second database — which keeps the moving parts to a minimum for a single-user instance.
 
 ### Prerequisites
 
 - A [Turso](https://turso.tech) account (database)
-- An [Anthropic API key](https://console.anthropic.com) (tag extraction)
 - A [Vercel](https://vercel.com) account (hosting + Blob photo storage)
+- An [Anthropic API key](https://console.anthropic.com) (tag and receipt extraction) — set a monthly spend cap
 
 ### Environment variables
 
@@ -103,26 +96,19 @@ segnaprezzi is designed to run on free tiers: Vercel Hobby, Turso's free plan, a
 
 All variables are validated with Zod at boot (`src/lib/env.ts`); a misconfigured deployment fails fast with a clear message.
 
-### Deploy to Vercel
+### Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGiuseppeDM98%2Fsegnaprezzi&project-name=segnaprezzi&repository-name=segnaprezzi&env=TURSO_DATABASE_URL,TURSO_AUTH_TOKEN,ANTHROPIC_API_KEY,BETTER_AUTH_SECRET,BETTER_AUTH_URL&envDescription=See%20the%20environment%20variables%20table%20in%20the%20README&envLink=https%3A%2F%2Fgithub.com%2FGiuseppeDM98%2Fsegnaprezzi%23environment-variables)
+1. **Database** — create one Turso database (`turso db create`), ideally with its primary region close to where your Vercel functions run, and apply the committed migrations (`pnpm db:migrate`) before the first deploy.
+2. **Vercel project** — import the repo; the committed `vercel.json` pins the function region and limits deployments to `main`, so nothing deploys from a branch or a fork's PR by accident.
+3. **Blob store** — create one Vercel Blob store and connect it to the project (Production and Development scopes); this sets `BLOB_READ_WRITE_TOKEN` for you.
+4. **Anthropic key** — one API key with a spend cap, pasted into Vercel's environment variables once.
+5. **Variables** — set the rest of the table above, then run `vercel env pull .env.local` locally for a development environment that reaches the real Blob store and the real model.
+6. Deploy, open the app, and create your account.
+7. **Close the door** — once your account exists, set `SIGNUP_ENABLED=false` and redeploy. Registration closes; your data stays yours.
 
-1. Create a database: `turso db create segnaprezzi`, then grab its URL (`turso db show segnaprezzi --url`) and a token (`turso db tokens create segnaprezzi`).
-2. Click the button above and fill in the environment variables (generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`; set `BETTER_AUTH_URL` to your production URL, e.g. `https://segnaprezzi.yourdomain.com`).
-3. In the Vercel project, add a **Blob store** (Storage → Blob) — this sets `BLOB_READ_WRITE_TOKEN` automatically.
-4. Deploy, open the app, and create your account.
-5. **Keep your instance private:** once your account exists, set `SIGNUP_ENABLED=false` in the Vercel project settings and redeploy. Registration closes; your data stays yours.
-
-**Privacy note:** tag photos are stored as unguessable public Vercel Blob URLs — anyone who has a URL can open that photo, so treat the URLs like bearer tokens and don't share them. Private signed URLs are on the v1.1 roadmap.
+**Privacy note:** tag photos are stored as unguessable public Vercel Blob URLs — anyone who has a URL can open that photo, so treat the URLs like bearer tokens and don't share them. Receipt files are never stored at all, by design. Private signed photo URLs are on the v1.1 roadmap.
 
 ## Local development
-
-> **Note:** Specs 01–07 are implemented — a real local database, sign-up/login,
-> the full capture flow (camera, AI extraction, review, quick entry), receipt
-> import, the personal inflation engine with the official ISTAT series, and
-> every screen of the app (dashboard, products, history, stores, settings),
-> plus the installable PWA with its offline sync engine. What is left before a
-> public deployment is the go-live runbook (Spec 08).
 
 Requirements: Node 22+ and pnpm.
 
@@ -153,27 +139,7 @@ Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright — four projec
 
 The service worker is disabled under `pnpm dev`. To try the app offline or install it, run `pnpm build && pnpm start` and open http://localhost:3000 — localhost counts as a secure origin.
 
-## Project status & roadmap
-
-**Current status: Specs 01–07 implemented — Spec 08 (Go-live & Operations) is the last one.**
-
-segnaprezzi is built specs-first: every part of the system is fully specified — exact schemas, algorithms with worked numeric examples, prompts, test plans — before a line of application code is written. Each spec is then implemented in its own focused session. The specs are public and are the best way to understand the project in depth:
-
-| Spec | Covers |
-|---|---|
-| [00 — Overview & Canonical Contract](docs/specs/00-overview.md) | Single source of truth: domain model, money rules, category taxonomy, routes, env vars |
-| [01 — Foundation & Scaffold](docs/specs/01-foundation.md) | Next.js scaffold, tooling, repo layout, env validation, i18n shell |
-| [02 — Database & Auth](docs/specs/02-database-auth.md) | Drizzle schema and migrations, Better Auth setup, repositories |
-| [03 — Capture & AI Extraction](docs/specs/03-capture-ai.md) | Camera flow, `/api/extract`, Claude prompt and schema, review screen, product matching |
-| [04 — Inflation Engine](docs/specs/04-inflation-engine.md) | Pure index math: bucketing, chaining, weighting, coverage stats, exhaustive test plan |
-| [05 — UI & Design System](docs/specs/05-ui-design.md) | Design system, dashboard, charts, all screens — the shipped system is recorded in [`DESIGN.md`](DESIGN.md) |
-| [06 — PWA & Offline](docs/specs/06-pwa-offline.md) | Serwist service worker, IndexedDB photo queue, sync manager ✅ |
-| [07 — Receipt Import](docs/specs/07-receipt-import.md) | Digital receipt (PDF) → per-line extraction, catalog aliases, review, `source='receipt'` entries ✅ |
-| [08 — Go-live & Operations](docs/specs/08-go-live.md) | Turso + Vercel + Blob + Anthropic provisioning for a single environment, first live collaudo, runbook |
-
-Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07. Specs 06 and 07 were in fact built before Spec 08, since neither needs live infrastructure; what still waits for a real deployment is the on-device install and background-sync check, and one real supermarket PDF read by the real model.
-
-### After v1
+## Roadmap
 
 - **v1.1** — barcode scanning · richer ISTAT category-level comparison · private signed photo URLs · multi-file receipt upload and private receipt archive
 - **v1.2** — household sharing (shared basket, private accounts) · price alerts ("olive oil below €7/L")
@@ -181,7 +147,7 @@ Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 08 → 06 → 07. Spe
 
 ## Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Start with [Spec 00](docs/specs/00-overview.md) to understand the canonical contract, and note that all code follows [docs/DEVELOPMENT_GUIDELINES.md](docs/DEVELOPMENT_GUIDELINES.md) and [docs/COMMENTS.md](docs/COMMENTS.md).
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Start with [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) to understand the codebase's conventions, and note that all code follows [docs/DEVELOPMENT_GUIDELINES.md](docs/DEVELOPMENT_GUIDELINES.md) and [docs/COMMENTS.md](docs/COMMENTS.md).
 
 ## License
 
@@ -191,6 +157,6 @@ Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Start with
 
 <div align="center">
 
-*segnaprezzi's specifications and code are built with [Claude](https://claude.com).*
+*segnaprezzi is built with [Claude](https://claude.com).*
 
 </div>

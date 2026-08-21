@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The app shell (Spec 05 §6.4): safe-area padding, tab bar / desktop rail,
+ * The app shell: safe-area padding, tab bar / desktop rail,
  * offline banner, toast outlet, and the scroll-direction policy behind
  * hide-on-scroll. Every route in the (app) group renders inside it; /scan is
  * immersive and gets neither bar nor rail.
@@ -18,7 +18,7 @@ import { useAppMotion } from '@/lib/motion';
 import { NavRail } from './nav-rail';
 import { OfflineBanner } from './offline-banner';
 
-/** Screens whose long lists may hide the tab bar while scrolling down (§4). */
+/** Screens whose long lists may hide the tab bar while scrolling down. */
 const HIDE_ON_SCROLL_PREFIXES = ['/products', '/history'];
 /** Scroll travel (px) before the direction counts — filters rubber-banding. */
 const SCROLL_THRESHOLD_PX = 12;
@@ -35,7 +35,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className={cx('flex min-h-dvh', !isImmersive && 'rail:gap-0')}>
         {!isImmersive && <NavRail />}
         <div className="relative flex min-w-0 flex-1 flex-col">
-          {/* Tab cross-fade (§7): 150 ms opacity, keyed by route, no slide. */}
+          {/* Tab cross-fade: 150 ms opacity, keyed by route, no slide. */}
           <motion.main
             key={pathname}
             initial={{ opacity: 0 }}

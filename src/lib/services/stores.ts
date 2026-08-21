@@ -1,5 +1,5 @@
 /**
- * Store management use cases (Spec 05 §5.9). Thin by design — the rules
+ * Store management use cases. Thin by design — the rules
  * are the repository's (user scoping, FK set-null on delete); this layer
  * adds the entry counts the list shows and the not-found translation.
  */
@@ -70,8 +70,8 @@ export async function updateStore(
 }
 
 /**
- * Delete a store; its entries survive with store_id = NULL (Spec 05 §5.9:
- * "Le rilevazioni restano, ma senza negozio").
+ * Delete a store; its entries survive with store_id = NULL
+ * ("Le rilevazioni restano, ma senza negozio").
  * @throws StoreNotFoundError when it is not the user's
  */
 export async function deleteStore(db: Db, userId: string, storeId: string): Promise<void> {

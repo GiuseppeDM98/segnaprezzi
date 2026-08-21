@@ -1,6 +1,6 @@
 import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 
-/** Timeline loading state (Spec 05 §5.8): filter row + two day groups. */
+/** Timeline loading state: filter row + two day groups. */
 export default function HistoryLoading() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col pt-safe" aria-busy="true">

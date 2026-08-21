@@ -5,7 +5,7 @@ import { SEED_USER_2 } from './fixtures/users';
 import { resetCaptureFixtures } from './helpers/db';
 
 /*
- * Capture E2E suite (Spec 03 §13.6).
+ * Capture E2E suite.
  *
  * Two deliberate choices:
  * - The photo enters through the file-input fallback, not the camera. CI has
@@ -161,7 +161,7 @@ test('should flag a doubtful extraction and block confirm until it is fixed', as
 
   // A 0.95 suggestion is still preselected, so the only thing standing in the
   // way is the number the user must look at — clear it and the confirm bar
-  // disables itself and says why (Spec 05 §5.3: "1 da completare").
+  // disables itself and says why: "1 da completare".
   await page.getByTestId('field-total-price').fill('');
   await expect(page.getByTestId('confirm-batch')).toBeDisabled();
   await expect(page.getByText('1 da completare')).toBeVisible();

@@ -1,5 +1,5 @@
 /**
- * Abandon an import in progress (Spec 07 §8.3, last paragraph).
+ * Abandon an import in progress.
  *
  * The row survives the discard on purpose: `(user_id, content_hash)` is
  * unique, so re-uploading the same file resumes this record instead of

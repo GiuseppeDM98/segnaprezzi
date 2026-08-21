@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The catalog (Spec 05 §5.6). The whole catalog — archived included — is
+ * The catalog. The whole catalog — archived included — is
  * read once; search, category and archived filters run on the client,
  * because a personal catalog is a few hundred rows at most and a round trip
  * per keystroke would only add latency in an aisle with one bar of signal.

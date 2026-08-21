@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of the receipt review (Spec 07 §8.1).
+ * Client half of the receipt review.
  *
  * Design: the server resolved every line; this screen owns the *corrections*.
  * Drafts live in React state and the stored extraction is never mutated — it
@@ -9,7 +9,7 @@
  * keep (§5), and it becomes each entry's `ai_raw_json` on confirm.
  *
  * Editing a price or a size re-derives the unit price the way the capture
- * review does (Spec 03 §9.1), and stops as soon as the user types a unit
+ * review does, and stops as soon as the user types a unit
  * price by hand — at that point they know something the arithmetic does not.
  */
 import { useLocale, useTranslations } from 'next-intl';
@@ -47,7 +47,7 @@ interface LineDraft {
   category: CategoryId;
   /**
    * The matcher found candidates but none convincing: the user must pick or
-   * accept "new" before this line can be confirmed (Spec 07 §8.1).
+   * accept "new" before this line can be confirmed.
    */
   needsProductDecision: boolean;
   isExcluded: boolean;

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The horizontal strip of captured photos (Spec 05 §6.3): one thumbnail per
+ * The horizontal strip of captured photos: one thumbnail per
  * photo with a status chip mapping exactly the four queue statuses —
  * queued · uploading · extracted · failed. Failed chips retry on tap; a tap
  * on any thumbnail opens the preview/delete sheet. New thumbnails spring in

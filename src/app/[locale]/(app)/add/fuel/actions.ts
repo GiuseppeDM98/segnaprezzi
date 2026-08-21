@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Fuel quick-entry Server Action (Spec 03 §11.3).
+ * Fuel quick-entry Server Action.
  */
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -14,7 +14,7 @@ import { type ActionResult, toLoggedActionError } from '@/lib/errors';
 import { createFuelEntry as createFuelEntryService } from '@/lib/services/create-price-entry';
 
 // Derived from the domain constant so a new quick-pick is accepted here
-// automatically instead of silently 400-ing (Spec 03 §11.1).
+// automatically instead of silently 400-ing.
 const FUEL_KEYS = FUEL_QUICK_PICKS.map((pick) => pick.key) as [
   FuelQuickPickKey,
   ...FuelQuickPickKey[],

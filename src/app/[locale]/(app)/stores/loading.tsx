@@ -1,6 +1,6 @@
 import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 
-/** Stores loading state (Spec 05 §5.9): header + 4 skeleton rows. */
+/** Stores loading state: header + 4 skeleton rows. */
 export default function StoresLoading() {
   return (
     <div className="flex flex-1 flex-col" aria-busy="true">

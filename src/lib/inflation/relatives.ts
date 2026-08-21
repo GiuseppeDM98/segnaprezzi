@@ -1,6 +1,5 @@
 /**
- * Step 3 of the engine (Spec 04 §4.3): matched-model month-over-month price
- * relatives with the outlier clamp.
+ * Matched-model month-over-month price relatives with the outlier clamp.
  *
  * Teacher: why relatives at all — you cannot average €2.28/kg pasta with
  * €1.69/L diesel; the units differ and a mean of raw prices is dominated by
@@ -21,7 +20,7 @@ import type { CategoryId } from '@/lib/domain/categories';
 import type { MonthLink, PriceTable, ProductRelative } from './types';
 
 /**
- * Outlier bounds for a single month-over-month relative (Spec 04 §4.3).
+ * Outlier bounds for a single month-over-month relative.
  *
  * Why clamp at all: a genuine month-over-month grocery or fuel move virtually
  * never exceeds ×5 or ÷5; moves that large are almost always data errors — a
@@ -54,7 +53,7 @@ export function clampRelative(relative: number): { value: number; wasClamped: bo
  * Relatives come out sorted by productId. Why: the geometric mean computed
  * downstream is mathematically order-independent, but floating-point
  * addition is not associative — sorting keeps every result bit-stable
- * regardless of the order entries arrived in (Spec 04 §2 determinism rule).
+ * regardless of the order entries arrived in — the engine's determinism rule.
  */
 export function computeMonthLink(
   priceTable: PriceTable,

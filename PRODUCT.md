@@ -41,8 +41,8 @@ comparison. Private per user, offline-first, self-hostable.
 
 - Capture happens in the aisle: fast shutter, queue-and-forget, review later
   (even on the way home with no signal). Quick forms exist for fuel (at the
-  pump, one-handed) and manual entries; receipt import (PDF/photo) arrives
-  with Spec 07.
+  pump, one-handed) and manual entries; receipt import (PDF/photo) is also
+  supported.
 - Reading happens at home: dashboard, product histories, timeline, stores.
 - Mobile-first PWA at 390 × 844; tablet (≥ 768) and desktop rail (≥ 1024)
   are secondary. Both light and dark themes are first-class.
@@ -60,9 +60,8 @@ comparison. Private per user, offline-first, self-hostable.
   buckets means a thin-data state, not a line.
 - Inflation semantics are inverted relative to finance apps: a rising price
   is unfavorable, a falling price favorable.
-- Architecture and names are fixed by `docs/specs/00-overview.md`; screens,
-  states and behavior by `docs/specs/05-ui-design.md`; the visual language is
-  decided by the impeccable pass and recorded in `DESIGN.md`.
+- Architecture and names are fixed by the existing schema/code; the visual
+  language is decided by the impeccable pass and recorded in `DESIGN.md`.
 - Stack: Next.js 16 App Router, React 19, Tailwind 4 (tokens in
   `src/app/globals.css` `@theme`), Motion springs (stiffness 400, damping 35),
   next-intl (it/en), lucide-react icons, hand-rolled SVG charts (no chart
@@ -84,10 +83,9 @@ verb.
 
 ## Evidence on Hand
 
-- Real demo data: `pnpm db:seed` (Spec 02 §8) — 13 products across 6
-  categories, 2 stores, fuel fill-ups, promos; being extended to 14 months so
-  the 12-month trend and the year-over-year headline render on real engine
-  output.
+- Real demo data: `pnpm db:seed` — 13 products across 6 categories, 2 stores,
+  fuel fill-ups, promos, across 14 months so the 12-month trend and the
+  year-over-year headline render on real engine output.
 - Real official series: `data/istat-nic.json` (ISTAT NIC, 1996-01 → 2026-07,
   base 2025 = 100).
 - No testimonials, customer logos, press, or benchmarks exist — none may be

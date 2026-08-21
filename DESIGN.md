@@ -178,7 +178,7 @@ components:
 
 # Design System: segnaprezzi
 
-Recorded from the shipped Spec 05 build (impeccable seed 12e30ec0, locked 2026-08-21). Ground truth is `src/app/globals.css`, `src/app/[locale]/layout.tsx`, `src/lib/motion.ts`, `src/lib/format.ts` and `src/components/**`. Token names in the frontmatter are descriptive; the code names they map to are given in parentheses and are the only ones components may use (`bg-surface`, `text-text-muted`, ...). Frozen names per `docs/specs/05-ui-design.md` §2.1.
+Recorded from the shipped build (impeccable seed 12e30ec0, locked 2026-08-21). Ground truth is `src/app/globals.css`, `src/app/[locale]/layout.tsx`, `src/lib/motion.ts`, `src/lib/format.ts` and `src/components/**`. Token names in the frontmatter are descriptive; the code names they map to are given in parentheses and are the only ones components may use (`bg-surface`, `text-text-muted`, ...). These names are frozen.
 
 ## Overview
 
@@ -210,7 +210,7 @@ A cream-and-ink paper register with five semantic inks, each owning exactly one 
 - **Highlighter Wash** (`accent-soft`, `oklch(94% 0.05 75)`): the pale stroke of the same marker. Text selection, selected chips, the derived-value flash on computed inputs, and the hover tint on zebra rows.
 
 ### Secondary (price direction and status inks)
-- **Ribbon Red** (`negative` / `negative-soft`): a price that went **up**. Also destructive actions (`danger` button) and failures (field errors, error toast dot), per Spec 05 §2.1.
+- **Ribbon Red** (`negative` / `negative-soft`): a price that went **up**. Also destructive actions (`danger` button) and failures (field errors, error toast dot).
 - **Ribbon Green** (`positive` / `positive-soft`): a price that went **down**. Also confirmations (checkmark, success toast dot).
 - **Amber Stamp** (`warning` / `warning-soft`): needs a human look; thin data, low-confidence extraction, needs-review chips.
 - **Pink Marker** (`promo`): a promotional price. Text and border only; no soft twin exists.

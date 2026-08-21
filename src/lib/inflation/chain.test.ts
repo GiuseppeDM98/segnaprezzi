@@ -351,14 +351,14 @@ describe('computePersonalCpi', () => {
     expect(result.coverage.monthsWithoutOverlap).toEqual([]);
   });
 
-  it('should reproduce every number of the Spec 04 §6 worked example', () => {
+  it('should reproduce every number of the worked example', () => {
     // Arrange
     const { entries, products } = buildWorkedExample();
 
     // Act
     const result = computePersonalCpi({ entries, products, settings: DEFAULT_SETTINGS });
 
-    // Assert — §6.5 final series
+    // Assert — final series
     const expectedSeries: MonthPoint[] = [
       { ym: '2026-03', index: 100.0, momPct: 0.0, yoyPct: null },
       { ym: '2026-04', index: 102.5149, momPct: 2.5149, yoyPct: null },
@@ -370,13 +370,13 @@ describe('computePersonalCpi', () => {
       expectPoint(result.series[position], expected);
     }
 
-    // §6.5 headline
+    // headline
     expect(result.headline?.latestYm).toBe('2026-06');
     expect(result.headline?.momPct).toBeCloseTo(-0.3812, 4);
     expect(result.headline?.yoyPct).toBeNull();
     expect(result.headline?.sinceStartPct).toBeCloseTo(3.2405, 4);
 
-    // §6.5 category series
+    // category series
     const expectedFood = [100.0, 107.9402, 106.6612, 107.6988];
     const expectedFuel = [100.0, 101.83, 103.2468, 102.6564];
     expect(result.categories.map((category) => category.category)).toEqual(['food', 'fuel']);
@@ -389,7 +389,7 @@ describe('computePersonalCpi', () => {
       expect(result.categories[1].series[position].index).toBeCloseTo(expected, 4);
     }
 
-    // §6.5 coverage
+    // coverage
     expect(result.coverage.productsCompared).toBe(3);
     expect(result.coverage.categoriesCovered).toBe(2);
     expect(result.coverage.imputedShare).toBeCloseTo(0.1667, 4);
@@ -397,7 +397,7 @@ describe('computePersonalCpi', () => {
     expect(result.coverage.monthsWithoutOverlap).toEqual([]);
     expect(result.coverage.outliersClamped).toBe(0);
 
-    // §6.5 movers
+    // movers
     expect(result.movers).toHaveLength(3);
     expect(result.movers[0]).toMatchObject({
       productId: 'pasta',

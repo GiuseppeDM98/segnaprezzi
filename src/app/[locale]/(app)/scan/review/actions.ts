@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Review-screen Server Actions (Spec 03 §9.2).
+ * Review-screen Server Actions.
  *
  * Thin by contract: authenticate, validate with Zod, call the service, map
  * domain errors. The schemas in ./schema.ts are the trust boundary —
@@ -81,7 +81,7 @@ export async function beginSessionReview(input: {
 
 const searchProductsSchema = z.object({ query: z.string().trim().max(100) });
 
-/** Catalog search for the match picker (Spec 05 §5.3). */
+/** Catalog search for the match picker. */
 export async function searchProducts(input: {
   query: string;
 }): Promise<ActionResult<ProductSearchHit[]>> {

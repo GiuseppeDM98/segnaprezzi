@@ -1,7 +1,7 @@
 /**
- * Unit kinds and their base units (Spec 00 §6). All unit prices are stored
+ * Unit kinds and their base units. All unit prices are stored
  * per base unit: kg for weight, L for volume, piece for count. Tags shown
- * per 100 g / 100 mL are normalized at extraction time (Spec 03).
+ * per 100 g / 100 mL are normalized at extraction time.
  */
 export const UNIT_KINDS = ['weight', 'volume', 'count'] as const;
 
@@ -23,7 +23,7 @@ export interface SizeUnitOption {
 
 /**
  * Units a package size may be typed in, per unit kind. Storage is always in
- * base units (Spec 00 §6), but nobody reads "0.5 kg" off a 500 g pack — the
+ * base units, but nobody reads "0.5 kg" off a 500 g pack — the
  * forms accept the printed unit and convert on the way in.
  */
 export const SIZE_UNIT_OPTIONS: Record<UnitKind, SizeUnitOption[]> = {

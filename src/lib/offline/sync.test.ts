@@ -1,5 +1,5 @@
 /*
- * Sync engine tests (Spec 06 §9.2).
+ * Sync engine tests.
  *
  * Three deliberate choices:
  * - Only `Date` is faked, never the timers. fake-indexeddb drives itself on

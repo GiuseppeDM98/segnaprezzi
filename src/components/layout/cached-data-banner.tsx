@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * "These numbers are not live" (Spec 06 §6.4).
+ * "These numbers are not live".
  *
  * The dashboard is a NetworkFirst page, so offline it renders from the cache
  * — the same layout, the same confident type, numbers that may be days old.
  * This slim line is the whole defence against mistaking one for the other.
  * It links nothing and demands nothing.
  *
- * Correction to Spec 06 §6.4: the timestamp is when the *page data* was
+ * Note: the timestamp is when the *page data* was
  * computed, not `syncMeta.lastSyncAt` (which records the last successful
  * photo extraction). The generation time travels inside the cached HTML, so
  * it stays truthful for exactly the copy the user is looking at.

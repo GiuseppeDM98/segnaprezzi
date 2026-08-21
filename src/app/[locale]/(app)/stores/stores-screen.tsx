@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of store management (Spec 05 §5.9): zebra rows with the
+ * Client half of store management: zebra rows with the
  * kind icon and entry count, an add action in the header, and one sheet
  * for both create and edit (delete lives inside the edit sheet behind an
  * inline confirm that says what happens to the entries).

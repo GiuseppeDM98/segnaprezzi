@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Install state and the nag budget around it (Spec 06 §7).
+ * Install state and the nag budget around it.
  *
  * Design: `beforeinstallprompt` fires once, early, and is lost unless
  * something calls preventDefault() on it at that exact moment — long before
@@ -44,7 +44,7 @@ function notifyInstallSubscribers(): void {
 export function startInstallPromptCapture(): () => void {
   function handleBeforeInstallPrompt(event: Event): void {
     // Without preventDefault() Chromium shows its own mini-infobar, which we
-    // replace with the contextual sheet of §7.2.
+    // replace with our own contextual install sheet.
     event.preventDefault();
     stashedPrompt = event as BeforeInstallPromptEvent;
     notifyInstallSubscribers();

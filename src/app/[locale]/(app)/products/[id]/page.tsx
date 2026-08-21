@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 }
 
 /**
- * The price story of one product (Spec 05 §5.7). A product id that is not
+ * The price story of one product. A product id that is not
  * the user's renders the locale-aware 404 — never a hint that it exists.
  */
 export default async function ProductPage({ params }: ProductPageProps) {

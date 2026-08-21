@@ -8,7 +8,7 @@ import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { listCatalog, mergeProducts, searchProducts, setProductArchived } from './catalog';
 
 /*
- * Integration tests for the catalog read model (Spec 05 §5.6): the last and
+ * Integration tests for the catalog read model: the last and
  * previous observation per product, the category chips, user scoping, and
  * the merge flow over several duplicates.
  */

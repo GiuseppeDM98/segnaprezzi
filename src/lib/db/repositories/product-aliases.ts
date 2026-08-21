@@ -1,6 +1,6 @@
 /**
- * Product alias repository (Spec 07 §2.5, §9). Every function is scoped by
- * userId — aliases are private learned data (Spec 00 §3), never shared.
+ * Product alias repository. Every function is scoped by userId — aliases
+ * are private learned data, never shared.
  *
  * Design note on upserting: `(user_id, alias, store_chain)` is a UNIQUE
  * index, but SQLite treats NULLs as DISTINCT inside one, so two aliases
@@ -30,7 +30,7 @@ export async function listProductAliases(
   return db.select().from(productAliases).where(eq(productAliases.userId, userId));
 }
 
-/** The aliases pointing at one product, most-used first (Spec 07 §9). */
+/** The aliases pointing at one product, most-used first. */
 export async function listAliasesForProduct(
   db: Db | DbTransaction,
   userId: string,
@@ -86,7 +86,7 @@ export async function learnProductAliases(
 
 /**
  * Move every alias of one product onto another, summing `hit_count` where
- * both products had learned the same abbreviation (Spec 07 §2.5).
+ * both products had learned the same abbreviation.
  *
  * Called inside the merge transaction: without it the survivor would lose
  * everything the archived duplicate had learned, and the next receipt would
@@ -157,7 +157,7 @@ export async function deleteProductAlias(
   return deleted.length > 0;
 }
 
-/** Insert-or-update aliases by id for the backup import (Spec 05 §5.10). */
+/** Insert-or-update aliases by id for the backup import. */
 export async function upsertProductAliases(
   db: Db | DbTransaction,
   userId: string,

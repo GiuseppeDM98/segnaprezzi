@@ -1,5 +1,5 @@
 /*
- * Domain error primitives (docs/specs/01-foundation.md §9).
+ * Domain error primitives.
  *
  * Design: expected failures travel through the layers as DomainError
  * subclasses carrying a stable machine-readable `code`. The code is the
@@ -11,14 +11,14 @@
 
 // WARNING: adding a code here requires updating:
 // - the `errors` namespace in messages/it.json and messages/en.json
-// - the code→HTTP-status mapping in route handlers (Spec 03)
+// - the code→HTTP-status mapping in route handlers
 export type DomainErrorCode =
   | 'NOT_FOUND'
   | 'VALIDATION_FAILED'
   | 'UNAUTHORIZED'
   | 'EXTRACTION_FAILED'
   | 'INTERNAL'
-  // Spec 03 §2.5 — capture, review, and quick-entry failures.
+  // Capture, review, and quick-entry failures.
   | 'INVALID_INPUT'
   | 'INVALID_DATE'
   | 'INVALID_PRICE'
@@ -32,7 +32,7 @@ export type DomainErrorCode =
   | 'PHOTO_TOO_LARGE'
   | 'UNSUPPORTED_PHOTO_TYPE'
   | 'EXTRACTION_UNAVAILABLE'
-  // Spec 07 §10 — receipt import failures.
+  // Receipt import failures.
   | 'RECEIPT_TOO_LARGE'
   | 'UNSUPPORTED_RECEIPT_TYPE'
   | 'RECEIPT_TOO_LONG'
@@ -76,7 +76,7 @@ export class UnauthorizedError extends DomainError {
   }
 }
 
-/** The AI could not produce a usable extraction from the photo (Spec 03). */
+/** The AI could not produce a usable extraction from the photo. */
 export class ExtractionError extends DomainError {
   constructor(message: string, options?: { cause?: unknown }) {
     super('EXTRACTION_FAILED', message, options);
@@ -84,14 +84,14 @@ export class ExtractionError extends DomainError {
 }
 
 /*
- * Spec 03 error classes. Each one exists because a caller must be able to
+ * Each one exists because a caller must be able to
  * react differently: the offline queue retries EXTRACTION_UNAVAILABLE but
  * parks EXTRACTION_FAILED, and the review screen sends the user back to the
  * capture screen on SESSION_CLOSED but to the product picker on
  * PRODUCT_NOT_FOUND.
  */
 
-/** The shopping session does not exist, or belongs to another user (Spec 03 §2.2). */
+/** The shopping session does not exist, or belongs to another user. */
 export class SessionNotFoundError extends DomainError {
   constructor(sessionId: string) {
     super('SESSION_NOT_FOUND', `Shopping session ${sessionId} not found`);
@@ -119,7 +119,7 @@ export class ProductNotFoundError extends DomainError {
   }
 }
 
-/** A fuel entry was attached to a store that is not a fuel station (Spec 03 §11.3). */
+/** A fuel entry was attached to a store that is not a fuel station. */
 export class InvalidStoreKindError extends DomainError {
   constructor(message: string) {
     super('INVALID_STORE_KIND', message);
@@ -133,28 +133,28 @@ export class InconsistentFuelPricesError extends DomainError {
   }
 }
 
-/** recordedAt falls outside the accepted window (Spec 03 §10.3). */
+/** recordedAt falls outside the accepted window. */
 export class InvalidDateError extends DomainError {
   constructor(message: string) {
     super('INVALID_DATE', message);
   }
 }
 
-/** A money field is outside its accepted range (Spec 03 §10.3). */
+/** A money field is outside its accepted range. */
 export class InvalidPriceError extends DomainError {
   constructor(message: string) {
     super('INVALID_PRICE', message);
   }
 }
 
-/** packageSize is outside its accepted range (Spec 03 §10.3). */
+/** packageSize is outside its accepted range. */
 export class InvalidSizeError extends DomainError {
   constructor(message: string) {
     super('INVALID_SIZE', message);
   }
 }
 
-/** Input failed boundary (Zod) validation — the generic 400 of this spec. */
+/** Input failed boundary (Zod) validation — the app's generic 400. */
 export class InvalidInputError extends DomainError {
   readonly issues: string[];
 
@@ -172,13 +172,13 @@ export class ExtractionUnavailableError extends DomainError {
 }
 
 /*
- * Spec 07 receipt-import errors. Each one is a different instruction to the
+ * Receipt-import errors. Each one is a different instruction to the
  * user — shrink the file, convert it, pick a different one, or nothing at
  * all because the import already happened — which is why they are not one
  * INVALID_INPUT.
  */
 
-/** The uploaded receipt exceeds the 5 MB cap (Spec 07 §4.2). */
+/** The uploaded receipt exceeds the 5 MB cap. */
 export class ReceiptTooLargeError extends DomainError {
   constructor(message: string) {
     super('RECEIPT_TOO_LARGE', message);
@@ -199,7 +199,7 @@ export class ReceiptTooLongError extends DomainError {
   }
 }
 
-/** This exact file was already imported and confirmed (Spec 07 §4.3 step 2). */
+/** This exact file was already imported and confirmed. */
 export class ReceiptAlreadyImportedError extends DomainError {
   constructor(receiptId: string) {
     super('RECEIPT_ALREADY_IMPORTED', `Receipt ${receiptId} was already imported`);

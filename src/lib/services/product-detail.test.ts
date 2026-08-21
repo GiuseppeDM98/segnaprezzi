@@ -9,8 +9,8 @@ import { listHistoryPage } from './history';
 import { editPriceEntry, getProductDetail, removePriceEntry } from './product-detail';
 
 /*
- * Integration tests for the product detail read model (Spec 05 §5.7) and
- * the entry edit/delete use cases it shares with the timeline (§5.8).
+ * Integration tests for the product detail read model and
+ * the entry edit/delete use cases it shares with the timeline.
  */
 
 let db: Db;

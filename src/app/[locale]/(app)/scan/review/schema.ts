@@ -1,5 +1,5 @@
 /**
- * Boundary schemas for the review screen's Server Actions (Spec 03 §9.2).
+ * Boundary schemas for the review screen's Server Actions.
  *
  * They live beside `actions.ts` rather than inside it because a `"use server"`
  * module may only export async functions — and both the action and its tests

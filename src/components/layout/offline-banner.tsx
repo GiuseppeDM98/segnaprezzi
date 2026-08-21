@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * The connectivity pill (Spec 05 §5.13 · Spec 06 §6.1). Offline is a state,
+ * The connectivity pill. Offline is a state,
  * never an error: the pill slides from under the top safe-area, stays while
  * offline with the queued count, switches to "syncing" while the engine
  * drains and slides away with a success toast once the queue is empty.
  *
- * Spec 06 replaced the original 1.5 s polling loop with the live queue
- * query: IndexedDB now notifies on every status change, including the ones
- * written by the service worker's Background Sync drain, which no poll in
- * the page could have seen at all.
+ * The live queue query replaced an earlier 1.5 s polling loop: IndexedDB
+ * now notifies on every status change, including the ones written by the
+ * service worker's Background Sync drain, which no poll in the page could
+ * have seen at all.
  */
 import { CloudOff, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';

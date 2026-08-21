@@ -4,9 +4,9 @@ import { signUpViaApi } from './helpers/auth';
 import { deleteUserByEmail } from './helpers/db';
 
 /*
- * Auth E2E suite (Spec 02 §10.3). Authenticates by calling Better Auth's
+ * Auth E2E suite. Authenticates by calling Better Auth's
  * own /api/auth/* routes directly instead of driving the /login form — the
- * form itself is a thin client over the same routes (§5.7), so testing
+ * form itself is a thin client over the same routes, so testing
  * through it would mean re-testing form plumbing, not auth behavior, on
  * every run. See global-setup.ts for the cached seed-user sessions this
  * suite reuses via storageState.

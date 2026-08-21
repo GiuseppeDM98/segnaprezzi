@@ -1,5 +1,5 @@
 /**
- * Boundary schemas for the receipt review's Server Actions (Spec 07 §8.2).
+ * Boundary schemas for the receipt review's Server Actions.
  *
  * They live beside `actions.ts` rather than inside it because a `"use server"`
  * module may only export async functions (AGENTS.md §4.22) — and both the

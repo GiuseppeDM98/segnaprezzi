@@ -1,5 +1,5 @@
 /**
- * Refresh data/istat-nic.json from ISTAT's SDMX REST service (Spec 04 §8.2).
+ * Refresh data/istat-nic.json from ISTAT's SDMX REST service.
  *
  * Run with `pnpm istat:update`. This is a maintenance script, not app code —
  * it may do I/O freely, but it fails fast, loud and diagnosable, and it never
@@ -14,7 +14,7 @@
  *      committed file.
  *
  * Why this endpoint (verified 2026-08-21 against the live service): the
- * dataflow family Spec 04 names, `IT1,167_744,1.0` ("Nic - monthly data from
+ * dataflow family this refresh targets, `IT1,167_744,1.0` ("Nic - monthly data from
  * 2016 onwards, base 2015"), is frozen at 2025-12 — ISTAT rebased the NIC to
  * 2025=100 in January 2026 and opened `IT1,167_745,1.0` ("Nic - monthly data
  * from 2026 onwards, base 2025"). That newer dataflow also serves, under

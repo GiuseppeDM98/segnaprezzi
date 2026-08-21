@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Settings Server Actions (Spec 05 §5.10): index options and backup import.
+ * Settings Server Actions: index options and backup import.
  */
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';

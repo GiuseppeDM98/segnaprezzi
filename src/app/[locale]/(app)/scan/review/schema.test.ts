@@ -8,7 +8,7 @@ import { confirmShoppingSessionSchema } from './schema';
  * action (which needs a request context): a promo kind without a promo would
  * silently poison the promo filter of the index, and a photoUrl outside the
  * Blob store would turn the user's own history into a request to someone
- * else's server (Spec 03 §13.4).
+ * else's server.
  */
 
 const BLOB_URL = 'https://store.public.blob.vercel-storage.com/users/u/photos/p.webp';

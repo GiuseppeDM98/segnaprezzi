@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Toast provider + useToast() (Spec 05 §6.1). Toasts stack above the tab
+ * Toast provider + useToast(). Toasts stack above the tab
  * bar, auto-dismiss after 4 s, and may carry one action (Undo). The outlet is
  * rendered once by AppShell; anything inside the provider can toast.
  */
@@ -33,7 +33,7 @@ export interface ToastInput {
   kind: ToastKind;
   message: string;
   action?: ToastAction;
-  /** A quieter second choice, shown before the action (Spec 06 §8: "Più tardi"). */
+  /** A quieter second choice, shown before the action (e.g. "Più tardi"). */
   secondaryAction?: ToastAction;
   /** Keep the toast until the user answers — for a decision, not a report. */
   isPersistent?: boolean;

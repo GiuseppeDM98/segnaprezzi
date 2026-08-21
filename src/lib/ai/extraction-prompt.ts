@@ -1,5 +1,5 @@
 /**
- * The extraction system prompt (Spec 03 §7.1, verbatim).
+ * The extraction system prompt, verbatim.
  *
  * Design: the prompt carries all the Italian-retail domain knowledge the
  * model needs -- comma decimals, all'etto unit prices, the loyalty-price
@@ -13,8 +13,7 @@
  */
 
 // WARNING: the category list in this prompt must stay in sync with
-// CATEGORY_IDS in src/lib/domain/categories.ts and with both message files
-// (see the taxonomy checklist in docs/specs/00-overview.md §6).
+// CATEGORY_IDS in src/lib/domain/categories.ts and with both message files.
 export const EXTRACTION_SYSTEM_PROMPT = `You read photos of Italian supermarket shelf price tags (segnaprezzi /
 cartellini) and extract structured pricing data. Each photo shows ONE price
 tag; if several tags are visible, extract the one most centered and in focus.

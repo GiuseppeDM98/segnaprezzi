@@ -15,7 +15,7 @@ related_targets: ["src/app/[locale]/(app)/layout.tsx"]
 
 **Proof / content:** real engine output (`getPersonalCpi`), rebased ISTAT series from `data/istat-nic.json`, seed data extended to 14 months so the YoY headline and the 12-month chart are real.
 
-**Constraints:** Spec 05 §5.1 layout blocks in order; all four states plus thin-data; every number via `format.ts`; tabular figures; AA in both themes; reduced motion honored.
+**Constraints:** layout blocks in order; all four states plus thin-data; every number via `format.ts`; tabular figures; AA in both themes; reduced motion honored.
 
 **Chosen direction (seed 12e30ec0, re-roll 1, assigned, locked by the owner 2026-08-21):** *Tabulato a modulo continuo* — the personal index printed as a continuous-form statement: cream stock with a punched sprocket margin, green-bar zebra rows behind every data list, ribbon-ink monospace for everything the machine printed (numbers, product names, rows), a quiet preprinted-form sans for labels and prose, highlighter orange as the single live accent (text on it stays ink), red/green ribbon reserved for price direction. Dark theme is the print negative (ink field, paper type), never a phosphor screen.
 

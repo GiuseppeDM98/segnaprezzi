@@ -1,11 +1,11 @@
 /**
- * Anthropic gateway: one photo in, one ExtractionResult out (Spec 03 §7.3).
+ * Anthropic gateway: one photo in, one ExtractionResult out.
  *
  * Design: this module is the only place that talks to the Anthropic API.
  * It maps every failure mode onto AiGatewayError (internal to src/lib/ai/)
  * with an isRetryable flag, so the service and the offline queue can share
  * one retry policy without knowing SDK internals. The service/route layer
- * translates AiGatewayError into Spec 01's ExtractionError / HTTP responses.
+ * translates AiGatewayError into the app's ExtractionError / HTTP responses.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
@@ -115,9 +115,9 @@ function buildUserInstruction(storeKind: ExtractPriceTagInput['storeKind']): str
 /**
  * Map SDK failures onto AiGatewayError. Order matters: most specific first.
  *
- * Exported for the receipt gateway (Spec 07 §6.3), which must classify the
- * same failures the same way — the offline queue and the receipt route share
- * one retry policy precisely because they share this function.
+ * Exported for the receipt gateway, which must classify the same failures
+ * the same way — the offline queue and the receipt route share one retry
+ * policy precisely because they share this function.
  */
 export function toAiGatewayError(error: unknown): AiGatewayError {
   if (error instanceof AiGatewayError) {

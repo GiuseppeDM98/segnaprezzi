@@ -1,7 +1,6 @@
 /**
- * Receipt repository (Spec 07 §2.4). Every function is scoped by userId —
- * see the security rule in Spec 02 §6.1: no cross-user read or write is
- * representable through this layer.
+ * Receipt repository. Every function is scoped by userId — no cross-user
+ * read or write is representable through this layer.
  */
 import { and, desc, eq } from 'drizzle-orm';
 
@@ -39,8 +38,8 @@ export async function getReceiptById(
 
 /**
  * Fetch the receipt this user already imported from a file with this exact
- * content (Spec 07 §4.3 step 2). The `(user_id, content_hash)` unique index
- * makes at most one row possible.
+ * content. The `(user_id, content_hash)` unique index makes at most one row
+ * possible.
  */
 export async function getReceiptByHash(
   db: Db | DbTransaction,

@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The pump form (Spec 03 §11). Optimized to be filled standing at the pump
+ * The pump form. Optimized to be filled standing at the pump
  * in under ten seconds: three quick-pick fuels, any two of {€/L, litres,
  * total}, and the station the user last refuelled at preselected.
  */

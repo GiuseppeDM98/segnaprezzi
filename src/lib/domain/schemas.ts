@@ -1,6 +1,6 @@
 /**
  * Reusable Zod field schemas for the boundaries that accept price-entry data
- * (AGENTS.md §1.8). Spec 03 has four such boundaries — POST /api/extract,
+ * (AGENTS.md §1.8). Four such boundaries exist — POST /api/extract,
  * confirmShoppingSession, createManualEntry, createFuelEntry — and three of
  * them validate the same money, size and product-pick shapes. Declaring them
  * once here is what keeps the bounds from drifting apart per boundary.
@@ -15,25 +15,25 @@ import type { DomainErrorCode } from '@/lib/errors';
 import { CATEGORY_IDS } from './categories';
 import { UNIT_KINDS } from './units';
 
-/** App-side ids are nanoid(21) over the URL-safe alphabet (Spec 00 §6). */
+/** App-side ids are nanoid(21) over the URL-safe alphabet. */
 export const nanoidSchema = z.string().regex(/^[A-Za-z0-9_-]{21}$/);
 
 /** Epoch milliseconds UTC — the only time representation that crosses a boundary. */
 export const epochMsSchema = z.number().int().positive();
 
-/** Euro cents, €0.01 … €10,000 (Spec 03 §10.3). */
+/** Euro cents, €0.01 … €10,000. */
 export const totalPriceCentsSchema = z.number().int().min(1).max(1_000_000);
 
-/** Package content in base units (kg, L, pieces), up to 10,000 (Spec 03 §10.3). */
+/** Package content in base units (kg, L, pieces), up to 10,000. */
 export const packageSizeSchema = z.number().positive().max(10_000);
 
-/** Milli-euros per base unit (Spec 03 §10.3). */
+/** Milli-euros per base unit. */
 export const unitPriceMilliSchema = z.number().int().min(1).max(100_000_000);
 
 /**
  * The product a new entry attaches to: an existing catalog row, or the data
- * needed to create one. Shared verbatim by the review confirm step (Spec 03
- * §9.2) and the manual entry form (§10.2).
+ * needed to create one. Shared verbatim by the review confirm step and the
+ * manual entry form.
  */
 export const productPickSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('existing'), productId: nanoidSchema }),
@@ -60,7 +60,7 @@ const ERROR_CODE_BY_FIELD: Record<string, DomainErrorCode> = {
 };
 
 /**
- * Map a failed Zod parse to the error code Spec 03 §10.3 assigns to that
+ * Map a failed Zod parse to the error code assigned to that
  * field, defaulting to the generic INVALID_INPUT.
  *
  * Why per-field codes: "check the price" and "check the date" are different

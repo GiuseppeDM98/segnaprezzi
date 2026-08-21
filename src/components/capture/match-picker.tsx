@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Product match sheet (Spec 05 §6.3): the top-3 suggestions from the
+ * Product match sheet: the top-3 suggestions from the
  * matcher, a catalog search, and "create new" prefilled from the
  * extraction. Search is delegated through `onSearch` so the component never
  * imports a Server Action.

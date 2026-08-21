@@ -1,5 +1,5 @@
 /**
- * Vercel Blob gateway for entry photos (Spec 03 §6.3).
+ * Vercel Blob gateway for entry photos.
  *
  * Design: photos are stored with `access: 'public'` under a deterministic
  * path `users/{userId}/photos/{entryId}.webp`. Public because @vercel/blob's

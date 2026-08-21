@@ -1,5 +1,5 @@
 /*
- * Renders every PWA icon from docs/assets/logo.svg with sharp (Spec 06 §4.2).
+ * Renders every PWA icon from docs/assets/logo.svg with sharp.
  *
  * Composition rules:
  * - "any" icons: paper background, logo scaled to 80% (10% padding/side) —
@@ -10,7 +10,7 @@
  *   uses the same padded composition.
  * - favicon.ico: transparent background, logo full-frame, 16/32/48 px.
  *
- * Why paper and not the highlighter accent Spec 06 §4.2 first proposed: the
+ * Why paper and not the highlighter accent first proposed for this icon: the
  * mark itself IS the accent (the orange tag of docs/assets/logo.svg), so an
  * accent plate would erase the tag and leave the ink dots floating alone.
  * Cream stock is also the app's own world (DESIGN.md), and it separates the
@@ -26,9 +26,9 @@ import sharp from 'sharp';
 const LOGO_PATH = 'docs/assets/logo.svg';
 const ICONS_DIR = 'public/icons';
 
-// WARNING: keep in sync with the color table in docs/specs/06-pwa-offline.md
-// §3 and with src/app/manifest.ts — all three are the sRGB conversion of the
-// `background` token in src/app/globals.css (DESIGN.md owns the value).
+// WARNING: keep in sync with src/app/manifest.ts — both are the sRGB
+// conversion of the `background` token in src/app/globals.css (DESIGN.md
+// owns the value).
 const BRAND_COLORS = { background: '#faf5eb' };
 
 const FAVICON_SIZES = [16, 32, 48];

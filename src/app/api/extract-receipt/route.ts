@@ -1,12 +1,11 @@
 /**
- * POST /api/extract-receipt — one receipt file in, N reviewable lines out
- * (Spec 07 §4).
+ * POST /api/extract-receipt — one receipt file in, N reviewable lines out.
  *
  * A route handler rather than a Server Action because the caller posts a
- * binary body (Spec 00 §9). Thin by contract: parse, guard, delegate to the
- * service, map domain errors to the status table in §4.2. The file is read
+ * binary body. Thin by contract: parse, guard, delegate to the
+ * service, map domain errors to the status table below. The file is read
  * into memory, handed to the service, and dropped — nothing is written to
- * disk, to /tmp, or to Blob storage (§5.3).
+ * disk, to /tmp, or to Blob storage.
  */
 import { z } from 'zod';
 
@@ -33,7 +32,7 @@ import { importReceipt } from '@/lib/services/import-receipt';
  */
 export const maxDuration = 60;
 
-/** Hard cap on the upload (Spec 07 §4.1). */
+/** Hard cap on the upload. */
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 
 /** A shopping trip does not print more pages than this. */

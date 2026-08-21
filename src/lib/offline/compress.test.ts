@@ -7,7 +7,7 @@ import { fitWithinMaxDimension } from './compress';
  * so createImageBitmap/OffscreenCanvas cannot run here. The rest of the
  * pipeline — EXIF orientation, WebP output, the 400 KB target, the JPEG
  * fallback — is covered in a real browser by tests/e2e/capture-flow.spec.ts,
- * which asserts on the uploaded file's type and size (Spec 03 §13.5).
+ * which asserts on the uploaded file's type and size.
  */
 
 describe('fitWithinMaxDimension', () => {

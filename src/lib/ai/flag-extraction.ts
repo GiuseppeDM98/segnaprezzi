@@ -1,6 +1,6 @@
 /**
- * Post-extraction sanity check (Spec 03 §7.4). Pure — the service applies it
- * to every extraction before the response leaves the server.
+ * Post-extraction sanity check. Pure — the service applies it to every
+ * extraction before the response leaves the server.
  */
 import type { ExtractionResult } from './extraction-schema';
 

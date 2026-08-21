@@ -1,6 +1,6 @@
 /**
- * Writing one price entry — the single path every non-photo entry takes
- * (Spec 03 §10.2, §11.3), parameterized by `source`.
+ * Writing one price entry — the single path every non-photo entry takes,
+ * parameterized by `source`.
  *
  * Design: the product pick resolution lives here too, because "reuse the
  * product the user already has instead of creating a near-duplicate" is the
@@ -97,7 +97,7 @@ export async function createPriceEntry(
     source: input.source,
   });
 
-  // Spec 07 §2.2: the newest observation's size is what a receipt line of
+  // The newest observation's size is what a receipt line of
   // this product will most likely be, so every write path records it.
   await updateDefaultPackageSizes(db, userId, [
     { productId: productIds[0], packageSize: input.packageSize },
@@ -117,7 +117,7 @@ export interface ResolvedProductPicks {
  * Turn product picks into product ids, creating what does not exist yet.
  *
  * Deduplication happens on two axes, both keyed on the normalized name+brand
- * (§8's `normalizeProductName`): against the user's catalog, so re-adding
+ * (`normalizeProductName`): against the user's catalog, so re-adding
  * "Passata Mutti" reuses the existing row, and within the batch itself, so
  * two review cards both marked "new product" for the same tag collapse into
  * one product with two entries.
@@ -201,7 +201,7 @@ async function assertStoreBelongsToUser(
 }
 
 /**
- * Business-rule ranges from Spec 03 §10.3. Zod already rejected the wrong
+ * Business-rule ranges enforced here. Zod already rejected the wrong
  * shapes at the boundary; these are the rules Zod cannot express — the date
  * window depends on the current time — plus a defense-in-depth repeat of the
  * bounds for every non-HTTP caller (seeds, future imports).
@@ -245,7 +245,7 @@ export interface CreateFuelEntryInput {
 }
 
 /**
- * Record a refuelling stop (Spec 03 §11.3).
+ * Record a refuelling stop.
  *
  * The user enters any two of {unit price, quantity, total} and the client
  * computes the third; the server re-derives the relation rather than trusting
@@ -275,7 +275,7 @@ export async function createFuelEntry(
   return createPriceEntry(db, userId, {
     // Fuels are lazily created per user on first use: the canonical Italian
     // name keeps the catalog stable across UI languages, and the pick's own
-    // unitKind keeps methane (sold per kg) out of a litres column (§11.1).
+    // unitKind keeps methane (sold per kg) out of a litres column.
     product: {
       kind: 'new',
       name: pick.canonicalName,

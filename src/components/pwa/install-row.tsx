@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The zero-pressure install entry point in Settings (Spec 06 §7.2).
+ * The zero-pressure install entry point in Settings.
  *
  * Unlike the contextual sheet it has no cooldown and no lifetime cap,
  * because the user came looking for it. It renders nothing at all when the

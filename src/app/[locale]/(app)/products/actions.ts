@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Catalog Server Actions (Spec 05 §5.6, §5.7): merge, edit, archive.
+ * Catalog Server Actions: merge, edit, archive.
  * Thin by contract: authenticate, validate with Zod, call the service, map
  * domain errors.
  */

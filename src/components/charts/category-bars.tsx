@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Horizontal signed bars from a zero baseline (Spec 05 §6.2): one zebra row
+ * Horizontal signed bars from a zero baseline: one zebra row
  * per category — label, bar, signed value. Rising prices extend right in
  * the negative family, falling prices extend left in the positive family.
  * Bars grow on mount with the house spring; the value text is always

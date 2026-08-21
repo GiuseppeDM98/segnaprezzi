@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The one place the PWA machinery is switched on (Spec 06 §5.3, §7, §8).
+ * The one place the PWA machinery is switched on.
  *
  * Mounted once by the locale layout, above every route, because all three
  * jobs it owns must outlive any single screen: the service worker

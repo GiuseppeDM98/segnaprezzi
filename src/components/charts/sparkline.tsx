@@ -1,5 +1,5 @@
 /**
- * Tiny inline trend line, no axes (Spec 05 §6.2). `aria-hidden` by
+ * Tiny inline trend line, no axes. `aria-hidden` by
  * contract: it always sits next to a TrendBadge that carries the value.
  * Stroke color follows the price-direction mapping (up = negative family).
  */

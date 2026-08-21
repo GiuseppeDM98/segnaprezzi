@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of the review screen (Spec 03 §9.1 · Spec 05 §5.3).
+ * Client half of the review screen.
  *
  * Design: the AI payload stored in Dexie is immutable — it becomes
  * price_entries.ai_raw_json and is the audit trail the user compares against
@@ -9,7 +9,7 @@
  * every card must be resolved (a product picked, no "not legible" zeros left)
  * before the batch can be confirmed. Nothing reaches the database until then.
  *
- * Spec 06 §6.3 makes the screen live: the queue is read through a live query,
+ * The screen is live: the queue is read through a live query,
  * so a photo that finishes extracting — in this tab or in the service
  * worker's background drain — turns into an editable card without a refresh,
  * and the ones still travelling are shown as pending cards rather than being
@@ -48,7 +48,7 @@ import type { ProductSuggestion } from '@/lib/services/match-products';
 import { beginSessionReview, confirmShoppingSession, searchProducts } from './actions';
 import type { ConfirmShoppingSessionInput } from './schema';
 
-/** Above this score the top suggestion is safe to preselect (Spec 03 §9.1). */
+/** Above this score the top suggestion is safe to preselect. */
 const PRESELECT_SCORE_THRESHOLD = 0.7;
 /** How long the success checkmark stays before navigating home. */
 const SUCCESS_HOLD_MS = 700;
@@ -254,8 +254,8 @@ export function ReviewScreen() {
     await clearSessionPhotos(sessionId);
     clearActiveSessionId();
     setIsSuccess(true);
-    // A completed spesa is the one honest moment to offer the install
-    // (Spec 06 §7.2); the provider decides whether it may actually ask.
+    // A completed spesa is the one honest moment to offer the install;
+    // the provider decides whether it may actually ask.
     notifySessionCompleted();
     window.setTimeout(
       () => {
@@ -269,11 +269,11 @@ export function ReviewScreen() {
   const photos = pendingPhotos ?? [];
   const isLoading = !hasResolvedSession || (sessionId !== null && pendingPhotos === undefined);
   /*
-   * Photos still travelling get their own cards (§6.3) instead of being
+   * Photos still travelling get their own cards, above, instead of being
    * invisible. The batch stays all-or-nothing, though: confirming completes
    * the spesa and clears its queue, so a photo left mid-flight would be
-   * destroyed rather than merely omitted — a correction to Spec 06 §6.3's
-   * "never blocked by pending items", recorded in the spec.
+   * destroyed rather than merely omitted — a deliberate correction to the
+   * original "never blocked by pending items" design goal.
    */
   const unfinishedPhotos = photos.filter(
     (photo) => photo.status !== 'extracted' && !discarded.has(photo.id),
@@ -464,7 +464,7 @@ function SuccessOverlay({ isVisible }: { isVisible: boolean }) {
 }
 
 /**
- * A photo that has not been extracted yet (Spec 06 §6.3): its own thumbnail
+ * A photo that has not been extracted yet: its own thumbnail
  * from IndexedDB, the queue status, and a line saying it will fill itself in.
  * It is a placeholder with a face, not a grey box — the user recognises the
  * shelf they photographed and knows nothing was lost.

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of the receipt upload screen (Spec 07 §3).
+ * Client half of the receipt upload screen.
  *
  * Design: a single indeterminate "Leggo lo scontrino…" state rather than a
  * fake progress bar. A 40-line receipt takes 6–12 s on Haiku 4.5 and the
@@ -26,7 +26,7 @@ import { useOnlineStatus } from '@/lib/offline/use-online-status';
 import type { StoreSummary } from '@/lib/services/capture-context';
 import { createStore } from '../../stores/actions';
 
-/** Mirrors the route handler's cap (Spec 07 §4.1) so the client fails fast. */
+/** Mirrors the route handler's cap so the client fails fast. */
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 
 const BYTES_PER_KB = 1024;
@@ -181,7 +181,7 @@ export function ReceiptUploadScreen({ stores, defaultStoreId }: ReceiptUploadScr
 }
 
 /**
- * PDFs go up untouched; photos go through Spec 03's compressor first.
+ * PDFs go up untouched; photos go through the capture pipeline's compressor first.
  *
  * A paper receipt is tall and narrow, and 1600 px on the long edge is what
  * keeps 8-pt thermal print legible while capping the image-token cost — the

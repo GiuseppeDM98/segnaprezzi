@@ -58,9 +58,9 @@ function buildContentStream(lines: string[]): string {
 /**
  * Assemble a minimal single-page PDF with a real cross-reference table.
  *
- * Hand-rolled on purpose: this repository has no PDF dependency (Spec 07 §6
- * — the Anthropic API reads PDFs itself), and adding one to write a
- * fourteen-line test fixture would be the tail wagging the dog.
+ * Hand-rolled on purpose: this repository has no PDF dependency — the
+ * Anthropic API reads PDFs itself — and adding one to write a fourteen-line
+ * test fixture would be the tail wagging the dog.
  */
 function buildPdf(lines: string[]): Buffer {
   const content = buildContentStream(lines);

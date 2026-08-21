@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The timeline (Spec 05 §5.8): everything recorded, newest first. The first
+ * The timeline: everything recorded, newest first. The first
  * page is server-rendered; filters and further pages go through the
  * loadHistoryPage action.
  */

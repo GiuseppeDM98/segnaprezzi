@@ -16,7 +16,7 @@ async function saveAuthState(
 }
 
 /**
- * Create (or reuse) the throwaway account the Spec 06 suites run as, and
+ * Create (or reuse) the throwaway account the offline/PWA suites run as, and
  * cache its session.
  *
  * Sign-up 4xxs when a previous run died before its teardown; signing in is
@@ -38,7 +38,7 @@ async function savePwaAuthState(baseURL: string | undefined, outFile: string): P
  *
  * Originally a workaround for `next dev` compiling a route on its first
  * request, which made parallel workers race to be that request and
- * intermittently receive a truncated response. Since Spec 06 the suite runs
+ * intermittently receive a truncated response. The suite now runs
  * against a production build where nothing compiles on demand, but the pass
  * costs a second and still warms the server's module graph and the DB
  * connection, so a first assertion never pays for them.

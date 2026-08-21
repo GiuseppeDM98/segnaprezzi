@@ -1,20 +1,20 @@
 import type { MetadataRoute } from 'next';
 
 /*
- * The web app manifest (Spec 06 §3). Next serves it at
+ * The web app manifest. Next serves it at
  * /manifest.webmanifest and injects the <link> automatically.
  *
  * The manifest is a single static file, so it cannot be locale-aware:
  * name/description use Italian, the app's default locale. It also accepts
  * only ONE theme/background color pair — we use the light tokens here and
  * handle dark mode with a media-query themeColor pair in the root layout
- * viewport export (Spec 06 §3, "dual theme-color strategy").
+ * viewport export (the "dual theme-color strategy").
  *
  * WARNING: the colors below are the sRGB conversion of the `background`
  * token in src/app/globals.css (manifest JSON cannot express oklch()). When
  * DESIGN.md changes that token, update this file, BRAND_COLORS in
- * scripts/generate-icons.ts, the viewport themeColor pair in
- * src/app/[locale]/layout.tsx, and the color table in Spec 06 §3 together.
+ * scripts/generate-icons.ts, and the viewport themeColor pair in
+ * src/app/[locale]/layout.tsx together.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -1,5 +1,5 @@
 /**
- * Step 5 of the engine (Spec 04 §4.5): expenditure shares across categories.
+ * Expenditure shares across categories.
  *
  * Teacher: why expenditure weights (Laspeyres-style) — across categories,
  * quantities DO matter: a 10% fuel rise hurts a commuter far more than a 10%

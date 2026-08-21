@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Receipt upload (Spec 07 §3). Online-only by design: a PDF never
+ * Receipt upload. Online-only by design: a PDF never
  * originates in a supermarket aisle, so there is no Dexie queue behind this
  * screen — just the stores list the picker needs.
  */

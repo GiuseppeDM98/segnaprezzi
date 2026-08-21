@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The only action trigger in the app (Spec 05 §6.1). Owns the app's sole
+ * The only action trigger in the app. Owns the app's sole
  * spinner: the inline pending indicator. Renders a <button>, or a locale-aware
  * <Link> when `href` is given, with the same stamped-control look.
  */

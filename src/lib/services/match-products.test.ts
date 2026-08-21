@@ -1,5 +1,5 @@
 /*
- * The matcher's behaviour table, verbatim from Spec 03 §8.2. These rows are
+ * The matcher's behaviour table. These rows are
  * the contract: they encode which real Italian shelf-tag-vs-catalog pairs
  * must match and which must not, so a scoring tweak that breaks one of them
  * is a regression, not a refinement.

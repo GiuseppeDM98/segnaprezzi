@@ -1,7 +1,6 @@
 /**
- * Price entry repository (Spec 02 §6.4). Every function is scoped by
- * userId — see the security rule in §6.1: no cross-user read or write is
- * representable through this layer.
+ * Price entry repository. Every function is scoped by userId — no
+ * cross-user read or write is representable through this layer.
  */
 import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 
@@ -43,7 +42,7 @@ export async function createPriceEntry(
 
 /**
  * Insert a batch of entries in one transaction (used by the /scan/review
- * confirm step, Spec 03). All-or-nothing.
+ * confirm step). All-or-nothing.
  */
 export async function createPriceEntries(
   db: Db,
@@ -246,13 +245,13 @@ export async function listPriceEntries(
 }
 
 /**
- * Minimal projection of ALL of the user's entries for the inflation engine
- * (Spec 04): monthly bucketing needs (productId, recordedAt, unitPriceMilli,
+ * Minimal projection of ALL of the user's entries for the inflation engine:
+ * monthly bucketing needs (productId, recordedAt, unitPriceMilli,
  * isPromo); category weights need (category, totalPriceCents, quantity). The
  * DB's Date surfaces here as epoch ms — IndexEntry.recordedAt is a number,
  * and the repository does the mapping. Ordered by recorded_at ascending.
  * Includes entries of archived products — archiving hides a product from
- * suggestions, never from history (Spec 00 §6).
+ * suggestions, never from history.
  * Deliberately unpaginated — the engine is a pure function over the full
  * series (years of personal data stay in the low tens of thousands of rows).
  */
@@ -264,9 +263,8 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
       recordedAt: priceEntries.recordedAt,
       unitPriceMilli: priceEntries.unitPriceMilli,
       totalPriceCents: priceEntries.totalPriceCents,
-      // Spec 07 §2.3: a receipt line bought twice is one observation with
-      // quantity 2 — the monthly mean ignores it, the expenditure weights
-      // multiply by it.
+      // A receipt line bought twice is one observation with quantity 2 —
+      // the monthly mean ignores it, the expenditure weights multiply by it.
       quantity: priceEntries.quantity,
       isPromo: priceEntries.isPromo,
     })
@@ -287,8 +285,8 @@ export interface ProductDayObservation {
 }
 
 /**
- * Observations of the given products inside a time window (Spec 07 §8.1:
- * the receipt review screen's "already recorded today" hint).
+ * Observations of the given products inside a time window (the receipt
+ * review screen's "already recorded today" hint).
  *
  * One query for the whole line list rather than one per line — a 40-line
  * receipt would otherwise be 40 round trips to say "no duplicates".
@@ -326,8 +324,8 @@ export async function listObservationsForProductsInRange(
 export type CreatePriceEntryWithIdInput = CreatePriceEntryInput & { id: string };
 
 /**
- * Insert a batch of entries whose ids come from the client (the photo ids of
- * Spec 03 §6.5), ignoring rows that already exist.
+ * Insert a batch of entries whose ids come from the client (the photo ids
+ * assigned during capture), ignoring rows that already exist.
  *
  * Why onConflictDoNothing rather than a plain insert: the confirm step is
  * replayable by design — a dropped response, a double tap, or an offline
@@ -366,7 +364,7 @@ export async function listPriceEntryIdsBySession(
   return rows.map((row) => row.id);
 }
 
-/** Ids of the entries created from one receipt, oldest first (Spec 07 §8.3). */
+/** Ids of the entries created from one receipt, oldest first. */
 export async function listPriceEntryIdsByReceipt(
   db: Db | DbTransaction,
   userId: string,
@@ -381,8 +379,7 @@ export async function listPriceEntryIdsByReceipt(
 }
 
 /**
- * Product ids the user has bought at one store since a given moment
- * (Spec 03 §6.4 step 6).
+ * Product ids the user has bought at one store since a given moment.
  *
  * Feeds the +0.05 store-recency bonus of the product matcher: something you
  * bought at this very supermarket last month is a far likelier match for a
@@ -419,8 +416,8 @@ export interface LatestProductEntry {
 
 /**
  * The newest `perProduct` observations of every product of the user, as
- * flat rows ordered by product then rank (Spec 05 §5.6: the catalog shows
- * the last unit price and a trend badge against the previous one).
+ * flat rows ordered by product then rank (the catalog shows the last unit
+ * price and a trend badge against the previous one).
  *
  * Why a window function rather than a correlated subquery per product: the
  * catalog lists the whole catalog at once, and one ROW_NUMBER() scan over
@@ -484,9 +481,9 @@ export async function countPriceEntriesByStore(
 
 /**
  * Every observation of one product, newest first, with the store name —
- * the product detail screen (Spec 05 §5.7) needs the whole history for its
- * chart, stats and per-store comparison. Deliberately unpaginated: a single
- * product accumulates tens of entries a year, not thousands.
+ * the product detail screen needs the whole history for its chart, stats
+ * and per-store comparison. Deliberately unpaginated: a single product
+ * accumulates tens of entries a year, not thousands.
  */
 export async function listPriceEntriesForProduct(
   db: Db,
@@ -520,8 +517,8 @@ export async function listPriceEntriesForProduct(
 }
 
 /**
- * Insert-or-update entries by id for the backup import (Spec 05 §5.10);
- * foreign ids are skipped by the user_id guard. Callers must have verified
+ * Insert-or-update entries by id for the backup import; foreign ids are
+ * skipped by the user_id guard. Callers must have verified
  * that product/store/session references belong to the user first — the FK
  * only checks existence, not ownership.
  */

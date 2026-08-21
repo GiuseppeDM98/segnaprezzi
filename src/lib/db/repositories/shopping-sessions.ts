@@ -1,7 +1,6 @@
 /**
- * Shopping session repository (Spec 02 §6.5). Every function is scoped by
- * userId — see the security rule in §6.1: no cross-user read or write is
- * representable through this layer.
+ * Shopping session repository. Every function is scoped by userId — no
+ * cross-user read or write is representable through this layer.
  */
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 
@@ -15,9 +14,9 @@ import {
 export type CreateShoppingSessionInput = Pick<NewShoppingSession, 'storeId'> & {
   /**
    * Explicit session id. Normally ids are minted by the schema's $defaultFn,
-   * but a shopping session starts on a phone with no connectivity (Spec 03
-   * §2.2): the client generates the id at the first shutter press and the
-   * server materializes the row under that id later. Omitted elsewhere.
+   * but a shopping session starts on a phone with no connectivity: the
+   * client generates the id at the first shutter press and the server
+   * materializes the row under that id later. Omitted elsewhere.
    */
   id?: string;
 };
@@ -53,8 +52,8 @@ export async function getShoppingSessionById(
 
 /**
  * The user's most recent session with status 'active', or null. The
- * "at most one active session" rule is enforced by the service layer
- * (Spec 03), not here.
+ * "at most one active session" rule is enforced by the service layer, not
+ * here.
  */
 export async function getActiveShoppingSession(
   db: Db,
@@ -100,13 +99,13 @@ export async function listShoppingSessions(
     .limit(limit);
 }
 
-/** Statuses a session can still be resumed or written to (Spec 03 §2.1). */
+/** Statuses a session can still be resumed or written to. */
 const OPEN_SESSION_STATUSES = ['active', 'reviewing'] as const;
 
 /**
  * The user's newest session that is still open (`active` or `reviewing`), or
- * null. Powers the /scan resume banner (Spec 03 §2.3), which must also catch
- * a spesa left mid-review on another device — hence `reviewing`, which
+ * null. Powers the /scan resume banner, which must also catch a spesa left
+ * mid-review on another device — hence `reviewing`, which
  * getActiveShoppingSession deliberately excludes.
  */
 export async function getResumableShoppingSession(
@@ -130,10 +129,10 @@ export async function getResumableShoppingSession(
 /**
  * Discard every open session of the user except `keepSessionId`.
  *
- * Enforces "one active spesa per user" (Spec 03 §2.2 rule 3) at the service
- * layer's request: starting a new shopping trip abandons an unfinished one.
- * It is not a DB constraint because libSQL partial unique indexes would
- * fight the lazy-materialization flow.
+ * Enforces "one active spesa per user" at the service layer's request:
+ * starting a new shopping trip abandons an unfinished one. It is not a DB
+ * constraint because libSQL partial unique indexes would fight the
+ * lazy-materialization flow.
  *
  * @returns How many sessions were discarded
  */
@@ -160,8 +159,8 @@ export async function discardOtherOpenShoppingSessions(
  * Whether a session id is already taken, by anyone.
  *
  * The one deliberately unscoped query in this layer. Sessions carry
- * client-generated ids (Spec 03 §2.2), so "this id is not yours" and "this id
- * does not exist" must be told apart before inserting — otherwise the insert
+ * client-generated ids, so "this id is not yours" and "this id does not
+ * exist" must be told apart before inserting — otherwise the insert
  * collides with another user's row and surfaces as a raw constraint error.
  * It returns a boolean and nothing else: the caller reports both cases as
  * not-found, so no information about foreign sessions ever leaves the server.
@@ -179,8 +178,8 @@ export async function isShoppingSessionIdTaken(
 }
 
 /**
- * Insert-or-update sessions by id for the backup import (Spec 05 §5.10);
- * foreign ids are skipped by the user_id guard.
+ * Insert-or-update sessions by id for the backup import; foreign ids are
+ * skipped by the user_id guard.
  */
 export async function upsertShoppingSessions(
   db: Db | DbTransaction,

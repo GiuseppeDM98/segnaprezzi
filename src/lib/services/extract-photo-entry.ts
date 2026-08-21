@@ -1,10 +1,10 @@
 /**
- * The /api/extract use case (Spec 03 §6.4): store the photo, read it with
+ * The /api/extract use case: store the photo, read it with
  * Claude, and hand the client something to review.
  *
  * Design: nothing but the lazily materialized session row is written to the
  * database here. The extraction lives in the client's Dexie queue until the
- * user confirms it (§9), which is what makes "photograph now, decide later,
+ * user confirms it, which is what makes "photograph now, decide later,
  * possibly offline" work — and what stops a misread tag from ever reaching
  * the index.
  *
@@ -58,7 +58,7 @@ export interface ExtractPhotoResponse {
 /**
  * Turn one uploaded photo into a reviewable extraction.
  *
- * @throws StoreNotFoundError, SessionNotFoundError, SessionClosedError — see §6.2
+ * @throws StoreNotFoundError, SessionNotFoundError, SessionClosedError — see findOrCreateShoppingSession
  * @throws ExtractionUnavailableError when the upstream failure is retryable
  * @throws ExtractionError when this exact photo will never extract
  */

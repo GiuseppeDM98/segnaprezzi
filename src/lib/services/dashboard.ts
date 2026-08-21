@@ -1,5 +1,5 @@
 /**
- * Read model of the dashboard (Spec 05 §5.1): the engine's result shaped
+ * Read model of the dashboard: the engine's result shaped
  * for the hero, the coverage line, the 12-month trend with the ISTAT
  * overlay rebased to the user's base month, the category breakdown on the
  * hero's horizon, and the top movers with their sparkline points.

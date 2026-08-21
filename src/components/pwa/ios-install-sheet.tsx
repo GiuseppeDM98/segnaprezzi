@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Add-to-Home-Screen instructions for iOS (Spec 06 §7.3).
+ * Add-to-Home-Screen instructions for iOS.
  *
  * Safari fires no `beforeinstallprompt`, so the only honest install UI is a
  * pointer at its own share sheet. The eviction warning is not decoration:

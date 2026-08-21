@@ -1,5 +1,5 @@
 /**
- * Read model of the product detail screen (Spec 05 §5.7): the product, its
+ * Read model of the product detail screen: the product, its
  * monthly unit-price series (Europe/Rome months, mean per month, promo
  * months marked), the min/max/mean/last tiles, the per-store comparison and
  * the full entry list. Plain JSON out — it feeds Client Components.
@@ -75,7 +75,7 @@ export interface ProductDetail {
   /** Cheapest first; only populated when ≥ 2 stores have observations. */
   storeComparison: StoreComparison[];
   entries: EntrySummary[];
-  /** Receipt lines learned for this product (Spec 07 §9), most-used first. */
+  /** Receipt lines learned for this product, most-used first. */
   aliases: ProductAliasSummary[];
 }
 
@@ -221,7 +221,7 @@ export interface EditEntryInput {
 }
 
 /**
- * Correct one observation (Spec 05 §5.7 entry sheet). The index recomputes
+ * Correct one observation (the entry sheet). The index recomputes
  * on the next dashboard read — nothing is cached.
  *
  * @throws NotFoundError when the entry is not the user's

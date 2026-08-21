@@ -1,7 +1,6 @@
 /**
- * Product repository (Spec 02 §6.3). Every function is scoped by userId —
- * see the security rule in §6.1: no cross-user read or write is
- * representable through this layer.
+ * Product repository. Every function is scoped by userId — no cross-user
+ * read or write is representable through this layer.
  */
 import { and, asc, eq, inArray, like, or, sql } from 'drizzle-orm';
 
@@ -140,9 +139,8 @@ export async function mergeProducts(
       .where(and(eq(priceEntries.userId, userId), eq(priceEntries.productId, sourceProductId)))
       .returning({ id: priceEntries.id });
 
-    // The learned receipt aliases follow the history (Spec 07 §2.5) —
-    // otherwise the next receipt would stop resolving lines the user had
-    // already taught the app.
+    // The learned receipt aliases follow the history — otherwise the next
+    // receipt would stop resolving lines the user had already taught the app.
     await moveProductAliases(tx, userId, sourceProductId, targetProductId);
 
     await tx
@@ -155,9 +153,9 @@ export async function mergeProducts(
 }
 
 /**
- * Record the package size a product's newest observation used (Spec 07
- * §2.2). Called by every write path that inserts an entry — tags, manual
- * entries and receipts alike.
+ * Record the package size a product's newest observation used. Called by
+ * every write path that inserts an entry — tags, manual entries and
+ * receipts alike.
  *
  * Last write wins on purpose: a product whose size changes (the
  * "shrinkflation" case, 500 g becoming 450 g) should follow the newest
@@ -187,9 +185,9 @@ export async function updateDefaultPackageSizes(
 
 /**
  * Fetch the given product ids that belong to this user, in one IN (...)
- * query. Used by the batch-confirm flow (Spec 03 §9.3 step 3) to verify a
- * whole review batch's product picks without an N+1 loop; ids that belong to
- * another user (or do not exist) are simply absent from the result.
+ * query. Used by the batch-confirm flow to verify a whole review batch's
+ * product picks without an N+1 loop; ids that belong to another user (or do
+ * not exist) are simply absent from the result.
  */
 export async function listProductsByIds(
   db: Db | DbTransaction,
@@ -206,10 +204,10 @@ export async function listProductsByIds(
 }
 
 /**
- * Minimal projection of every product of the user for the inflation engine
- * (Spec 04 §9): id, name, brand, category — archived products included,
- * because their entries stay in the index history. Ordered by id so the
- * engine's input is deterministic.
+ * Minimal projection of every product of the user for the inflation engine:
+ * id, name, brand, category — archived products included, because their
+ * entries stay in the index history. Ordered by id so the engine's input is
+ * deterministic.
  */
 export async function listProductsForIndex(db: Db, userId: string): Promise<IndexProduct[]> {
   return db
@@ -225,8 +223,8 @@ export async function listProductsForIndex(db: Db, userId: string): Promise<Inde
 }
 
 /**
- * Insert-or-update products by id for the backup import (Spec 05 §5.10);
- * same ownership guard as upsertStores — foreign ids are skipped.
+ * Insert-or-update products by id for the backup import; same ownership
+ * guard as upsertStores — foreign ids are skipped.
  */
 export async function upsertProducts(
   db: Db | DbTransaction,

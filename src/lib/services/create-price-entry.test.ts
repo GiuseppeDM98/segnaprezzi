@@ -15,8 +15,8 @@ import {
 import { createFuelEntry, createPriceEntry } from './create-price-entry';
 
 /*
- * Integration test for the shared write path of the manual and fuel forms
- * (Spec 03 §10.2, §11.3), against a real migrated database: what is under
+ * Integration test for the shared write path of the manual and fuel forms,
+ * against a real migrated database: what is under
  * test is which rows come out and which inputs are refused, and both are
  * decided partly by SQL (FK scoping) and partly by the service.
  */

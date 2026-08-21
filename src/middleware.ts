@@ -16,7 +16,7 @@ import { routing } from '@/lib/i18n/routing';
 const handleI18n = createMiddleware(routing);
 
 // Locale-stripped pathnames reachable without a session. /offline is the
-// service worker's precached fallback page (Spec 06) — an auth-free static
+// service worker's precached fallback page — an auth-free static
 // page that must render without a session cookie.
 const PUBLIC_PATHNAMES = new Set(['/login', '/signup', '/offline']);
 
@@ -31,10 +31,9 @@ export default function middleware(request: NextRequest) {
     : pathname;
 
   if (!PUBLIC_PATHNAMES.has(pathnameWithoutLocale) && !getSessionCookie(request)) {
-    // Preserve the visitor's locale in the redirect. Spec 01 configured
-    // localePrefix: 'as-needed', so the default locale stays unprefixed —
-    // the redirect target must be a URL the i18n middleware considers
-    // canonical.
+    // Preserve the visitor's locale in the redirect. localePrefix is
+    // 'as-needed', so the default locale stays unprefixed — the redirect
+    // target must be a URL the i18n middleware considers canonical.
     const locale = localeMatch?.[1] ?? routing.defaultLocale;
     const prefix = locale === routing.defaultLocale ? '' : `/${locale}`;
     const loginUrl = new URL(`${prefix}/login`, request.url);
@@ -47,6 +46,6 @@ export default function middleware(request: NextRequest) {
 
 export const config = {
   // Skip API routes (they self-authenticate via requireUser), Next internals,
-  // and static files. Must stay a superset of Spec 01's i18n matcher.
+  // and static files. Must stay a superset of the i18n middleware's matcher.
   matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };

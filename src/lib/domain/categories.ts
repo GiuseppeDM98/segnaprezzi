@@ -1,13 +1,13 @@
 /**
- * Category taxonomy for products (Spec 00 §6). Code-defined — there is no
+ * Category taxonomy for products. Code-defined — there is no
  * categories table; the DB stores the id string, the UI localizes labels
  * via next-intl message keys `categories.<id>`.
  */
 
 // WARNING: adding or renaming a category also requires updating:
 // - messages/it.json and messages/en.json (keys under "categories")
-// - the AI extraction prompt in src/lib/ai/ (Spec 03)
-// - the ISTAT comparison mapping, if category-level comparison exists (Spec 04+)
+// - the AI extraction prompt in src/lib/ai/
+// - the ISTAT comparison mapping, if category-level comparison exists
 export const CATEGORY_IDS = [
   'food',
   'beverages',

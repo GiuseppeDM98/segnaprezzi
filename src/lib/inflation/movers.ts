@@ -1,5 +1,5 @@
 /**
- * Top movers (Spec 04 §4.7): the products whose observed price changed the
+ * Top movers: the products whose observed price changed the
  * most over the last year, for the dashboard's "what moved" list.
  *
  * Why observed means only: imputed values would fabricate flat segments — a

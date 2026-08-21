@@ -1,7 +1,6 @@
 /**
- * Store repository (Spec 02 §6.2). Every function is scoped by userId —
- * see the security rule in §6.1: no cross-user read or write is
- * representable through this layer.
+ * Store repository. Every function is scoped by userId — no cross-user
+ * read or write is representable through this layer.
  */
 import { and, asc, eq, sql } from 'drizzle-orm';
 
@@ -70,9 +69,9 @@ export async function deleteStore(db: Db, userId: string, storeId: string): Prom
 }
 
 /**
- * Insert-or-update stores by id for the backup import (Spec 05 §5.10).
- * The conflict update is guarded by user_id, so an id that belongs to
- * another user is neither overwritten nor inserted — it is silently skipped.
+ * Insert-or-update stores by id for the backup import. The conflict update
+ * is guarded by user_id, so an id that belongs to another user is neither
+ * overwritten nor inserted — it is silently skipped.
  */
 export async function upsertStores(
   db: Db | DbTransaction,

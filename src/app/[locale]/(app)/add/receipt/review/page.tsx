@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Receipt review (Spec 07 §8). Unlike the capture review, this screen loads
+ * Receipt review. Unlike the capture review, this screen loads
  * from the server: the extraction lives in the `receipts` row, so a reload —
  * or opening the link on another device — resumes the same import instead of
  * losing it. Resolution re-runs on every load, so an alias learned a minute

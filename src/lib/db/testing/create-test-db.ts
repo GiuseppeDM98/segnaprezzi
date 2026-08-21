@@ -1,18 +1,18 @@
 /**
- * Test database factory (Spec 02 §10.1).
+ * Test database factory.
  *
  * Design: applies the exact committed migrations under drizzle/ via
  * Drizzle's programmatic migrator, so tests run against the same SQL
  * production runs — schema drift between tests and prod is impossible.
  *
- * Deviation from Spec 02 §10.1 (documented, verified empirically): the spec
- * text uses `createClient({ url: ':memory:' })`. With the installed
- * @libsql/client (0.17.4) + drizzle-orm (0.45.2), an anonymous `:memory:`
- * database is torn down and silently recreated empty the moment any
- * db.transaction() callback throws (verified with a minimal repro: a table
- * created before the transaction becomes "no such table" immediately after
- * a rolled-back transaction on the same connection) — which breaks exactly
- * the transactional-rollback tests this spec requires (mergeProducts).
+ * Design note (verified empirically): the natural choice here would be
+ * `createClient({ url: ':memory:' })`. With the installed @libsql/client
+ * (0.17.4) + drizzle-orm (0.45.2), an anonymous `:memory:` database is torn
+ * down and silently recreated empty the moment any db.transaction()
+ * callback throws (verified with a minimal repro: a table created before
+ * the transaction becomes "no such table" immediately after a rolled-back
+ * transaction on the same connection) — which breaks exactly the
+ * transactional-rollback tests this project relies on (mergeProducts).
  * `file::memory:?cache=shared` avoids that crash but shares ONE anonymous
  * database across every client in the process (verified: a second,
  * unrelated client immediately sees the first client's rows) — the opposite

@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Manual entry Server Action (Spec 03 §10.2).
+ * Manual entry Server Action.
  *
  * Online-only in v1: the form needs product and store lookups, so unlike the
  * photo path it does not queue offline. No idempotency key is needed either —

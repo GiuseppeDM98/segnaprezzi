@@ -1,5 +1,5 @@
 /**
- * Text enums stored on price_entries and shopping_sessions (Spec 00 §6).
+ * Text enums stored on price_entries and shopping_sessions.
  */
 // WARNING: adding a source here also requires updating:
 // - messages/it.json and messages/en.json (keys under "productDetail.source")

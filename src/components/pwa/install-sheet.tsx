@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The contextual install pitch (Spec 06 §7.2), for Android and desktop
+ * The contextual install pitch, for Android and desktop
  * Chromium where a stashed `beforeinstallprompt` can be replayed.
  *
  * Tasteful and dismissible by contract: it appears after a completed spesa —

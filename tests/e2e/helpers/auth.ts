@@ -7,7 +7,7 @@ import type { APIResponse, Page } from '@playwright/test';
  * so the Set-Cookie these calls receive is immediately usable by a following
  * page.goto() — no manual storageState plumbing needed within one test.
  *
- * Since Spec 06 the suite runs against a PRODUCTION server, where Better
+ * The suite runs against a PRODUCTION server, where Better
  * Auth's rate limiter is on: /sign-in* and /sign-up* allow three requests per
  * ten seconds per IP. Every worker is the same IP here, so the limiter fires
  * on a perfectly healthy run. It is a real protection and must not be

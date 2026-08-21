@@ -1,10 +1,10 @@
 /**
- * POST /api/extract — photo in, reviewable extraction out (Spec 03 §6).
+ * POST /api/extract — photo in, reviewable extraction out.
  *
  * A route handler rather than a Server Action because the caller is the
- * offline sync manager posting a binary body, not a form (Spec 00 §9).
+ * offline sync manager posting a binary body, not a form.
  * Thin by contract: parse, delegate to the service, map domain errors to the
- * status table in §6.6. This handler owns the code→status mapping; services
+ * status table below. This handler owns the code→status mapping; services
  * and repositories never know HTTP exists.
  */
 

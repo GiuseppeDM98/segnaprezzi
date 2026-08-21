@@ -1,5 +1,5 @@
 /**
- * Turn a reviewed receipt into price entries (Spec 07 §8.3).
+ * Turn a reviewed receipt into price entries.
  *
  * Design: one transaction, and the only place in the receipt pipeline that
  * writes observations. It is replay-safe — an already-confirmed receipt
@@ -135,7 +135,7 @@ export async function confirmReceipt(
           isPromo: line.isPromo,
           promoKind: line.isPromo ? line.promoKind : null,
           source: 'receipt' as const,
-          // A receipt is never a photo we stored (§5.2): photo_url stays null.
+          // A receipt is never a photo we stored: photo_url stays null.
           photoUrl: null,
           aiConfidence: extracted?.confidence ?? null,
           aiModel: RECEIPT_EXTRACTION_MODEL,
@@ -179,7 +179,7 @@ export async function confirmReceipt(
 }
 
 /**
- * The invariant every price entry satisfies (Spec 03): both sides are the
+ * The invariant every price entry satisfies: both sides are the
  * milli-euro price of one whole package. A client that edited one field
  * without the others would otherwise write a unit price that contradicts
  * its own total — and the index reads the unit price.
@@ -197,7 +197,7 @@ function assertPriceInvariant(line: ConfirmReceiptLineInput): void {
 /**
  * Create the store the user typed on the review screen, or validate the one
  * they picked. The chain comes back with it because that is what scopes the
- * aliases learned below (§9).
+ * aliases learned below.
  */
 async function resolveStore(
   tx: DbTransaction,
@@ -228,7 +228,7 @@ interface LearnAliasesInput {
 }
 
 /**
- * Remember every line the user asked to remember (Spec 07 §9).
+ * Remember every line the user asked to remember.
  *
  * The key is recomputed here from the STORED rawLine, never taken from the
  * request: the client may legitimately edit prices and sizes, but the

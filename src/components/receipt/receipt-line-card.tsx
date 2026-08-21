@@ -1,20 +1,20 @@
 'use client';
 
 /**
- * One editable receipt line (Spec 07 §8.1).
+ * One editable receipt line.
  *
- * Design: the same printed block as the capture review card (Spec 05 §6.3) —
+ * Design: the same printed block as the capture review card —
  * hairline frame, status as a tinted header row rather than a thick border,
  * money fields in the print face — with the receipt's own two additions: the
  * verbatim `rawLine` under the fields, because it is the only trace of a
- * document the app deliberately does not keep (§5), and the "remember this
- * line" toggle that turns one correction into a permanent shortcut (§9).
+ * document the app deliberately does not keep, and the "remember this
+ * line" toggle that turns one correction into a permanent shortcut.
  *
  * An excluded line collapses to a single muted row instead of disappearing:
  * the receipt's order is the user's mental model of the trip, and a hole in
  * it reads as data lost.
  */
-import { MoreHorizontal, TriangleAlert, Undo2 } from 'lucide-react';
+import { TriangleAlert, Undo2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Chip } from '@/components/ui/chip';
@@ -217,7 +217,7 @@ export function ReceiptLineCard({
             {tCommon('edit')}
           </button>
           <IconButton
-            icon={<MoreHorizontal />}
+            icon={<X />}
             label={t('exclude')}
             onClick={onToggleExcluded}
             data-testid="receipt-exclude"

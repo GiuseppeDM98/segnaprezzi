@@ -8,8 +8,8 @@ import { getDashboardData } from '@/lib/services/dashboard';
 import { DashboardScreen } from './dashboard-screen';
 
 /*
- * Why cache(): Spec 04 §9 asks for per-request memoization of the index
- * computation, and the service deliberately does not import React — so the
+ * Why cache(): per-request memoization of the index
+ * computation is wanted, and the service deliberately does not import React — so the
  * page, where several server components could share the result, wraps it.
  */
 const getDashboardDataCached = cache(getDashboardData);
@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The dashboard (Spec 05 §5.1): "what is MY inflation?" in one glance,
+ * The dashboard: "what is MY inflation?" in one glance,
  * honestly. Server-rendered from the engine; the client half owns the
  * ticker, the ISTAT toggle and the chart interactions.
  */
@@ -30,6 +30,6 @@ export default async function DashboardPage() {
 
   // Why a server timestamp: offline the page is served from the SW cache, and
   // this value — baked into that cached HTML — is what the "data as of" banner
-  // reads (Spec 06 §6.4).
+  // reads.
   return <DashboardScreen data={data} generatedAt={Date.now()} />;
 }

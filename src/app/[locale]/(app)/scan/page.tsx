@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The capture screen (Spec 03 §3, Spec 05 §5.2). The server half only
+ * The capture screen. The server half only
  * resolves what the device cannot know on its own — the user's stores and
  * whether a spesa was left open on another device; everything about the
  * current spesa lives in the browser so the shutter keeps working with no

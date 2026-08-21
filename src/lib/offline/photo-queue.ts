@@ -1,7 +1,7 @@
 /**
- * The enqueue/dequeue API of the offline photo queue (Spec 03 §5.2).
+ * The enqueue/dequeue API of the offline photo queue.
  *
- * Spec 03 owns this data contract; Spec 06's sync engine decides *when* to
+ * This module owns the data contract; the sync engine decides *when* to
  * call these — connectivity listeners, backoff and service-worker
  * integration are deliberately not here.
  */
@@ -16,7 +16,7 @@ export const MAX_UPLOAD_ATTEMPTS = 5;
  * Where this device remembers which spesa is in progress.
  *
  * localStorage rather than a server round-trip: the first shutter press has
- * to work with the phone in airplane mode (Spec 03 §2.2), so the session id
+ * to work with the phone in airplane mode, so the session id
  * is minted and kept locally until something reaches the server.
  */
 export const ACTIVE_SESSION_STORAGE_KEY = 'segnaprezzi.activeSessionId';
@@ -116,7 +116,7 @@ export async function markPhotoExtracted(
 /**
  * Park a photo for a later attempt: back to 'queued', invisible to the drain
  * until `nextAttemptAt`. The backoff schedule itself is the sync engine's
- * policy (Spec 06 §5.2) — this only writes the outcome.
+ * policy — this only writes the outcome.
  */
 export async function reschedulePhoto(
   id: string,
@@ -162,7 +162,7 @@ export async function retryFailedPhoto(id: string): Promise<void> {
 
 /**
  * Reset every failed photo, optionally only those of one session — the
- * "Riprova tutti" action of the Scan queue line (Spec 06 §6.2).
+ * "Riprova tutti" action of the Scan queue line.
  *
  * @returns How many photos were re-queued.
  */

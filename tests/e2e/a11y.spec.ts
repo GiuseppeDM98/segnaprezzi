@@ -6,7 +6,7 @@ import { signUpViaApi } from './helpers/auth';
 import { deleteUserByEmail } from './helpers/db';
 
 /*
- * Accessibility suite (Spec 05 §10): axe reports zero violations on every
+ * Accessibility suite: axe reports zero violations on every
  * route, in both themes. The theme is forced through the `theme` cookie the
  * root layout's pre-paint script reads, so the dark palette is the one
  * actually audited — not a media query the headless browser may ignore.

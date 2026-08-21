@@ -1,12 +1,12 @@
 /**
- * Integer money math (Spec 00 §3: money is integers only —
+ * Integer money math: money is integers only —
  * total_price_cents in euro cents, unit_price_milli in milli-euros per
- * base unit). Every helper returns an integer; floats exist only
+ * base unit. Every helper returns an integer; floats exist only
  * transiently inside a computation, never in stored values.
  *
- * Scope: generic conversions plus the fuel two-of-three helpers added by
- * Spec 03 §11.2; display formatting AND input parsing live exclusively in
- * src/lib/format.ts (Spec 05 §2.3) — nothing here touches strings.
+ * Scope: generic conversions plus the fuel two-of-three helpers; display
+ * formatting AND input parsing live exclusively in
+ * src/lib/format.ts — nothing here touches strings.
  */
 
 /** Convert a euro amount (e.g. parsed user input 1.29) to integer cents. */
@@ -35,14 +35,14 @@ export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: nu
 }
 
 /*
- * Fuel two-of-three helpers (Spec 03 §11.2). At the pump the user knows any
+ * Fuel two-of-three helpers. At the pump the user knows any
  * two of {unit price, quantity, total} and the third follows. Pump unit
  * prices carry three decimals — this is exactly why unit_price_milli exists;
  * deriving the total through a cents-scaled unit price would corrupt every
  * fuel entry.
  *
  * The arithmetic is unit-agnostic on purpose: petrol, diesel and LPG are sold
- * per litre, methane per kilogram (Spec 03 §11.1), and the same two formulas
+ * per litre, methane per kilogram, and the same two formulas
  * serve both.
  */
 
@@ -69,7 +69,7 @@ export function calculateFuelQuantity(totalPriceCents: number, unitPriceMilli: n
 /*
  * Integer -> euro conversions. These return NUMBERS, not strings: they exist
  * for editable numeric inputs, which need a value and not a formatted label.
- * All string rendering of money stays in src/lib/format.ts (Spec 05).
+ * All string rendering of money stays in src/lib/format.ts.
  */
 
 /** Integer cents as a euro amount (249 -> 2.49). */

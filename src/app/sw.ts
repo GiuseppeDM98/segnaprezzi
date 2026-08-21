@@ -1,9 +1,9 @@
 /// <reference lib="webworker" />
 
 /*
- * Service worker for segnaprezzi (Spec 06 §2.2).
+ * Service worker for segnaprezzi.
  *
- * Strategy summary (Spec 06 §2.3):
+ * Strategy summary:
  * - Build assets are precached (self.__SW_MANIFEST, injected by @serwist/next).
  * - Pages: NetworkFirst with a 3 s timeout — fresh when possible, instant
  *   from cache in the basement, locale-aware /offline fallback when neither.
@@ -13,7 +13,7 @@
  *
  * skipWaiting is deliberately NOT automatic: a new SW activating mid-session
  * would break lazy-loaded chunks. The page shows an update toast and posts
- * SKIP_WAITING only when the user accepts (Spec 06 §8).
+ * SKIP_WAITING only when the user accepts.
  */
 import { defaultCache } from '@serwist/next/worker';
 import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist';
@@ -81,7 +81,7 @@ const serwist = new Serwist({
   // in order: the /en check must precede the catch-all Italian default,
   // which is served UNPREFIXED at /offline (localePrefix "as-needed").
   // WARNING: adding a locale requires adding a fallback entry here AND
-  // creating its /[locale]/offline page (Spec 06 §2.4).
+  // creating its /[locale]/offline page.
   fallbacks: {
     entries: [
       {
@@ -115,7 +115,7 @@ self.addEventListener('message', (event) => {
 // Background Sync (progressive enhancement, Chromium-only): drain the photo
 // queue even if the user closed the tab before regaining signal. The drain
 // is idempotent and lock-guarded, so overlap with a page-driven drain is
-// harmless (Spec 06 §5.4).
+// harmless.
 self.addEventListener('sync', (event) => {
   if (event.tag === PHOTO_SYNC_TAG) {
     event.waitUntil(drainPendingPhotos());

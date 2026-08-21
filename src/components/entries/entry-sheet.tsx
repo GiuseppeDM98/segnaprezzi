@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The entry sheet (Spec 05 §5.7, §5.8): one observation's full fields, in
+ * The entry sheet: one observation's full fields, in
  * place editing, and delete with an inline confirm. Shared by the product
  * detail and the timeline; saving and deleting are delegated through
  * callbacks so the component never imports a Server Action.

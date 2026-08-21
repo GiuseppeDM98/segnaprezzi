@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The review screen (Spec 03 §9, Spec 05 §5.3). Deliberately
+ * The review screen. Deliberately
  * server-data-free: every draft comes from the device's Dexie queue, which
  * is the only place the extractions exist until the user confirms them.
  * That is what lets a spesa be reviewed on the way home with no signal.
