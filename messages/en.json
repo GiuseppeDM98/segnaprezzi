@@ -20,16 +20,131 @@
     "emptyState": "Photograph your first price tag to get started"
   },
   "scan": {
-    "title": "Shopping in progress"
+    "title": "Shopping in progress",
+    "camera": {
+      "frameHint": "Fit the price tag in the frame",
+      "shutter": "Take photo",
+      "unavailable": "Take a photo",
+      "permissionDenied": {
+        "title": "Camera access needed",
+        "body": "segnaprezzi uses the camera to photograph price tags. Nothing is uploaded without your review.",
+        "retry": "Try again",
+        "useLibrary": "Choose from library"
+      }
+    },
+    "storePicker": {
+      "label": "Store",
+      "none": "None"
+    },
+    "tray": {
+      "label": "Photos in this shopping trip",
+      "count": "{count, plural, one {# photo} other {# photos}}",
+      "review": "Review",
+      "retry": "Retry",
+      "delete": "Delete"
+    },
+    "queue": {
+      "offline": "Saved — will upload when you're back online",
+      "uploading": "Uploading",
+      "extracted": "Ready to review",
+      "retrying": "Upload hiccup — retrying"
+    },
+    "errors": {
+      "extractionFailed": "Couldn't read this photo. Retake it or add the item manually.",
+      "uploadFailed": "Upload failed. Tap to retry.",
+      "invalidPhoto": "This photo can't be processed"
+    },
+    "resume": {
+      "title": "You have an unfinished spesa",
+      "body": "Resume it, or discard it: photos already uploaded will be deleted.",
+      "resume": "Resume",
+      "discard": "Discard"
+    },
+    "stale": {
+      "title": "Still shopping?",
+      "body": "This shopping trip has been open for more than a day."
+    },
+    "discardSession": "Discard this shopping trip"
   },
   "review": {
-    "title": "Review entries"
+    "title": "Review entries",
+    "needsReview": "Check this one",
+    "priceMismatch": "Price and unit price don't add up",
+    "lowConfidence": "Hard to read — check the numbers",
+    "matchPicker": "Product",
+    "newProduct": "New product",
+    "confirmBatch": "Confirm shopping trip",
+    "confirmError": "Fix the flagged entries before confirming",
+    "waitingForUploads": "Some photos have not been processed yet",
+    "empty": "Nothing to review",
+    "fields": {
+      "productName": "Product",
+      "brand": "Brand",
+      "category": "Category",
+      "unitKind": "Unit kind",
+      "totalPrice": "Price (€)",
+      "packageSize": "Size",
+      "unitPrice": "Unit price (€)",
+      "isPromo": "On promotion",
+      "promoKind": "Promotion type"
+    },
+    "promoKinds": {
+      "discount": "Discount",
+      "loyalty": "Loyalty card",
+      "coupon": "Coupon",
+      "bundle": "Multi-buy"
+    }
   },
   "addManual": {
-    "title": "Add price"
+    "title": "Add price",
+    "product": "Product",
+    "newProduct": "New product",
+    "productName": "Product name",
+    "brand": "Brand",
+    "store": "Store",
+    "noStore": "None (generic purchase)",
+    "date": "Date",
+    "totalPrice": "Price paid (€)",
+    "packageSize": "Size",
+    "sizeUnit": "Unit",
+    "unitPrice": "Unit price (€)",
+    "crossCheckWarning": "Price and unit price don't add up — please check",
+    "isPromo": "On promotion",
+    "promoKinds": {
+      "discount": "Discount",
+      "loyalty": "Loyalty card",
+      "coupon": "Coupon",
+      "bundle": "Multi-buy"
+    },
+    "submit": "Save entry",
+    "submitError": "Could not save. Check the values and try again."
   },
   "addFuel": {
-    "title": "Fuel stop"
+    "title": "Fuel stop",
+    "fuel": "Fuel",
+    "products": {
+      "benzina": "Petrol",
+      "diesel": "Diesel",
+      "gpl": "LPG",
+      "metano": "CNG"
+    },
+    "station": "Station",
+    "noStation": "None",
+    "date": "Date",
+    "total": "Total (€)",
+    "submit": "Save fuel stop",
+    "submitError": "Could not save. Check the values and try again.",
+    "errors": {
+      "inconsistent": "These numbers don't match — check one of them"
+    },
+    "unitPriceByUnit": {
+      "volume": "€/L",
+      "weight": "€/kg"
+    },
+    "quantityByUnit": {
+      "volume": "Litres",
+      "weight": "Kilos"
+    }
   },
   "products": {
     "title": "Products",
@@ -64,10 +179,45 @@
     "VALIDATION_FAILED": "Please check what you entered",
     "UNAUTHORIZED": "Log in to continue",
     "EXTRACTION_FAILED": "Could not read the price tag",
-    "INTERNAL": "Something went wrong, please try again"
+    "INTERNAL": "Something went wrong, please try again",
+    "INVALID_INPUT": "Please check what you entered",
+    "INVALID_DATE": "That date is not valid",
+    "INVALID_PRICE": "That price is not valid",
+    "INVALID_SIZE": "That size is not valid",
+    "INVALID_STORE_KIND": "That store is not a fuel station",
+    "INCONSISTENT_FUEL_PRICES": "These numbers don't match — check one of them",
+    "SESSION_NOT_FOUND": "Shopping trip not found",
+    "STORE_NOT_FOUND": "Store not found",
+    "PRODUCT_NOT_FOUND": "Product not found",
+    "SESSION_CLOSED": "This shopping trip is already closed",
+    "PHOTO_TOO_LARGE": "This photo is too large",
+    "UNSUPPORTED_PHOTO_TYPE": "Unsupported photo format",
+    "EXTRACTION_UNAVAILABLE": "Service temporarily unavailable, retrying shortly"
   },
   "offline": {},
-  "categories": {},
-  "units": {},
+  "categories": {
+    "food": "Food",
+    "beverages": "Beverages",
+    "household": "Household",
+    "personal-care": "Personal care",
+    "health": "Health",
+    "clothing": "Clothing",
+    "fuel": "Fuel",
+    "transport": "Transport",
+    "utilities": "Utilities",
+    "recreation": "Recreation",
+    "pets": "Pets",
+    "other": "Other"
+  },
+  "units": {
+    "weight": "Weight",
+    "volume": "Volume",
+    "count": "Count",
+    "kg": "kg",
+    "g": "g",
+    "liter": "L",
+    "milliliter": "mL",
+    "piece": "pcs"
+  },
   "pwa": {}
 }

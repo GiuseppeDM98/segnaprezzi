@@ -41,3 +41,6 @@ playwright/.auth/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Per-session scratch handoff: written, folded into the durable docs, deleted.
+SESSION_NOTES.md

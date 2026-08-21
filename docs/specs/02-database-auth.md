@@ -1125,6 +1125,13 @@ if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) {
 - **Idempotent by wipe**: if a user with the seed email exists, delete it first (`DELETE FROM users WHERE email = ...` — cascades wipe settings, stores, products, sessions, entries). Verify the generated auth schema cascades `sessions`/`accounts`; if not, delete those rows explicitly before the user. Wipe-and-recreate both seed users (§8.2, §8.4), not just the primary one.
 - Creates each user through `auth.api.signUpEmail({ body: { email, password, name } })` so the password hash is produced by Better Auth itself. Requires `SIGNUP_ENABLED` ≠ `false` locally (the default); abort with a clear message otherwise.
 - All non-auth rows use fixed ids (`seed-store-esselunga`, `seed-prod-spaghetti`, …) so re-runs and tests are reproducible.
+
+  **Correction (2026-08-21, verified while implementing Spec 03):** those fixed ids must be
+  padded to exactly 21 characters — `scripts/seed-ids.ts` → `seedId('seed-prod-spaghetti')`.
+  Spec 00 §6 makes every id a nanoid(21), and Spec 03's confirm boundary validates that
+  length: with a 19-character seed id, a review card suggesting a seeded product is rejected
+  with `INVALID_INPUT` the moment the user confirms, which breaks the whole capture flow
+  against a seeded database. Padding preserves both readability and reproducibility.
 - Credentials for both seed users live in one place, **`scripts/seed-users.ts`** (`SEED_USER`, `SEED_USER_2` — plain `{ email, password, name }` objects, no I/O), imported by `scripts/seed.ts` and by `tests/e2e/fixtures/users.ts` (§10.3). This is the single source of truth for seed credentials — nothing else hardcodes them, so the two can never drift apart.
 
 ### 8.2 Seed credentials

@@ -81,20 +81,42 @@ documentation — `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `docs/`. This is
 the only local, repo-specific section; Part 1 above is the portable standard
 and stays in the language it was given in.)*
 
-### Current state: specs-only, nothing to automate yet
+### Current state: automatable, and exercised
 
-As of this writing (see `CLAUDE.md` → "Current status"), this repository
-contains **no application code** — no `package.json`, no `src/`, no
-`node_modules`, no CI workflow (`.github/` has only issue/PR templates). Every
-command below (`pnpm lint`, `pnpm test`, `pnpm test:e2e`, `scripts/seed.ts`,
-`GET /api/export`) is **documented in the specs and in `CONTRIBUTING.md` but
-does not exist yet**. Obligation 4 of the Collaudo Guidato rule (automate
-everything that can be automated) cannot be honored today simply because
-there is nothing running to automate against — this section says so instead
-of pretending otherwise. It will become actionable starting with Spec 01
-(scaffold) and fully actionable from Spec 02 (DB, auth, seed) onward. Update
-this section, with evidence, the first time a real collaudo is run against
-running code.
+Superseded on 2026-08-21, the first time a real collaudo ran against running
+code (Spec 03 — Capture & AI Extraction). This section previously said the
+repository contained no application code and that obligation 4 of the Collaudo
+Guidato rule could not be honored. Both are now false: Specs 01–03 are
+implemented, and the Spec 03 collaudo was executed in six phases with 63
+automated checks plus the full E2E suite. Evidence, with the per-phase results,
+is recorded in `CLAUDE.md` → "Current status" → *Collaudo guidato (2026-08-21)*.
+
+What that collaudo established about how obligation 4 works in practice here:
+
+- **Fixtures**: a throwaway `collaudo-spec03.ts` at the repository root
+  (untracked, deleted at the end of phase F) with invented "parole spia" —
+  fenicottero, ornitorinco, quokka, narvalo — so a fixture can never be
+  mistaken for seeded or real data. Cleanup is `pnpm db:seed`, which wipes and
+  recreates both seed users, so no fixture can survive by accident.
+- **Expectations declared before execution, mechanically**: every check is
+  written as `check(label, actual, expected)` inside the script, so the
+  expected value is committed to disk before the script runs and the reading
+  cannot adapt to the result.
+- **A real browser where the UI is the thing under test** (phase C): Chromium
+  at 390×844 with a real session, driven through /scan → /scan/review →
+  confirm, asserting on the database afterwards. Where the UI is *not* the
+  thing under test (phases B, D, E), plain HTTP and direct service calls are
+  faster and prove more.
+- **Authenticating from a script**: `POST /api/auth/sign-in/email` works, but a
+  bare Node `fetch()` must send an explicit `Origin` header or Better Auth
+  rejects it with `MISSING_OR_NULL_ORIGIN` — see `AGENTS.md` §4.19.
+- **What genuinely could not be automated**, and was handed to the owner: the
+  look and one-handed usability of the new screens on localhost. Note this is
+  a sanity check, not an aesthetic verdict — Spec 05 redesigns those screens.
+- **What could not be verified by anyone**, and must be said rather than
+  glossed over: the real `claude-haiku-4-5` call and the real Vercel Blob
+  upload, which need `ANTHROPIC_API_KEY` and `BLOB_READ_WRITE_TOKEN`. In the
+  collaudo `/api/extract` was intercepted; the rest of the chain was real.
 
 ### Package manager and quality-gate commands
 
@@ -108,15 +130,13 @@ lands:
 
 ### E2E: Playwright, and how it will authenticate
 
-`playwright.config.ts` is specified in `docs/specs/01-foundation.md` §10 (not
-yet created): single `mobile` project (Chromium, 390×844 mobile emulation),
-`webServer` auto-starts `pnpm dev` against `http://localhost:3000`, tests live
-under `tests/e2e/`.
+`playwright.config.ts` exists and follows `docs/specs/01-foundation.md` §10:
+single `mobile` project (Chromium, 390×844 mobile emulation), `webServer`
+auto-starts `pnpm dev` against `http://localhost:3000`, tests live under
+`tests/e2e/`.
 
-There is no auth to script yet because Better Auth itself is introduced in
-Spec 02. As of the 2026-08-21 session, this is no longer open — Spec 02 §10.3
-now specifies the concrete design (added specifically so Playwright auth
-scripting wouldn't be improvised session by session):
+Auth scripting is implemented as Spec 02 §10.3 specifies (that design was
+added specifically so it wouldn't be improvised session by session):
 
 - `docs/specs/02-database-auth.md` §8.2/§8.4 define **two** deterministic seed
   users (credentials in `scripts/seed-users.ts`, the single source of truth
@@ -156,17 +176,16 @@ separate fixture path.
 
 ### Inspecting real data state (not just page appearance)
 
-`GET /api/export` (`docs/specs/02-database-auth.md` §9, not yet built) returns
-a full JSON export of the authenticated user's own data and 401s anonymously.
-Once it exists, it is the primary tool for the "verify on the database, never
-on page appearance alone" requirement — call it with the test session's
-cookies/token and assert on the JSON body. Until Spec 02 ships, there is no
-way to inspect persisted state at all (no DB, no endpoint), so no collaudo of
-persisted behavior is possible yet. If a lower-level check is ever needed
-before `/api/export` covers a given table, Drizzle Studio (`pnpm db:studio`,
-also from `CONTRIBUTING.md`) is the manual fallback — but it is a human tool,
-not scriptable, so prefer `/api/export` or a direct query in the throwaway
-script wherever possible.
+`GET /api/export` (`docs/specs/02-database-auth.md` §9) returns a full JSON
+export of the authenticated user's own data and 401s anonymously. It is the
+primary tool for the "verify on the database, never on page appearance alone"
+requirement — call it with the test session's cookies and assert on the JSON
+body; the E2E suite does exactly this. Where the export does not yet surface a
+column the collaudo needs, a direct `@libsql/client` query in the throwaway
+script is the fallback (this is what the Spec 03 collaudo used, to reach
+`ai_confidence`, `promo_kind` and the session statuses). Drizzle Studio
+(`pnpm db:studio`, from `CONTRIBUTING.md`) stays available for eyeballing, but
+it is a human tool, not scriptable, so prefer the other two.
 
 ### Branches
 
@@ -178,16 +197,25 @@ follow the naming scheme already documented in
 (`feature/…`, `fix/…`, `refactor/…`, `chore/…`, lowercase, hyphen-separated) —
 this file doesn't introduce a second scheme.
 
-### Where to annotate a collaudo's outcome
+### Where to annotate a collaudo's outcome, and the session log
 
-`CLAUDE.md` → "Current status" already has a milestone table with an
-instruction that whoever completes a milestone updates it, with the date, in
-the same commit — that is the natural place for milestone-level collaudo
-outcomes (e.g. "Spec 03 collaudato: extraction review flow verified against
-seed data + a disposable user, 2026-MM-DD"). For a collaudo that doesn't
-close a whole milestone (a fix, a follow-up), there is currently no
-dedicated session-test log in the repo. Until one is needed, note the outcome
-in the PR description (the PR template already has room for it) plus a
-one-line mention in `CLAUDE.md`'s status table if it's load-bearing for a
-future session; propose a dedicated `docs/TESTING_LOG.md` only if that
-turns out to be insufficient in practice.
+Two places, with different jobs.
+
+- **`SESSION_NOTES.md`** (repository root) — a **scratch handoff**, not a
+  permanent log. At the end of a session write it with three fixed fields:
+  *Cosa* (what was implemented), *Perché* (the reasoning behind the decisions,
+  not just the list of changes), *Nota* (gotchas that would cost the next
+  person time). Then use it to fold those findings into the durable docs —
+  `AGENTS.md` for patterns and gotchas, `CLAUDE.md` for status,
+  `Draft Release Temp.md` for anything user-facing — and **delete it**. It is
+  never committed. Writing it first is what stops the fold from degenerating
+  into a changelog: a diff already shows what changed, and only this step
+  captures why a fork in the road was taken. Introduced 2026-08-21.
+- **`CLAUDE.md` → "Current status"** — the current state of the codebase, the
+  milestone table, and milestone-level collaudo outcomes (per-phase results,
+  what was verified and what could not be). Updated in the same commit as the
+  milestone, per the instruction in that file.
+
+For a collaudo that doesn't close a whole milestone (a fix, a follow-up), a
+`SESSION_NOTES.md` entry plus the PR description is enough; add a line to
+`CLAUDE.md`'s status only if it is load-bearing for a future session.

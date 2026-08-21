@@ -1,6 +1,6 @@
 # Spec 03 — Capture & AI Extraction
 
-> **Status**: Approved · **Last updated**: 2026-08-20
+> **Status**: Implemented (2026-08-21) · **Last updated**: 2026-08-21
 > **Depends on**: Spec 01 (scaffold), Spec 02 (database, repositories, auth)
 > **Contract**: This spec elaborates on Spec 00 §6 (domain model), §8 (AI
 > extraction summary), and §9 (route map). It must never contradict
@@ -159,6 +159,15 @@ Sessions must start with zero connectivity (Spec 00: offline-first). Therefore:
    row with `status 'active'`, `started_at = now` if it does not exist. If the
    row exists but belongs to another user, throw `SessionNotFoundError`
    (respond as not-found — never reveal foreign ids exist).
+**Correction (2026-08-21, verified during implementation):** telling "this id is not
+yours" from "this id does not exist" needs one deliberately unscoped query —
+`isShoppingSessionIdTaken(db, sessionId)` in the shopping-sessions repository. Without it the
+service cannot honor rule 2 above: a foreign id passes the user-scoped lookup as "missing",
+the service inserts, and SQLite raises a raw primary-key violation instead of
+`SessionNotFoundError`. The query returns a boolean and nothing else, and both outcomes are
+reported to the client as not-found, so no fact about another user's sessions leaves the
+server.
+
 3. **One active session per user**: when `findOrCreateShoppingSession` inserts
    a *new* session, it first sets any other `active`/`reviewing` session of
    that user to `discarded`. Starting a new spesa abandons the unfinished one.
@@ -223,6 +232,17 @@ All actions return Spec 01 §9's `ActionResult<T>`
 error classes it throws (`SessionNotFoundError`, `SessionClosedError`,
 `StoreNotFoundError`, `ProductNotFoundError`) are `DomainError` subclasses in
 that same file.
+
+**Correction (2026-08-21, verified during implementation):** every service in this
+spec takes the Drizzle handle as its **first** parameter — `findOrCreateShoppingSession(db,
+userId, sessionId, storeId?)`, `confirmShoppingSession(db, userId, input)`,
+`discardShoppingSession(db, userId, input)`, `createPriceEntry(db, userId, input)` — matching
+the repository convention of Spec 02 §6.1. Two reasons, both forced: §9.3 step 1 calls
+`findOrCreateShoppingSession` **inside** the confirm transaction, so it must accept a
+transaction object, and §13.4 requires the confirm service to run against a throwaway test
+database, which is impossible if the service closes over the `db` singleton. The single
+exception is `extractPhotoEntry(input)`, whose signature §6.4 fixes and which has no
+transactional or test-injection requirement — it uses the singleton internally.
 
 Actions are thin: `requireUser()` (Spec 02 helper), parse input with Zod
 (`safeParse`; invalid → `{ ok: false, error }` with code `INVALID_INPUT`),
@@ -1648,6 +1668,16 @@ export const confirmShoppingSessionSchema = z.object({
 export type ConfirmShoppingSessionInput = z.infer<typeof confirmShoppingSessionSchema>;
 ```
 
+**Correction (2026-08-21, verified during implementation):** `confirmShoppingSessionSchema`
+cannot live in `actions.ts` as written above. A module carrying the `"use server"` directive
+may only export async functions — Next.js rejects an exported `const` at build time. The
+schemas moved one file over, to
+`src/app/[locale]/(app)/scan/review/schema.ts`, which `actions.ts` and the schema's own unit
+tests both import; the same applies to the `/add/manual` and `/add/fuel` schemas of §10.2 and
+§11.3, which are declared as module-local constants inside their action files (nothing else
+imports them). Field schemas shared across boundaries (`nanoidSchema`, `productPickSchema`,
+the money and size bounds) live once in `src/lib/domain/schemas.ts`, per AGENTS.md §1.8.
+
 The client fills `photoUrl`, `aiConfidence`, `aiModel`, `aiRawJson` from the
 stored `ExtractPhotoResponse`: `photoUrl = blobUrl`,
 `aiConfidence = extraction.confidence` (the *original* one, even after edits),
@@ -1765,25 +1795,47 @@ optimized to be filled at the pump in under ten seconds.
 // WARNING: adding a fuel here requires labels in messages/it.json and
 // messages/en.json under addFuel.products.*.
 export const FUEL_QUICK_PICKS = [
-  { key: 'benzina-95', canonicalName: 'Benzina 95' },
-  { key: 'diesel', canonicalName: 'Diesel' },
-  { key: 'gpl', canonicalName: 'GPL' },
-] as const;
+  { key: 'benzina', canonicalName: 'Benzina', unitKind: 'volume' },
+  { key: 'diesel', canonicalName: 'Diesel', unitKind: 'volume' },
+  { key: 'gpl', canonicalName: 'GPL', unitKind: 'volume' },
+  { key: 'metano', canonicalName: 'Metano', unitKind: 'weight' },
+] as const satisfies ReadonlyArray<{ key: string; canonicalName: string; unitKind: UnitKind }>;
 
-export type FuelQuickPickKey = (typeof FUEL_QUICK_PICKS)[number]['key'];
+export type FuelQuickPick = (typeof FUEL_QUICK_PICKS)[number];
+export type FuelQuickPickKey = FuelQuickPick['key'];
 ```
+
+**Correction (2026-08-21, agreed with the project owner during the Spec 03
+collaudo):** the list above replaces this spec's original three picks
+(`benzina-95` / "Benzina 95", `diesel`, `gpl`). Two changes:
+
+- **Petrol is just "Benzina".** The pump grade belongs on the station's board,
+  not in a personal product catalog. Because `canonicalName` is the *stored*
+  product name, renaming it after entries exist would split that product's
+  price history in two — so a future rename is a data migration, not a copy
+  edit. Spec 02's seed used yet a third name (`'Benzina self'`); it now uses
+  the canonical one, or a real refuelling would have created a second product
+  next to the seeded history.
+- **Each pick carries its own `unitKind`.** Italian CNG (metano) is dispensed
+  and priced **per kilogram**, not per litre, so `metano` is `'weight'` while
+  the other three stay `'volume'`. Hardcoding `unit_kind: 'volume'` for every
+  fuel — as §11.3 step 4 originally did — would store kilograms in a column
+  declaring litres: an error in the data, which no later screen could repair.
+  `createFuelEntry` reads the unit kind from the pick, and the form's labels
+  follow it (`addFuel.unitPriceByUnit.*`, `addFuel.quantityByUnit.*`).
 
 Decided: the **stored** product name is the canonical Italian one (fixed,
 locale-independent — switching UI language must not fork the product catalog);
-button **labels** are localized (`addFuel.products.benzina-95`, …). Products
+button **labels** are localized (`addFuel.products.benzina`, …). Products
 are **lazily created per user**: on first use of a pick, the service looks up
 the user's products for `category 'fuel'` + exact canonical name; missing →
-create with `category 'fuel'`, `unit_kind 'volume'`, `brand NULL`.
+create with `category 'fuel'`, the pick's own `unit_kind`, `brand NULL`.
 
 ### 11.2 Two-of-three price entry
 
-The user enters **any two** of: price per liter, liters, total — the third is
-computed live (client) and re-validated (server). The UI tracks the two
+The user enters **any two** of: unit price, quantity (litres, or kilograms for
+methane), total — the third is computed live (client) and re-validated
+(server). The UI tracks the two
 most-recently edited fields as authoritative and recomputes the third on every
 keystroke, using the domain helpers. `src/lib/domain/money.ts` is created by
 Spec 02 §4.1 (`calculateUnitPriceMilli`, `toCents`, `toMilli`,
@@ -1791,10 +1843,10 @@ Spec 02 §4.1 (`calculateUnitPriceMilli`, `toCents`, `toMilli`,
 
 ```typescript
 // src/lib/domain/money.ts — file owned by Spec 02; this spec adds:
-export function calculateFuelTotalCents(unitPriceMilli: number, liters: number): number {
-  return Math.round((unitPriceMilli * liters) / 10);
+export function calculateFuelTotalCents(unitPriceMilli: number, quantity: number): number {
+  return Math.round((unitPriceMilli * quantity) / 10);
 }
-export function calculateFuelLiters(totalPriceCents: number, unitPriceMilli: number): number {
+export function calculateFuelQuantity(totalPriceCents: number, unitPriceMilli: number): number {
   // Pumps display 2–3 decimals; 3 keeps the round-trip loss below a cent.
   return Math.round(((totalPriceCents * 10) / unitPriceMilli) * 1000) / 1000;
 }
@@ -1810,12 +1862,13 @@ every fuel entry.
 
 ```typescript
 export const createFuelEntrySchema = z.object({
-  fuel: z.enum(['benzina-95', 'diesel', 'gpl']),
+  // Derived from FUEL_QUICK_PICKS, so a new pick is accepted automatically.
+  fuel: z.enum(['benzina', 'diesel', 'gpl', 'metano']),
   /** Store of kind 'fuel_station'; optional but encouraged. */
   storeId: nanoidSchema.nullable(),
   recordedAt: z.number().int().positive(),
-  unitPriceMilli: z.number().int().min(1).max(10_000),   // ≤ €10/L
-  liters: z.number().min(0.1).max(200),                   // → package_size
+  unitPriceMilli: z.number().int().min(1).max(10_000),   // ≤ €10 per base unit
+  quantity: z.number().min(0.1).max(200),                 // litres or kg → package_size
   totalPriceCents: z.number().int().min(1).max(50_000),   // ≤ €500
 });
 
@@ -1828,10 +1881,10 @@ Behavior:
 
 1. Validate the store, when given, exists, belongs to the user, **and has
    `kind 'fuel_station'`** (`STORE_NOT_FOUND` / `INVALID_STORE_KIND`).
-2. Cross-validate the triple: `|unitPriceMilli × liters − totalPriceCents × 10| ≤ 10`
+2. Cross-validate the triple: `|unitPriceMilli × quantity − totalPriceCents × 10| ≤ 10`
    (±1 cent, absorbing pump rounding) → else `INCONSISTENT_FUEL_PRICES`.
-3. Get-or-create the fuel product (§11.1).
-4. Insert via `createPriceEntry`: `source 'fuel'`, `package_size = liters`,
+3. Get-or-create the fuel product (§11.1), with the pick's own `unit_kind`.
+4. Insert via `createPriceEntry`: `source 'fuel'`, `package_size = quantity`,
    `is_promo 0`, `session_id NULL`, `photo_url NULL`.
 
 ---
@@ -1901,10 +1954,16 @@ The table from §8.2, verbatim.
 
 ### 13.4 `src/lib/services/confirm-shopping-session.test.ts`
 
-Run against an **in-memory libSQL database** with the real Drizzle
-repositories (`@libsql/client` `createClient({ url: ':memory:' })` + migrations
-applied in `beforeEach`) — realistic SQL semantics (`onConflictDoNothing`,
-transactions) with zero fake-repo maintenance.
+Run against a real migrated libSQL database with the real Drizzle
+repositories (migrations applied in `beforeEach`) — realistic SQL semantics
+(`onConflictDoNothing`, transactions) with zero fake-repo maintenance.
+
+**Correction (2026-08-21, verified during implementation):** use
+`createTestDb()` from `src/lib/db/testing/create-test-db.ts`, **not**
+`createClient({ url: ':memory:' })` as originally written here. Spec 02 §10.1 carries the same
+correction and the reasoning behind it: an anonymous in-memory libSQL database silently resets
+itself the instant a `db.transaction()` callback throws — which is exactly what four of the
+eight tests below do.
 
 | Test | Asserts |
 |---|---|
@@ -1937,6 +1996,22 @@ CI) and `page.route('/api/extract', ...)` returning a fixture
 review shows the card with suggestion → pick suggestion → confirm → entry
 visible in `/history`. A second scenario: fixture with `needsReview: true`
 asserts the badge and the blocked-confirm scroll behavior.
+
+**Correction (2026-08-21, verified during implementation):** three details the text above
+leaves out, each of which the suite fails without.
+
+1. `/history` does not exist until Spec 05, so the final assertion is made against
+   `GET /api/export` — the database — instead of a page. This is what
+   `WORKFLOW.md`'s collaudo rule asks for anyway ("verify on the database, never on page
+   appearance alone"), so it stays that way after Spec 05 ships the screen.
+2. The suite runs as the **second** seed user (`dev2@segnaprezzi.local`) and resets its photo
+   entries and shopping sessions in `beforeEach`, so a Playwright retry never inherits half a
+   previous attempt, and the rich dataset the other specs assert on is never touched.
+3. `setInputFiles` must wait for hydration first — assert the camera fallback panel
+   (`data-testid="camera-fallback"`) is visible before setting the file. `page.goto()` resolves
+   on the server HTML, whose camera panel is still in its `idle` branch; setting the file before
+   React attaches the change handler silently does nothing, and the failure only appears under
+   parallel load (reproduced once the quick-entry spec started competing for the dev server).
 
 ---
 

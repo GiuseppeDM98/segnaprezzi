@@ -5,7 +5,7 @@
  */
 import { and, asc, desc, eq, gte, lt, lte, or } from 'drizzle-orm';
 
-import type { Db } from '@/lib/db/client';
+import type { Db, DbTransaction } from '@/lib/db/client';
 import {
   type NewPriceEntry,
   type PriceEntry,
@@ -27,7 +27,7 @@ export type UpdatePriceEntryPatch = Partial<
 
 /** Insert one price entry and return the created row. */
 export async function createPriceEntry(
-  db: Db,
+  db: Db | DbTransaction,
   userId: string,
   input: CreatePriceEntryInput,
 ): Promise<PriceEntry> {
@@ -248,4 +248,76 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
     .orderBy(asc(priceEntries.recordedAt));
 
   return rows.map((row) => ({ ...row, recordedAt: row.recordedAt.getTime() }));
+}
+
+export type CreatePriceEntryWithIdInput = CreatePriceEntryInput & { id: string };
+
+/**
+ * Insert a batch of entries whose ids come from the client (the photo ids of
+ * Spec 03 §6.5), ignoring rows that already exist.
+ *
+ * Why onConflictDoNothing rather than a plain insert: the confirm step is
+ * replayable by design — a dropped response, a double tap, or an offline
+ * retry can submit the same batch twice, and the client-generated id is the
+ * idempotency key that makes the second submission a no-op instead of a
+ * duplicate observation in the index.
+ *
+ * @returns The rows actually inserted (already-present ids are absent)
+ */
+export async function createPriceEntriesIgnoringDuplicates(
+  db: Db | DbTransaction,
+  userId: string,
+  inputs: CreatePriceEntryWithIdInput[],
+): Promise<PriceEntry[]> {
+  if (inputs.length === 0) {
+    return [];
+  }
+  return db
+    .insert(priceEntries)
+    .values(inputs.map((input) => ({ ...input, userId })))
+    .onConflictDoNothing({ target: priceEntries.id })
+    .returning();
+}
+
+/** Ids of the entries already recorded for one shopping session, oldest first. */
+export async function listPriceEntryIdsBySession(
+  db: Db | DbTransaction,
+  userId: string,
+  sessionId: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({ id: priceEntries.id })
+    .from(priceEntries)
+    .where(and(eq(priceEntries.userId, userId), eq(priceEntries.sessionId, sessionId)))
+    .orderBy(asc(priceEntries.recordedAt));
+  return rows.map((row) => row.id);
+}
+
+/**
+ * Product ids the user has bought at one store since a given moment
+ * (Spec 03 §6.4 step 6).
+ *
+ * Feeds the +0.05 store-recency bonus of the product matcher: something you
+ * bought at this very supermarket last month is a far likelier match for a
+ * tag photographed here than an equally-named product you bought elsewhere.
+ * Deliberately one DISTINCT query for the whole catalog — never one query
+ * per candidate.
+ */
+export async function listProductIdsWithEntriesAtStoreSince(
+  db: Db,
+  userId: string,
+  storeId: string,
+  since: Date,
+): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ productId: priceEntries.productId })
+    .from(priceEntries)
+    .where(
+      and(
+        eq(priceEntries.userId, userId),
+        eq(priceEntries.storeId, storeId),
+        gte(priceEntries.recordedAt, since),
+      ),
+    );
+  return rows.map((row) => row.productId);
 }

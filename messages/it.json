@@ -20,16 +20,131 @@
     "emptyState": "Fotografa il tuo primo segnaprezzi per iniziare"
   },
   "scan": {
-    "title": "Spesa in corso"
+    "title": "Spesa in corso",
+    "camera": {
+      "frameHint": "Inquadra il cartellino",
+      "shutter": "Scatta",
+      "unavailable": "Scatta una foto",
+      "permissionDenied": {
+        "title": "Serve l'accesso alla fotocamera",
+        "body": "segnaprezzi usa la fotocamera per fotografare i cartellini. Nulla viene caricato senza la tua conferma.",
+        "retry": "Riprova",
+        "useLibrary": "Scegli dalla libreria"
+      }
+    },
+    "storePicker": {
+      "label": "Punto vendita",
+      "none": "Nessuno"
+    },
+    "tray": {
+      "label": "Foto della spesa",
+      "count": "{count, plural, one {# foto} other {# foto}}",
+      "review": "Rivedi",
+      "retry": "Riprova",
+      "delete": "Elimina"
+    },
+    "queue": {
+      "offline": "Salvata — la carichiamo appena torni online",
+      "uploading": "Caricamento in corso",
+      "extracted": "Pronta da rivedere",
+      "retrying": "Problema di caricamento — riprovo"
+    },
+    "errors": {
+      "extractionFailed": "Non riesco a leggere questa foto. Riscattala o inserisci il prodotto a mano.",
+      "uploadFailed": "Caricamento non riuscito. Tocca per riprovare.",
+      "invalidPhoto": "Questa foto non può essere elaborata"
+    },
+    "resume": {
+      "title": "Hai una spesa non conclusa",
+      "body": "Riprendila oppure lasciala perdere: le foto già caricate verranno eliminate.",
+      "resume": "Riprendi",
+      "discard": "Abbandona"
+    },
+    "stale": {
+      "title": "Stai ancora facendo la spesa?",
+      "body": "Questa spesa è aperta da più di un giorno."
+    },
+    "discardSession": "Abbandona la spesa"
   },
   "review": {
-    "title": "Rivedi le rilevazioni"
+    "title": "Rivedi le rilevazioni",
+    "needsReview": "Da controllare",
+    "priceMismatch": "Prezzo e prezzo al kg non tornano",
+    "lowConfidence": "Foto difficile da leggere — controlla i numeri",
+    "matchPicker": "Prodotto",
+    "newProduct": "Nuovo prodotto",
+    "confirmBatch": "Conferma la spesa",
+    "confirmError": "Controlla le rilevazioni segnalate prima di confermare",
+    "waitingForUploads": "Alcune foto non sono ancora state elaborate",
+    "empty": "Nessuna rilevazione da rivedere",
+    "fields": {
+      "productName": "Prodotto",
+      "brand": "Marca",
+      "category": "Categoria",
+      "unitKind": "Tipo di unità",
+      "totalPrice": "Prezzo (€)",
+      "packageSize": "Quantità",
+      "unitPrice": "Prezzo unitario (€)",
+      "isPromo": "In offerta",
+      "promoKind": "Tipo di offerta"
+    },
+    "promoKinds": {
+      "discount": "Sconto",
+      "loyalty": "Carta fedeltà",
+      "coupon": "Coupon",
+      "bundle": "Multi-acquisto"
+    }
   },
   "addManual": {
-    "title": "Aggiungi prezzo"
+    "title": "Aggiungi prezzo",
+    "product": "Prodotto",
+    "newProduct": "Nuovo prodotto",
+    "productName": "Nome del prodotto",
+    "brand": "Marca",
+    "store": "Punto vendita",
+    "noStore": "Nessuno (acquisto generico)",
+    "date": "Data",
+    "totalPrice": "Prezzo pagato (€)",
+    "packageSize": "Quantità",
+    "sizeUnit": "Unità",
+    "unitPrice": "Prezzo unitario (€)",
+    "crossCheckWarning": "Prezzo e prezzo unitario non tornano — controlla",
+    "isPromo": "In offerta",
+    "promoKinds": {
+      "discount": "Sconto",
+      "loyalty": "Carta fedeltà",
+      "coupon": "Coupon",
+      "bundle": "Multi-acquisto"
+    },
+    "submit": "Salva rilevazione",
+    "submitError": "Non sono riuscito a salvare. Controlla i dati e riprova."
   },
   "addFuel": {
-    "title": "Rifornimento"
+    "title": "Rifornimento",
+    "fuel": "Carburante",
+    "products": {
+      "benzina": "Benzina",
+      "diesel": "Diesel",
+      "gpl": "GPL",
+      "metano": "Metano"
+    },
+    "station": "Distributore",
+    "noStation": "Nessuno",
+    "date": "Data",
+    "total": "Totale (€)",
+    "submit": "Salva rifornimento",
+    "submitError": "Non sono riuscito a salvare. Controlla i dati e riprova.",
+    "errors": {
+      "inconsistent": "I numeri non tornano — ricontrollane uno"
+    },
+    "unitPriceByUnit": {
+      "volume": "€/L",
+      "weight": "€/kg"
+    },
+    "quantityByUnit": {
+      "volume": "Litri",
+      "weight": "Chili"
+    }
   },
   "products": {
     "title": "Prodotti",
@@ -64,10 +179,45 @@
     "VALIDATION_FAILED": "Controlla i dati inseriti",
     "UNAUTHORIZED": "Accedi per continuare",
     "EXTRACTION_FAILED": "Non sono riuscito a leggere il cartellino",
-    "INTERNAL": "Qualcosa è andato storto, riprova"
+    "INTERNAL": "Qualcosa è andato storto, riprova",
+    "INVALID_INPUT": "Controlla i dati inseriti",
+    "INVALID_DATE": "La data non è valida",
+    "INVALID_PRICE": "Il prezzo non è valido",
+    "INVALID_SIZE": "La quantità non è valida",
+    "INVALID_STORE_KIND": "Questo punto vendita non è un distributore",
+    "INCONSISTENT_FUEL_PRICES": "I numeri non tornano — ricontrollane uno",
+    "SESSION_NOT_FOUND": "Spesa non trovata",
+    "STORE_NOT_FOUND": "Punto vendita non trovato",
+    "PRODUCT_NOT_FOUND": "Prodotto non trovato",
+    "SESSION_CLOSED": "Questa spesa è già conclusa",
+    "PHOTO_TOO_LARGE": "Questa foto è troppo grande",
+    "UNSUPPORTED_PHOTO_TYPE": "Formato foto non supportato",
+    "EXTRACTION_UNAVAILABLE": "Servizio momentaneamente non disponibile, riprovo tra poco"
   },
   "offline": {},
-  "categories": {},
-  "units": {},
+  "categories": {
+    "food": "Alimentari",
+    "beverages": "Bevande",
+    "household": "Casa e pulizia",
+    "personal-care": "Cura personale",
+    "health": "Salute",
+    "clothing": "Abbigliamento",
+    "fuel": "Carburante",
+    "transport": "Trasporti",
+    "utilities": "Utenze",
+    "recreation": "Tempo libero",
+    "pets": "Animali",
+    "other": "Altro"
+  },
+  "units": {
+    "weight": "Peso",
+    "volume": "Volume",
+    "count": "Pezzi",
+    "kg": "kg",
+    "g": "g",
+    "liter": "L",
+    "milliliter": "mL",
+    "piece": "pz"
+  },
   "pwa": {}
 }

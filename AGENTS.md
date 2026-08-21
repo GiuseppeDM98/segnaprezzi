@@ -5,17 +5,19 @@ the **segnaprezzi** repository. It distills the project contract into rules you
 can apply without re-deriving them. It does not replace the specs — it tells
 you where the law is and how to work under it.
 
-> **Reality check**: Specs 01 (Foundation & Scaffold) and 02 (Database & Auth)
-> are implemented — there is a real DB, real auth, real repositories. The
+> **Reality check**: Specs 01 (Foundation & Scaffold), 02 (Database & Auth) and
+> 03 (Capture & AI Extraction) are implemented — there is a real DB, real auth,
+> real repositories, a real Anthropic extraction gateway and the capture,
+> review and quick-entry screens. The
 > current implementation state is tracked in **`CLAUDE.md` → "Current
 > status"** — read it first, trust it over any assumption. Sections below
-> marked **[PLANNED]** describe code that does not exist yet (Spec 03
+> marked **[PLANNED]** describe code that does not exist yet (Spec 04
 > onward) but whose shape is already decided; build exactly that shape. Where
 > a spec's literal code text and the actually-implemented code differ, this
 > file and the spec's own inline correction notes (search the spec for
 > "Correction") describe what was actually verified to work — a handful of
-> Spec 02's literal snippets didn't survive contact with the real dependency
-> versions (see §4.15–§4.21).
+> Spec 02's and Spec 03's literal snippets didn't survive contact with the real
+> dependency versions and the Next.js runtime (see §4.15–§4.26).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
@@ -106,9 +108,19 @@ Three base units, keyed by `products.unit_kind`:
 Unit prices are **always stored per base unit**. Shelf tags shown per 100 g,
 per 100 mL, per etto, etc. are normalized **at extraction time** (Spec 03) and
 in every manual form: €/100g × 10 = €/kg; €/100mL × 10 = €/L. `src/lib/domain/units.ts`
-defines the `UnitKind` enum and base-unit display symbols; the actual
-normalization arithmetic is `calculateUnitPriceMilli` in `money.ts` above —
+defines the `UnitKind` enum, the base-unit display symbols, and
+`convertToBaseUnits` (which rounds: `700 * 0.001` is `0.7000000000000001` in
+binary floating point, and that noise would be persisted into `package_size`);
+the price arithmetic is `calculateUnitPriceMilli` in `money.ts` above —
 nothing outside `domain/` hand-rolls a unit conversion.
+
+**Do not assume a product category implies a unit kind.** Fuel is the standing
+counter-example: petrol, diesel and LPG are dispensed per litre, but Italian
+CNG (metano) is dispensed and priced **per kilogram**. Each entry in
+`FUEL_QUICK_PICKS` therefore carries its own `unitKind`, and
+`createFuelEntry` reads it from the pick rather than hardcoding `'volume'`.
+Storing kilograms in a column that declares litres is an error in the data,
+which no later screen can repair.
 
 ### 1.4 Time and month bucketing (Europe/Rome)
 
@@ -166,7 +178,7 @@ Import rules — **what each layer may and must never import**:
 
 | Layer (path) | May import | Must NEVER import |
 |---|---|---|
-| `src/app/**` (pages, actions, route handlers) | services, domain, inflation, `lib/i18n`, `lib/auth` helpers, `lib/errors`, components | repositories directly, `lib/ai`, `lib/blob`, `lib/db` client/schema |
+| `src/app/**` (pages, actions, route handlers) | services, domain, inflation, `lib/i18n`, `lib/auth` helpers, `lib/errors`, components, **the `db` singleton from `lib/db/client`** (to pass into a service — see below) | repositories directly, `lib/ai`, `lib/blob`, `lib/db/schema` |
 | `src/lib/services/**` | repositories, gateways (`ai`, `blob`), domain, inflation, `lib/errors` | `next/*`, `react`, `src/app`, `src/components` |
 | `src/lib/db/repositories/**` | `lib/db` client + schema, domain (types/enums), `lib/errors` | services, gateways, `next/*`, `react` |
 | `src/lib/ai/**`, `src/lib/blob/**` (gateways) | domain, `lib/errors`, `lib/env` | `lib/db`, services, `next/*`, `react` |
@@ -175,6 +187,14 @@ Import rules — **what each layer may and must never import**:
 | `src/lib/offline/**` (client) | domain, `dexie` | `lib/db`, services, gateways, server-only modules |
 | `src/components/**` | domain, `lib/i18n` navigation, `motion`, other components | `lib/db`, repositories, services, gateways, `lib/env` |
 | `src/lib/auth/**` | `lib/db` (adapter needs it), `lib/env` | services, components |
+
+The `db`-singleton carve-out (established by Spec 02's `/api/export` route,
+followed by every Spec 03 page and action): services take the Drizzle handle as
+their first parameter, exactly like repositories, so that the confirm flow can
+pass a transaction and the tests can pass a throwaway database. Something has
+to hand them the real one, and the app layer is the only caller. It passes the
+handle straight through — reading or writing through it in a page or an action
+is still forbidden.
 
 Enforcement is by review until a lint rule exists. When in doubt: **data flows
 down, types flow up, and `domain/` + `inflation/` import nothing**.
@@ -190,14 +210,14 @@ wrong — the **service** fetches, the pure function computes.
 
 ### 1.7 Error handling: DomainError codes + translation at the boundary
 
-**[PLANNED — decided]** Expected errors are `DomainError` subclasses in
-`src/lib/errors.ts` (Spec 01 §9). The `code` is a stable `DomainErrorCode` —
+Expected errors are `DomainError` subclasses in `src/lib/errors.ts`
+(Spec 01 §9). The `code` is a stable `DomainErrorCode` —
 a SCREAMING_SNAKE string union — that doubles as the i18n key under the
 `errors` namespace (`errors.NOT_FOUND`). Classes carry **no** HTTP status;
 route handlers own the code→status mapping:
 
 ```ts
-// src/lib/errors.ts  [PLANNED — Spec 01 §9]
+// src/lib/errors.ts  (Spec 01 §9, implemented)
 
 // WARNING: adding a code here requires updating:
 // - the `errors` namespace in messages/it.json and messages/en.json
@@ -208,8 +228,12 @@ export type DomainErrorCode =
   | 'UNAUTHORIZED'
   | 'EXTRACTION_FAILED'
   | 'INTERNAL';
-// Later specs extend the union via the same checklist (Spec 03 adds
-// SESSION_NOT_FOUND, SESSION_CLOSED, PHOTO_TOO_LARGE, INVALID_INPUT, ...).
+// Spec 03 extended the union via that checklist with INVALID_INPUT,
+// INVALID_DATE, INVALID_PRICE, INVALID_SIZE, INVALID_STORE_KIND,
+// INCONSISTENT_FUEL_PRICES, SESSION_NOT_FOUND, STORE_NOT_FOUND,
+// PRODUCT_NOT_FOUND, SESSION_CLOSED, PHOTO_TOO_LARGE,
+// UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE. The code→HTTP mapping
+// lives in src/app/api/extract/route.ts.
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -444,7 +468,7 @@ constructing payloads/prompts, `format*` for display strings.
 
 ---
 
-## 2. Code Organization and Structure [PLANNED]
+## 2. Code Organization and Structure
 
 ### 2.1 The tree, annotated
 
@@ -542,6 +566,12 @@ the matching `errors.<CODE>` message to **both** `messages/it.json` and
 **Adding an enum value** (e.g. `promo_kind`, `source`, `store.kind`): update
 the Zod schema at every boundary that accepts it, both message files if it is
 user-visible, and the extraction schema/prompt if the AI can emit it.
+
+**Adding or renaming a fuel quick pick** (`src/lib/domain/fuel-products.ts`):
+add the `addFuel.products.<key>` label to **both** message files, and give the
+pick the `unitKind` it is actually sold in (§1.3). Renaming a `canonicalName`
+is **not** a copy edit: it is the stored product name, so after entries exist
+it splits that fuel's price history in two and becomes a data migration.
 
 **Adding an env var**: `src/lib/env.ts` (Zod), `.env.example`, overview §11
 table, README setup section, and the Vercel project settings.
@@ -642,7 +672,7 @@ installed core version; see §4.16 before touching it.
 
 ---
 
-## 4. Gotchas and Non-Obvious Setup [PLANNED but decided]
+## 4. Gotchas and Non-Obvious Setup
 
 **4.1 Turso local vs remote is an env switch, not a code switch.**
 `src/lib/db/client.ts` creates one client from `TURSO_DATABASE_URL`. With
@@ -803,12 +833,16 @@ awaited — a top-level `await` there breaks `tsx`'s CJS transform for
 under the hood and `journal_mode=WAL` is persisted in the file itself, so
 even a worst-case race self-heals after the first successful run.
 
-**4.19 Better Auth's sign-out route (and any other state-changing call on an
-existing session) enforces an Origin check that Playwright's `page.request`
-doesn't satisfy by default.** Sign-in and sign-up work fine without extra
-headers (open, unauthenticated entry points), but `POST /api/auth/sign-out`
-403s with `MISSING_OR_NULL_ORIGIN` unless the request carries an `Origin`
-header matching a trusted origin — `page.request.post()` is a raw API call,
+**4.19 Better Auth enforces an Origin check that raw HTTP clients don't
+satisfy by default.** From Playwright's `page.request`, sign-in and sign-up
+work without extra headers (open, unauthenticated entry points) but
+`POST /api/auth/sign-out` 403s with `MISSING_OR_NULL_ORIGIN` unless the
+request carries an `Origin` header matching a trusted origin. **Refinement
+(2026-08-21, found during the Spec 03 collaudo):** that carve-out is specific
+to `page.request`, which inherits the browser context's origin. A bare Node
+`fetch()` sends no `Origin` at all, so it is rejected on **every** Better Auth
+route including sign-in — any script that authenticates outside a browser must
+set `Origin` explicitly — `page.request.post()` is a raw API call,
 not a real in-page `fetch()`, so it never sends one on its own (verified via
 curl too). Pass `headers: { Origin: new URL(page.url()).origin }` explicitly
 on any E2E call to a Better Auth route that acts on an authenticated
@@ -836,6 +870,47 @@ for any `tsx` script invoked by both a local dev workflow and CI/production —
 never bare `--env-file` unless the file's presence is actually guaranteed
 everywhere the script runs.
 
+**4.22 A `"use server"` module may only export async functions — Zod schemas
+cannot live in `actions.ts`.** Next.js rejects an exported `const` from a
+`"use server"` file at build time, so Spec 03 §9.2's literal
+`export const confirmShoppingSessionSchema` in `scan/review/actions.ts` does
+not compile. Either keep the schema as a module-local (non-exported) constant,
+or — when the tests or another module need it, as the confirm schema's own
+unit tests do — put it in a sibling plain module (
+`scan/review/schema.ts`) that the action imports. Type-only exports are fine
+either way: they are erased before the check runs. Field schemas shared across
+several boundaries belong in `src/lib/domain/schemas.ts` (§1.8).
+
+**4.23 Seed ids are padded to 21 characters — never add a short readable id.**
+`scripts/seed-ids.ts` → `seedId('seed-prod-latte')` produces a contract-shaped
+`nanoid(21)`-length id while staying readable and reproducible. Spec 00 §6
+makes every id a nanoid(21) and the Spec 03 confirm boundary validates that
+length, so a 15-character seed id makes the review screen reject any suggestion
+pointing at a seeded product (`INVALID_INPUT` on confirm) — a failure that only
+shows up in a real capture flow against a seeded database, never in the seed
+script itself.
+
+**4.24 Playwright must wait for hydration before `setInputFiles` on `/scan`.**
+`page.goto()` resolves on the server HTML, where the camera panel is still in
+its `idle` branch and no React change handler is attached yet; setting the file
+then silently does nothing. Assert the fallback panel
+(`data-testid="camera-fallback"`, rendered only after the client camera hook
+has run and failed to find a camera) is visible first. The race only appears
+under parallel load — it passed for two runs before the quick-entry spec
+started competing for the same dev server.
+
+**4.25 `getByRole('alert')` is never unique in this app.** Next.js renders its
+own route announcer as `<div role="alert" id="__next-route-announcer__">`, so
+any `getByRole('alert')` locator hits at least two elements and fails Playwright's
+strict mode. Target the specific `data-testid` instead.
+
+**4.26 `vitest.config.ts` pins the environment variables the unit suite runs
+with.** Since Spec 03 some modules under test import `src/lib/env.ts`, which
+fails fast on a missing variable — so the suite would depend on a developer's
+`.env.local` (and break in CI, which has none) without the `test.env` block.
+The values there are placeholders on purpose: a real `ANTHROPIC_API_KEY` must
+never be reachable from a test run. Every network call in the suite is mocked.
+
 ---
 
 ## 5. Spec-Driven Workflow
@@ -851,8 +926,9 @@ everywhere the script runs.
 | 04 | `docs/specs/04-inflation-engine.md` | Pure index engine: bucketing, carry-forward, Jevons, weighting, chaining, ISTAT comparison, exhaustive tests. |
 | 05 | `docs/specs/05-ui-design.md` | Full design system + all screens; produces `DESIGN.md`. |
 | 06 | `docs/specs/06-pwa-offline.md` | Serwist, IndexedDB queue, sync manager, install experience, icons. |
+| 07 | `docs/specs/07-receipt-import.md` | Digital receipt → per-line extraction, catalog aliases, review, `source='receipt'` entries. |
 
-Order: **01 → 02 → (03 ∥ 04) → 05 → 06**. Spec 04 depends on 02 for types
+Order: **01 → 02 → (03 ∥ 04) → 05 → 06 → 07**. Spec 04 depends on 02 for types
 only — it can proceed against the schema definitions without a running DB.
 
 ### 5.2 One spec per session
@@ -868,10 +944,14 @@ The protocol, per session:
 5. Gate before finishing: `pnpm lint && pnpm typecheck && pnpm test`
    (plus `pnpm test:e2e` when the spec touches user flows).
 6. Update `CLAUDE.md` → "Current status" (what is done, what is next, any
-   deviations that were written back into the specs).
-7. Commit with Conventional Commits. One logical change per commit — a spec
-   typically lands as a short series (`feat: …`, `test: …`, `docs: …`), not
-   one mega-commit.
+   deviations that were written back into the specs), and fold the session's
+   findings into this file and `Draft Release Temp.md`. `SESSION_NOTES.md` is
+   the scratch handoff used for that fold: written during the session, read
+   when updating the durable docs, then deleted — never committed.
+7. Commit per `WORKFLOW.md`: **one squashed commit per session**, and never
+   without the project owner's explicit approval. (`WORKFLOW.md` overrides the
+   per-logical-change guidance in `docs/DEVELOPMENT_GUIDELINES.md`, which
+   describes commit hygiene in general.)
 
 If an implementation forces a contract change (name, column, route), stop,
 edit `docs/specs/00-overview.md` first, then continue — the contract never
@@ -887,6 +967,7 @@ drifts silently.
 | 04 | Inflation Engine | 02 (types only) | Claude Opus 5 (Fable 5 if available) | xhigh |
 | 05 | UI & Design System | 02–04 | Claude Fable 5 + impeccable skill | xhigh |
 | 06 | PWA & Offline | 03, 05 | Claude Opus 5 | high |
+| 07 | Receipt Import | 02, 03, 05 | Claude Opus 5 | high |
 
 ### 5.4 Definition of done (every task, not just specs)
 
