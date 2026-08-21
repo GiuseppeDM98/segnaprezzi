@@ -89,7 +89,9 @@ repository contained no application code and that obligation 4 of the Collaudo
 Guidato rule could not be honored. Both are now false: Specs 01–03 are
 implemented, and the Spec 03 collaudo was executed in six phases with 63
 automated checks plus the full E2E suite. Evidence, with the per-phase results,
-is recorded in `CLAUDE.md` → "Current status" → *Collaudo guidato (2026-08-21)*.
+was recorded in `CLAUDE.md` → "Current status" at the time; since `CLAUDE.md`
+keeps only the latest milestone, the per-phase table now lives in git history
+(commit `05f7352`, the Spec 03 merge), with a one-line pointer in `CLAUDE.md`.
 
 What that collaudo established about how obligation 4 works in practice here:
 

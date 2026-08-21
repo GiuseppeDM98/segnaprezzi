@@ -226,11 +226,18 @@ export async function listPriceEntries(
 /**
  * Minimal projection of ALL of the user's entries for the inflation engine
  * (Spec 04): monthly bucketing needs (productId, recordedAt, unitPriceMilli,
- * isPromo); category weights need (category, totalPriceCents). The DB's
- * Date surfaces here as epoch ms — IndexEntry.recordedAt is a number, and
- * the repository does the mapping. Ordered by recorded_at ascending.
+ * isPromo); category weights need (category, totalPriceCents, quantity). The
+ * DB's Date surfaces here as epoch ms — IndexEntry.recordedAt is a number,
+ * and the repository does the mapping. Ordered by recorded_at ascending.
+ * Includes entries of archived products — archiving hides a product from
+ * suggestions, never from history (Spec 00 §6).
  * Deliberately unpaginated — the engine is a pure function over the full
  * series (years of personal data stay in the low tens of thousands of rows).
+ *
+ * Why `quantity` is a constant 1 here: the `price_entries.quantity` column
+ * arrives with Spec 07's receipt import (its migration adds it with default
+ * 1), and every photo/manual/fuel observation is one package. Spec 07 only
+ * has to replace the constant with the column in this projection.
  */
 export async function listEntriesForIndex(db: Db, userId: string): Promise<IndexEntry[]> {
   const rows = await db
@@ -247,7 +254,7 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
     .where(eq(priceEntries.userId, userId))
     .orderBy(asc(priceEntries.recordedAt));
 
-  return rows.map((row) => ({ ...row, recordedAt: row.recordedAt.getTime() }));
+  return rows.map((row) => ({ ...row, quantity: 1, recordedAt: row.recordedAt.getTime() }));
 }
 
 export type CreatePriceEntryWithIdInput = CreatePriceEntryInput & { id: string };

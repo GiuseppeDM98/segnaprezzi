@@ -4,7 +4,13 @@ import type { Db } from '@/lib/db/client';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { NotFoundError } from '@/lib/errors';
 import { createPriceEntry } from './price-entries';
-import { createProduct, getProductById, listProducts, mergeProducts } from './products';
+import {
+  createProduct,
+  getProductById,
+  listProducts,
+  listProductsForIndex,
+  mergeProducts,
+} from './products';
 
 describe('products repository', () => {
   let db: Db;
@@ -168,5 +174,36 @@ describe('products repository', () => {
     });
 
     await expect(mergeProducts(db, userId, product.id, product.id)).rejects.toThrow(NotFoundError);
+  });
+
+  it('should return the minimal index projection for every product, archived included', async () => {
+    // Arrange: an active and an archived product of the user, one of another user.
+    const active = await createProduct(db, userId, {
+      name: 'Spaghetti',
+      brand: 'Barilla',
+      category: 'food',
+      unitKind: 'weight',
+    });
+    const archived = await createProduct(db, userId, {
+      name: 'Old diesel',
+      category: 'fuel',
+      unitKind: 'volume',
+      isArchived: true,
+    });
+    await createProduct(db, otherUserId, {
+      name: 'Not mine',
+      category: 'food',
+      unitKind: 'weight',
+    });
+
+    // Act
+    const projection = await listProductsForIndex(db, userId);
+
+    // Assert: exact field set, own products only, ordered by id.
+    const expected = [
+      { id: active.id, name: 'Spaghetti', brand: 'Barilla', category: 'food' },
+      { id: archived.id, name: 'Old diesel', brand: null, category: 'fuel' },
+    ].sort((a, b) => (a.id < b.id ? -1 : 1));
+    expect(projection).toEqual(expected);
   });
 });

@@ -37,7 +37,7 @@ The project is fully specified up front; each spec lands in its own session, and
 
 - [x] **Tag scanning** — photograph shelf price tags; Claude Haiku 4.5 extracts product, total price, and unit price with a review-before-save flow
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
-- [ ] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and side-by-side ISTAT comparison
+- [ ] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and side-by-side ISTAT comparison *(the engine and the official ISTAT series ship; the dashboard that shows them is next)*
 - [ ] **Product price histories** — per-product charts across stores and time, with duplicate-product merging
 - [x] **Promo tracking** — flag discounts, loyalty prices, coupons, and bundles; choose whether promos count toward your index
 - [ ] **Offline-first PWA** — installable on your phone, captures photos with zero connectivity, syncs later *(the offline photo queue ships; installability and background sync are next)*
@@ -112,9 +112,10 @@ All variables are validated with Zod at boot (`src/lib/env.ts`); a misconfigured
 
 ## Local development
 
-> **Note:** Specs 01–03 are implemented — a real local database, sign-up/login,
-> and the full capture flow (camera, AI extraction, review, quick entry). The
-> inflation index itself is Spec 04, still to come.
+> **Note:** Specs 01–04 are implemented — a real local database, sign-up/login,
+> the full capture flow (camera, AI extraction, review, quick entry) and the
+> personal inflation engine with the official ISTAT series. The dashboard that
+> renders the index is Spec 05, still to come.
 
 Requirements: Node 22+ and pnpm.
 
@@ -140,11 +141,11 @@ capture screen, the queue, the review screen and both quick-entry forms still
 work; only the extraction call itself fails (and the queue treats it as
 retryable, so the photo waits rather than being lost).
 
-Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm db:studio` (browse the local DB).
+Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm db:studio` (browse the local DB), `pnpm istat:update` (refresh the bundled ISTAT NIC series in `data/istat-nic.json`).
 
 ## Project status & roadmap
 
-**Current status: Spec 03 (Capture & AI Extraction) implemented — Spec 04 (Inflation Engine) next.**
+**Current status: Spec 04 (Inflation Engine) implemented — Spec 05 (UI & Design System) next.**
 
 segnaprezzi is built specs-first: every part of the system is fully specified — exact schemas, algorithms with worked numeric examples, prompts, test plans — before a line of application code is written. Each spec is then implemented in its own focused session. The specs are public and are the best way to understand the project in depth:
 

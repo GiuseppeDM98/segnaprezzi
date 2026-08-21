@@ -297,6 +297,7 @@ describe('price-entries repository', () => {
         recordedAt: Date.parse('2026-01-05T10:00:00Z'),
         unitPriceMilli: 2580,
         totalPriceCents: 129,
+        quantity: 1,
         isPromo: false,
       },
       {
@@ -305,6 +306,7 @@ describe('price-entries repository', () => {
         recordedAt: Date.parse('2026-02-05T10:00:00Z'),
         unitPriceMilli: 2780,
         totalPriceCents: 139,
+        quantity: 1,
         isPromo: true,
       },
     ]);

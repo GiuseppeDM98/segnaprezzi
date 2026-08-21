@@ -9,6 +9,7 @@ import type { Db, DbTransaction } from '@/lib/db/client';
 import { type NewProduct, type Product, priceEntries, products } from '@/lib/db/schema/app';
 import type { CategoryId } from '@/lib/domain/categories';
 import { NotFoundError } from '@/lib/errors';
+import type { IndexProduct } from '@/lib/inflation/types';
 
 export type CreateProductInput = Omit<NewProduct, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
 export type UpdateProductPatch = Partial<CreateProductInput>;
@@ -165,4 +166,23 @@ export async function listProductsByIds(
     .select()
     .from(products)
     .where(and(eq(products.userId, userId), inArray(products.id, productIds)));
+}
+
+/**
+ * Minimal projection of every product of the user for the inflation engine
+ * (Spec 04 §9): id, name, brand, category — archived products included,
+ * because their entries stay in the index history. Ordered by id so the
+ * engine's input is deterministic.
+ */
+export async function listProductsForIndex(db: Db, userId: string): Promise<IndexProduct[]> {
+  return db
+    .select({
+      id: products.id,
+      name: products.name,
+      brand: products.brand,
+      category: products.category,
+    })
+    .from(products)
+    .where(eq(products.userId, userId))
+    .orderBy(asc(products.id));
 }
