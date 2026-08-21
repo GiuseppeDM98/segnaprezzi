@@ -199,7 +199,9 @@
       "loyalty": "Carta fedeltà",
       "coupon": "Coupon",
       "bundle": "Multi-acquisto"
-    }
+    },
+    "pendingHint": "Ancora in elaborazione: apparirà qui appena è pronta.",
+    "pendingFailed": "Caricamento non riuscito: riprova dalla schermata di scatto."
   },
   "addManual": {
     "title": "Aggiungi prezzo",
@@ -548,7 +550,15 @@
     "offlineWithQueue": "Sei offline — {count, plural, one {# foto resta} other {# foto restano}} sul telefono",
     "syncing": "Sincronizzo… {count, plural, one {# in coda} other {# in coda}}",
     "synced": "Tutto sincronizzato",
-    "needsConnection": "Serve la connessione"
+    "needsConnection": "Serve la connessione",
+    "queued": "{count} in coda",
+    "processing": "{count} in elaborazione",
+    "failed": "{count, plural, one {# non riuscita} other {# non riuscite}}",
+    "retryAll": "Riprova tutti",
+    "cachedBanner": "Sei offline · dati aggiornati {lastSyncTime}",
+    "fallbackTitle": "Sei offline",
+    "fallbackBody": "Nessun problema: le foto scattate sono al sicuro e verranno elaborate al ritorno del segnale.",
+    "fallbackRetry": "Riprova"
   },
   "categories": {
     "food": "Alimentari",
@@ -579,5 +589,22 @@
       "count": "€/pz"
     }
   },
-  "pwa": {}
+  "pwa": {
+    "install": {
+      "cta": "Installa l'app",
+      "title": "Porta segnaprezzi con te",
+      "body": "Installala per aprirla come un'app e scattare anche senza segnale.",
+      "notNow": "Non ora",
+      "iosTitle": "Aggiungi alla schermata Home",
+      "iosStep1": "Tocca il pulsante Condividi in Safari",
+      "iosStep2": "Scegli «Aggiungi alla schermata Home»",
+      "iosStep3": "Tocca «Aggiungi»",
+      "iosWarning": "Senza installazione, Safari può cancellare le foto in coda dopo 7 giorni di inutilizzo."
+    },
+    "update": {
+      "title": "Nuova versione disponibile",
+      "action": "Aggiorna",
+      "later": "Più tardi"
+    }
+  }
 }

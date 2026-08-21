@@ -1,20 +1,29 @@
 /**
- * The single-photo uploader (Spec 03 §5.4). Spec 06's sync engine decides
- * when to call it; Spec 03 calls it fire-and-forget right after enqueueing
- * whenever the browser believes it is online.
+ * The single-photo transport (Spec 03 §5.4 · Spec 06 §5.2).
+ *
+ * Design: this module owns the HTTP call to /api/extract and the
+ * retryable/non-retryable classification of its failures — nothing else. The
+ * sync engine owns what happens next (backoff, attempt budget, persistence),
+ * because that policy has to be identical whether the drain runs in the page
+ * or in the service worker's Background Sync handler.
  */
 import type { ExtractPhotoResponse } from '@/lib/services/extract-photo-entry';
 import type { PendingPhoto } from './db';
-import { markPhotoExtracted, markPhotoFailed } from './photo-queue';
+
+/** 30 s cap per attempt: supermarket connectivity can hang a request forever. */
+const REQUEST_TIMEOUT_MS = 30_000;
+
+export type UploadOutcome =
+  | { kind: 'extracted'; response: ExtractPhotoResponse }
+  | { kind: 'error'; errorCode: string; message: string; isRetryable: boolean };
 
 /**
- * Upload one pending photo to /api/extract and persist the outcome in Dexie.
+ * Upload one pending photo to /api/extract.
  *
- * Never throws: every outcome lands in the photo's status. Spec 06's sync
- * engine decides when to call this; Spec 03 calls it fire-and-forget right
- * after enqueueing when navigator.onLine is true.
+ * Never throws: every outcome — including a dead network — comes back as an
+ * `UploadOutcome` for the caller to persist.
  */
-export async function uploadPendingPhoto(photo: PendingPhoto): Promise<void> {
+export async function uploadPendingPhoto(photo: PendingPhoto): Promise<UploadOutcome> {
   const formData = new FormData();
   formData.append('photo', photo.blob, photo.id);
   formData.append('photoId', photo.id);
@@ -23,10 +32,8 @@ export async function uploadPendingPhoto(photo: PendingPhoto): Promise<void> {
     formData.append('storeId', photo.storeId);
   }
 
-  // 30 s abort guard: supermarket connectivity can hang a request forever,
-  // and a hung upload would block the whole queue.
   const abortController = new AbortController();
-  const abortTimer = setTimeout(() => abortController.abort(), 30_000);
+  const abortTimer = setTimeout(() => abortController.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch('/api/extract', {
@@ -37,21 +44,28 @@ export async function uploadPendingPhoto(photo: PendingPhoto): Promise<void> {
 
     if (response.ok) {
       const payload = (await response.json()) as ExtractPhotoResponse;
-      await markPhotoExtracted(photo.id, payload);
-      return;
+      return { kind: 'extracted', response: payload };
     }
 
     // Retryable: HTTP 408, 429 and >= 500 are transient (timeouts, rate
     // limits, upstream outages); any other 4xx means this exact photo will
-    // never succeed unchanged. Spec 06's sync engine uses this exact
-    // classification — keep the two in lockstep.
+    // never succeed unchanged.
     const isRetryable =
       response.status === 408 || response.status === 429 || response.status >= 500;
-    const errorCode = await readErrorCode(response);
-    await markPhotoFailed(photo.id, errorCode, isRetryable);
-  } catch {
+    return {
+      kind: 'error',
+      errorCode: await readErrorCode(response),
+      message: `HTTP ${response.status}`,
+      isRetryable,
+    };
+  } catch (error) {
     // fetch rejects on network failure or the 30 s abort — both retryable.
-    await markPhotoFailed(photo.id, 'network', true);
+    return {
+      kind: 'error',
+      errorCode: 'network',
+      message: error instanceof Error ? error.message : 'Network error',
+      isRetryable: true,
+    };
   } finally {
     clearTimeout(abortTimer);
   }
@@ -60,8 +74,8 @@ export async function uploadPendingPhoto(photo: PendingPhoto): Promise<void> {
 async function readErrorCode(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as { error?: { code?: string } };
-    return body.error?.code ?? `http-${response.status}`;
+    return body.error?.code ?? `http_${response.status}`;
   } catch {
-    return `http-${response.status}`;
+    return `http_${response.status}`;
   }
 }

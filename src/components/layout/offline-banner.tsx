@@ -1,25 +1,25 @@
 'use client';
 
 /**
- * The connectivity pill (Spec 05 §5.13). Offline is a state, never an
- * error: the pill slides from under the top safe-area, stays while offline
- * with the queued count, switches to "syncing" on reconnect and slides away
- * with a success toast once the queue is empty. Spec 06's sync engine drives
- * this exact component and the `offline.*` keys — no duplicate chip.
+ * The connectivity pill (Spec 05 §5.13 · Spec 06 §6.1). Offline is a state,
+ * never an error: the pill slides from under the top safe-area, stays while
+ * offline with the queued count, switches to "syncing" while the engine
+ * drains and slides away with a success toast once the queue is empty.
+ *
+ * Spec 06 replaced the original 1.5 s polling loop with the live queue
+ * query: IndexedDB now notifies on every status change, including the ones
+ * written by the service worker's Background Sync drain, which no poll in
+ * the page could have seen at all.
  */
 import { CloudOff, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useToast } from '@/components/ui/toast';
 import { useAppMotion } from '@/lib/motion';
-import { countQueuedPhotos } from '@/lib/offline/photo-queue';
-
-/** How often the reconnect state re-reads the queue while it drains. */
-const SYNC_POLL_MS = 1500;
-/** Give the optimistic uploads this long before declaring the queue synced. */
-const SYNC_TIMEOUT_MS = 15_000;
+import { useOnlineStatus } from '@/lib/offline/use-online-status';
+import { useQueueStatus } from '@/lib/offline/use-queue-status';
 
 type ConnectivityState = 'online' | 'offline' | 'syncing';
 
@@ -27,66 +27,25 @@ export function OfflineBanner() {
   const t = useTranslations('offline');
   const { toast } = useToast();
   const { isReduced, spring, fade } = useAppMotion();
-  const [state, setState] = useState<ConnectivityState>('online');
-  const [queuedCount, setQueuedCount] = useState(0);
+  const isOnline = useOnlineStatus();
+  const { queuedCount, uploadingCount, hasPendingWork } = useQueueStatus();
 
+  const state: ConnectivityState = !isOnline ? 'offline' : hasPendingWork ? 'syncing' : 'online';
+  const pendingCount = queuedCount + uploadingCount;
+
+  // "Synced" is only worth saying to someone who watched it sync — not to
+  // someone who never had a queue in the first place.
+  const wasSyncing = useRef(false);
   useEffect(() => {
-    async function refreshQueue(): Promise<number> {
-      try {
-        const count = await countQueuedPhotos();
-        setQueuedCount(count);
-        return count;
-      } catch {
-        // IndexedDB unavailable (private mode): nothing is queued locally.
-        return 0;
-      }
+    if (state === 'syncing') {
+      wasSyncing.current = true;
+      return;
     }
-
-    function handleOffline(): void {
-      setState('offline');
-      void refreshQueue();
+    if (state === 'online' && wasSyncing.current) {
+      wasSyncing.current = false;
+      toast({ kind: 'success', message: t('synced') });
     }
-
-    let pollHandle: number | undefined;
-    let timeoutHandle: number | undefined;
-
-    function stopPolling(): void {
-      window.clearInterval(pollHandle);
-      window.clearTimeout(timeoutHandle);
-    }
-
-    async function handleOnline(): Promise<void> {
-      const pending = await refreshQueue();
-      if (pending === 0) {
-        setState('online');
-        return;
-      }
-      setState('syncing');
-      pollHandle = window.setInterval(async () => {
-        const remaining = await refreshQueue();
-        if (remaining === 0) {
-          stopPolling();
-          setState('online');
-          toast({ kind: 'success', message: t('synced') });
-        }
-      }, SYNC_POLL_MS);
-      timeoutHandle = window.setTimeout(() => {
-        stopPolling();
-        setState('online');
-      }, SYNC_TIMEOUT_MS);
-    }
-
-    if (!navigator.onLine) {
-      handleOffline();
-    }
-    window.addEventListener('offline', handleOffline);
-    window.addEventListener('online', handleOnline);
-    return () => {
-      stopPolling();
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('online', handleOnline);
-    };
-  }, [t, toast]);
+  }, [state, t, toast]);
 
   const isVisible = state !== 'online';
 
@@ -112,10 +71,10 @@ export function OfflineBanner() {
             )}
             <span className="leading-snug">
               {state === 'offline'
-                ? queuedCount > 0
-                  ? t('offlineWithQueue', { count: queuedCount })
+                ? pendingCount > 0
+                  ? t('offlineWithQueue', { count: pendingCount })
                   : t('offline')
-                : t('syncing', { count: queuedCount })}
+                : t('syncing', { count: pendingCount })}
             </span>
           </motion.output>
         )}

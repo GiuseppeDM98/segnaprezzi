@@ -15,6 +15,7 @@ import { CategoryBars } from '@/components/charts/category-bars';
 import { NumberTicker } from '@/components/charts/number-ticker';
 import { Sparkline } from '@/components/charts/sparkline';
 import { priceDirectionOf, TrendBadge } from '@/components/charts/trend-badge';
+import { CachedDataBanner } from '@/components/layout/cached-data-banner';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { LogoMark } from '@/components/ui/logo-mark';
@@ -36,9 +37,11 @@ const ISTAT_TOGGLE_KEY = 'segnaprezzi.dashboard.istat';
 
 export interface DashboardScreenProps {
   data: DashboardData;
+  /** Epoch ms the server computed these numbers; drives the offline banner. */
+  generatedAt: number;
 }
 
-export function DashboardScreen({ data }: DashboardScreenProps) {
+export function DashboardScreen({ data, generatedAt }: DashboardScreenProps) {
   const t = useTranslations('dashboard');
 
   if (data.state === 'empty') {
@@ -47,8 +50,9 @@ export function DashboardScreen({ data }: DashboardScreenProps) {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pt-safe pb-4 tablet:px-8 tablet:pt-6">
-      <div className="pt-4 tablet:pt-0">
+      <div className="flex flex-col gap-3 pt-4 tablet:pt-0">
         <SectionHeading as="h1">{t('title')}</SectionHeading>
+        <CachedDataBanner generatedAt={generatedAt} />
       </div>
 
       {data.state === 'thin' ? (

@@ -8,7 +8,7 @@
   "packageManager": "pnpm@11.22.0",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -20,15 +20,18 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts",
+    "icons": "tsx scripts/generate-icons.ts",
     "istat:update": "tsx scripts/update-istat.ts",
     "auth:generate": "pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
     "@libsql/client": "^0.17.4",
+    "@serwist/next": "^9.5.12",
     "@vercel/blob": "^2.8.0",
     "better-auth": "^1.7.1",
     "dexie": "^4.4.5",
+    "dexie-react-hooks": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.33.0",
     "motion": "^13.1.0",
@@ -37,6 +40,7 @@
     "next-intl": "^4.13.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "serwist": "^9.5.12",
     "zod": "^4.4.0"
   },
   "devDependencies": {
@@ -49,7 +53,10 @@
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
     "drizzle-kit": "^0.31.10",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^15.0.0",
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
     "typescript": "^7.0.0",

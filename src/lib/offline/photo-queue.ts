@@ -71,23 +71,32 @@ export function countQueuedPhotos(): Promise<number> {
 }
 
 /**
- * Claim the oldest queued photo for upload, atomically flipping it to
- * 'uploading'. Runs in a Dexie transaction so two concurrent sync ticks
- * (e.g. online event + manual retry) cannot claim the same photo.
+ * Claim the oldest photo that is due for an attempt, atomically flipping it
+ * to 'uploading' and counting the attempt. Runs in a Dexie transaction so
+ * two concurrent sync workers cannot claim the same photo.
+ *
+ * @param now - Epoch ms the due gate is evaluated against; a photo whose
+ *   `nextAttemptAt` is still in the future is left for a later drain.
  */
-export function takeNextQueuedPhoto(): Promise<PendingPhoto | undefined> {
+export function takeNextQueuedPhoto(now: number = Date.now()): Promise<PendingPhoto | undefined> {
   return offlineDb.transaction('rw', offlineDb.pendingPhotos, async () => {
     const queuedPhotos = await offlineDb.pendingPhotos
       .where('status')
       .equals('queued')
       .sortBy('createdAt');
-    const nextPhoto = queuedPhotos[0];
+    const nextPhoto = queuedPhotos.find((photo) => isPhotoDue(photo, now));
     if (!nextPhoto) {
       return undefined;
     }
-    await offlineDb.pendingPhotos.update(nextPhoto.id, { status: 'uploading' });
-    return { ...nextPhoto, status: 'uploading' as const };
+    const attempts = nextPhoto.attempts + 1;
+    await offlineDb.pendingPhotos.update(nextPhoto.id, { status: 'uploading', attempts });
+    return { ...nextPhoto, status: 'uploading' as const, attempts };
   });
+}
+
+/** True when the backoff gate has expired (or was never set — pre-v2 rows). */
+export function isPhotoDue(photo: PendingPhoto, now: number): boolean {
+  return photo.nextAttemptAt == null || photo.nextAttemptAt <= now;
 }
 
 /** Store the server response and mark the photo ready for review. */
@@ -99,26 +108,45 @@ export async function markPhotoExtracted(
     status: 'extracted',
     extraction: response,
     lastError: undefined,
+    lastErrorMessage: null,
+    nextAttemptAt: null,
   });
 }
 
 /**
- * Record a failed attempt. Retryable failures go back to 'queued' until
- * MAX_UPLOAD_ATTEMPTS is reached; everything else parks as 'failed' for
- * user-initiated retry or deletion.
+ * Park a photo for a later attempt: back to 'queued', invisible to the drain
+ * until `nextAttemptAt`. The backoff schedule itself is the sync engine's
+ * policy (Spec 06 §5.2) — this only writes the outcome.
+ */
+export async function reschedulePhoto(
+  id: string,
+  nextAttemptAt: number,
+  errorCode: string,
+  message: string,
+): Promise<void> {
+  await offlineDb.pendingPhotos.update(id, {
+    status: 'queued',
+    lastError: errorCode,
+    lastErrorMessage: message,
+    nextAttemptAt,
+  });
+}
+
+/**
+ * Give up on a photo: it parks as 'failed' and only a user-initiated retry
+ * moves it again.
  */
 export async function markPhotoFailed(
   id: string,
   errorCode: string,
-  isRetryable: boolean,
+  message: string,
 ): Promise<void> {
-  const photo = await offlineDb.pendingPhotos.get(id);
-  if (!photo) {
-    return;
-  }
-  const attempts = photo.attempts + 1;
-  const status = isRetryable && attempts < MAX_UPLOAD_ATTEMPTS ? 'queued' : 'failed';
-  await offlineDb.pendingPhotos.update(id, { status, attempts, lastError: errorCode });
+  await offlineDb.pendingPhotos.update(id, {
+    status: 'failed',
+    lastError: errorCode,
+    lastErrorMessage: message,
+    nextAttemptAt: null,
+  });
 }
 
 /** User-initiated retry from the tray: reset the attempt budget. */
@@ -127,7 +155,39 @@ export async function retryFailedPhoto(id: string): Promise<void> {
     status: 'queued',
     attempts: 0,
     lastError: undefined,
+    lastErrorMessage: null,
+    nextAttemptAt: null,
   });
+}
+
+/**
+ * Reset every failed photo, optionally only those of one session — the
+ * "Riprova tutti" action of the Scan queue line (Spec 06 §6.2).
+ *
+ * @returns How many photos were re-queued.
+ */
+export async function retryAllFailedPhotos(sessionId?: string): Promise<number> {
+  const failed = await offlineDb.pendingPhotos.where('status').equals('failed').toArray();
+  const targets = sessionId ? failed.filter((photo) => photo.sessionId === sessionId) : failed;
+  for (const photo of targets) {
+    await retryFailedPhoto(photo.id);
+  }
+  return targets.length;
+}
+
+/**
+ * Crash recovery: an 'uploading' record cannot legitimately survive a
+ * restart — its request died with the page — so every one of them goes back
+ * to 'queued'. `attempts` is kept: the dead attempt counts.
+ *
+ * @returns How many photos were recovered.
+ */
+export async function recoverInterruptedUploads(): Promise<number> {
+  const interrupted = await offlineDb.pendingPhotos.where('status').equals('uploading').toArray();
+  for (const photo of interrupted) {
+    await offlineDb.pendingPhotos.update(photo.id, { status: 'queued', nextAttemptAt: null });
+  }
+  return interrupted.length;
 }
 
 export async function deletePendingPhoto(id: string): Promise<void> {

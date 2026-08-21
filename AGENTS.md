@@ -6,22 +6,24 @@ can apply without re-deriving them. It does not replace the specs — it tells
 you where the law is and how to work under it.
 
 > **Reality check**: Specs 01 (Foundation & Scaffold), 02 (Database & Auth),
-> 03 (Capture & AI Extraction), 04 (Inflation Engine) and 05 (UI & Design
-> System) are implemented — there is a real DB, real auth, real repositories,
+> 03 (Capture & AI Extraction), 04 (Inflation Engine), 05 (UI & Design
+> System) and 06 (PWA & Offline) are implemented — there is a real DB, real auth, real repositories,
 > a real Anthropic extraction gateway, the pure personal-CPI engine with its
-> service and the committed ISTAT series, and every screen of the Spec 00
+> service and the committed ISTAT series, every screen of the Spec 00
 > route map in the "tabulato a modulo continuo" visual world recorded in
-> **`DESIGN.md`** (mandatory reading before any UI work). The current
+> **`DESIGN.md`** (mandatory reading before any UI work), and a real service
+> worker with the sync engine that drains the photo queue. The current
 > implementation state is tracked in **`CLAUDE.md` → "Current status"** —
 > read it first, trust it over any assumption. Sections below marked
-> **[PLANNED]** describe code that does not exist yet (Spec 06 onward) but
+> **[PLANNED]** describe code that does not exist yet (Spec 07/08) but
 > whose shape is already decided; build exactly that shape. Where a spec's
 > literal code text and the actually-implemented code differ, this file and
 > the spec's own inline correction notes (search the spec for "Correction")
 > describe what was actually verified to work — a handful of Spec 02's, 03's,
-> 04's and 05's literal snippets didn't survive contact with the real
-> dependency versions, the Next.js runtime, the live ISTAT service and the
-> accessibility gates (see §4.15–§4.38).
+> 04's, 05's and 06's literal snippets didn't survive contact with the real
+> dependency versions, the Next.js runtime, the live ISTAT service, the
+> accessibility gates, Turbopack, Serwist's precache manifest and Better
+> Auth's production rate limiter (see §4.15–§4.48).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
@@ -196,7 +198,7 @@ Import rules — **what each layer may and must never import**:
 | `src/lib/ai/**`, `src/lib/blob/**` (gateways) | domain, `lib/errors`, `lib/env` | `lib/db`, services, `next/*`, `react` |
 | `src/lib/inflation/**` | `src/lib/domain` only | everything else (db, ai, blob, services, next, react) |
 | `src/lib/domain/**` | nothing (TS/JS stdlib only) | every other project module |
-| `src/lib/offline/**` (client) | domain, `dexie` | `lib/db`, services, gateways, server-only modules |
+| `src/lib/offline/**` (client) | domain, `dexie`, `dexie-react-hooks` | `lib/db`, services, gateways, server-only modules, `next/*` (the sync engine also runs inside `src/app/sw.ts`) |
 | `src/components/**` | domain, `lib/i18n` navigation, `motion`, other components | `lib/db`, repositories, services, gateways, `lib/env` |
 | `src/lib/auth/**` | `lib/db` (adapter needs it), `lib/env` | services, components |
 
@@ -528,6 +530,8 @@ segnaprezzi/
 │   │   └── api/                # Only the three handlers in §1.10.
 │   ├── components/
 │   │   ├── ui/                 # Primitives (button, sheet, field, input, chip, toast, tab-bar, fab…).
+│   │   ├── pwa/               # sw-provider, sw-registration, sw-update-toast, install-sheet,
+│   │   │                       #   ios-install-sheet, install-row. Client-only.
 │   │   ├── charts/             # Hand-rolled SVG: area-chart, category-bars, sparkline, trend-badge,
 │   │   │                       #   number-ticker + scale.ts (pure, tested).
 │   │   ├── capture/            # camera-view, photo-tray, extraction-card, match-picker, store-picker-sheet.
@@ -634,14 +638,14 @@ are listed now and marked; do not invent different names for them.
 | Script | Command | Since | When to use |
 |---|---|---|---|
 | `dev` | `next dev` | Spec 01 | Daily development. Serwist is disabled here (§4.3). |
-| `build` | `next build` | Spec 01 | Production build; also the only way to build the service worker. |
+| `build` | `next build --webpack` | Spec 01 | Production build; also the only way to build the service worker. **The `--webpack` flag is load-bearing** — see §4.39. |
 | `start` | `next start` | Spec 01 | Serve the production build locally (PWA testing). |
 | `lint` | `biome check .` | Spec 01 | CI + pre-commit check. Formatting AND lint in one pass. |
 | `lint:fix` | `biome check --write .` | Spec 01 | Auto-fix before committing. Run it, don't hand-format. |
 | `typecheck` | `tsc --noEmit` | Spec 01 | Always run before declaring a task done; `next build` alone is not the type gate. |
 | `test` | `vitest run` | Spec 01 | Full unit/integration suite, single pass (CI mode). |
 | `test:watch` | `vitest` | Spec 01 | TDD loop while implementing (essential for Spec 04). |
-| `test:e2e` | `playwright test` | Spec 01 | Critical-path E2E + axe. Two projects (`mobile`, `desktop`); `PORT=3100 pnpm test:e2e` when :3000 is taken (§4.32). |
+| `test:e2e` | `playwright test` | Spec 01 | Critical-path E2E + axe. Four projects (`mobile`, `desktop`, `offline-queue`, `pwa`); runs `pnpm build && pnpm start` itself (§4.41). `PORT=3100 pnpm test:e2e` when :3000 is taken (§4.32). |
 | `db:generate` | `drizzle-kit generate` | Spec 02 | After every schema change: emits SQL migration into `drizzle/`. |
 | `db:migrate` | `drizzle-kit migrate` | Spec 02 | Apply pending migrations to the DB in `TURSO_DATABASE_URL`. |
 | `db:studio` | `drizzle-kit studio` | Spec 02 | Browse/edit data in a local GUI while debugging. |
@@ -724,9 +728,9 @@ The Better Auth CLI writes Drizzle table definitions (`users`, `sessions`,
 create migrations. Skipping the follow-up `pnpm db:generate` leaves the DB
 without auth tables and every auth call failing with a table-not-found error.
 
-**4.3 Serwist is disabled in dev.** The Serwist plugin sets
-`disable: process.env.NODE_ENV === "development"`. `pnpm dev` serves no
-service worker — offline behavior, caching, and the install prompt can only be
+**4.3 Serwist is disabled in dev — and needs `--webpack` in prod (§4.39).**
+The Serwist plugin sets `disable: process.env.NODE_ENV === "development"`.
+`pnpm dev` serves no service worker — offline behavior, caching, and the install prompt can only be
 tested with `pnpm build && pnpm start`. Do not "fix" offline bugs against the
 dev server; you are testing nothing. After testing SW changes, bump nothing
 manually — Serwist handles SW versioning from the build.
@@ -808,9 +812,13 @@ when no `theme`/locale cookie is set. Playwright's default browser context
 locale follows the host OS/CI runner, which is often `en-US` — that then
 outranks the app's Italian default at `/`, and
 `tests/e2e/smoke.spec.ts`'s Italian-heading assertion fails nondeterministically.
-Fix: `playwright.config.ts` → `projects[].use.locale = 'it-IT'`. Any new
-Playwright project added later (WebKit in Spec 06; the `desktop` project of
-Spec 05 already does) needs the same explicit locale.
+Fix: `playwright.config.ts` → `projects[].use.locale = 'it-IT'`. Every
+project needs it; the three phone-shaped ones (`mobile`, `offline-queue`,
+`pwa`) share one `mobileDevice` literal that pins it once. Spec 06 planned a
+WebKit project for iOS PWA checks and did not add one — Playwright's WebKit
+is not Safari, so it cannot answer the questions that matter there
+(`beforeinstallprompt` absence, the 7-day storage eviction, the real share
+sheet); those stay owner checks on a real device.
 
 **4.15 SQLite's `RESTRICT` FK action is not deferred to end-of-statement —
 never use it when a cascading delete elsewhere can touch the same row
@@ -888,14 +896,13 @@ session, not just anonymous sign-in/sign-up.
 
 **4.20 Next.js dev (Turbopack) can return a truncated response when several
 Playwright workers race to be the first request to compile a route.**
-Several E2E tests requesting `/` and `/en` as their very first action,
-started by parallel workers at once, intermittently produced "Unexpected
-end of JSON input" server-side instead of queuing behind the first compile
-(reproduced twice, on different routes each time). `tests/e2e/global-setup.ts`
-now does one serial warm-up `page.request.get()` per route before the
-parallel run starts — stable across repeated runs since. Add a warm-up call
-there for any new top-level route a future spec's E2E suite hits from
-multiple parallel tests.
+Reproduced twice on different routes ("Unexpected end of JSON input"
+server-side). Largely historical since Spec 06: the E2E suite runs against a
+production build where nothing compiles on demand (§4.41). The serial
+warm-up pass in `tests/e2e/global-setup.ts` was kept — it still warms the
+server's module graph and the DB connection — but it is no longer load
+bearing, and a new route does not have to be added to it. The hazard itself
+remains for anything else that drives `next dev` from parallel clients.
 
 **4.21 Node's `--env-file` throws if the file is missing — CI has no
 `.env.local`, so any `tsx --env-file=...` script fails there.** Caught by
@@ -998,10 +1005,12 @@ session lost two lint rounds to this before the pattern was clear.
 Auth must agree.** `next dev` silently moves to :3001 when :3000 is taken by
 another project, while `playwright.config.ts` kept pointing at :3000 —
 `reuseExistingServer` then runs the suite against the *other* app. The config
-now reads `PORT` (`PORT=3001 pnpm test:e2e`, `pnpm dev --port 3001`). On a
-non-default port, start the dev server with `BETTER_AUTH_URL` set to that
-origin too, or sign-out (which enforces trusted origins) 403s and the auth
-suite fails for a reason that has nothing to do with the code.
+now reads `PORT` (`PORT=3001 pnpm test:e2e`) and, since Spec 06, starts its
+own server and passes `BETTER_AUTH_URL` to it, so the origin can no longer
+drift from the port. Outside Playwright the rule still stands: on a
+non-default port start the server with `BETTER_AUTH_URL` set to that origin,
+or sign-out (which enforces trusted origins) 403s and the failure looks like
+an auth bug that isn't one.
 
 **4.33 axe measures contrast on rendered pixels — let the 150 ms route
 cross-fade finish first.** The a11y suite reported `color-contrast` failures
@@ -1044,6 +1053,86 @@ with the Write tool, make edits with short Python one-liners, and split
 multi-file documentation edits into several calls. Cost the Spec 04 session two
 false starts before the pattern was clear.
 
+**4.39 `next build` emits no service worker under Turbopack, and does not
+fail.** Next.js 16 builds with Turbopack by default; `@serwist/next` is a
+webpack plugin, so it never runs, `public/sw.js` is never written, and the
+build reports success — the only sign is one warning on stderr among Next's
+own output. `package.json`'s `build` script is therefore
+`next build --webpack`. `pnpm dev` is unaffected: Serwist disables itself in
+development, and the warning only fires when it is enabled. When Next drops
+webpack support, migrate to `@serwist/turbopack` or Serwist's configurator
+mode (`@serwist/next/config` + `@serwist/cli`), not back to a silent no-op.
+
+**4.40 `@serwist/next`'s precache manifest contains no HTML of ours.** It
+globs the build output, which for the App Router is `/_next/static/**` — every
+page is server-rendered. Spec 06's `fallbacks.entries` therefore pointed at
+`/offline` and `/en/offline` URLs that were never precached, and an offline
+navigation failed with `ERR_FAILED` instead of rendering the fallback (the
+`PrecacheFallbackPlugin` is attached correctly; `matchPrecache` simply found
+nothing). Fix: `additionalPrecacheEntries` in `next.config.ts`, one entry per
+locale, with a `randomUUID()` revision minted per build so an updated worker
+re-fetches them. Adding a locale means adding an entry there *and* in
+`src/app/sw.ts`'s `fallbacks` list.
+
+**4.41 The whole E2E suite runs against a production build, and a dev server
+must not run beside it.** The service worker exists only in a production
+build, so `playwright.config.ts`'s single `webServer` is
+`pnpm build && pnpm start`. Two Next processes sharing one `.next` directory
+corrupt each other's generated types — a dev server running during a build
+produced a `.next/dev/types/root-params.d.ts` with a stray brace and the build
+then failed to type-check. The pre-existing `mobile` and `desktop` projects
+set `serviceWorkers: 'block'` so a real worker never changes what they
+measure.
+
+**4.42 Better Auth's rate limiter is on whenever `NODE_ENV === 'production'`,
+and `/sign-in*` + `/sign-up*` allow 3 requests per 10 s per IP.** Every
+Playwright worker is the same IP, so moving the suite onto a production server
+made `global-setup`'s two logins plus a signup, and then the signup tests,
+trip it. Do **not** disable the limiter for tests — it is the app's only
+brute-force defence. `tests/e2e/helpers/auth.ts` waits out a 429 using its
+`Retry-After` header (the limiter does not extend the window on a rejected
+request, so one wait is enough).
+
+**4.43 In Vitest, fake `Date` only — never the timers — around Dexie.**
+fake-indexeddb drives itself on real macrotasks, so `vi.useFakeTimers()` with
+its default `toFake` list deadlocks Dexie mid-transaction.
+`vi.useFakeTimers({ toFake: ['Date'] })` freezes the clock instead, which is
+what makes `nextAttemptAt` assertions exact; advance it with
+`vi.setSystemTime()` and drain again rather than waiting on the engine's own
+timer. Corollary: do not use `vi.waitFor()` in such a test — with fake timers
+installed it advances them, and the frozen clock drifts by its 50 ms polling
+interval (this cost one confusing "expected …408000, got …408050").
+
+**4.44 happy-dom's `FormData` rejects a Blob that has been through
+IndexedDB.** happy-dom installs its own `Blob`/`FormData` classes, but a Blob
+stored in fake-indexeddb comes back as Node's (structuredClone knows nothing
+about happy-dom), and `FormData.append` then throws "parameter 2 is not of
+type Blob". `src/lib/offline/sync.test.ts` runs in the `node` environment with
+three hand-made globals — an EventTarget `window`, an EventTarget `document`
+with a `visibilityState`, and a `navigator` whose `onLine` the test controls.
+
+**4.45 `serwist` already declares the Background Sync `SyncEvent`.** Adding a
+local `interface BackgroundSyncEvent` to `ServiceWorkerGlobalScopeEventMap`
+is a TS2717 "subsequent property declarations must have the same type" error.
+Write `self.addEventListener('sync', (event) => …)` and read `event.tag`.
+
+**4.46 A Serwist fallback matcher receives the failed request, not a parsed
+URL.** Its parameter is `HandlerDidErrorCallbackParam` (`request`, `error`,
+`event`) — no `url`, unlike a `runtimeCaching` matcher. Parse it yourself:
+`const { pathname } = new URL(request.url)`.
+
+**4.47 Lighthouse 12 has removed the PWA category and the
+`installable-manifest` audit.** `--only-audits=installable-manifest` returns
+an empty `audits` object rather than an error. Installability is asserted in
+`tests/e2e/pwa.spec.ts` instead (manifest contract, every icon served,
+`/sw.js` served, an offline navigation answered by the fallback).
+
+**4.48 `src/app/favicon.ico` and `public/favicon.ico` cannot coexist.** Both
+claim `/favicon.ico` and Next fails the build with a conflicting-public-file
+error. Spec 06's icon pipeline writes the `public/` one, so the App Router
+convention file was deleted; `generateMetadata` declares `/favicon.ico`
+explicitly.
+
 ---
 
 ## 5. Spec-Driven Workflow
@@ -1058,7 +1147,7 @@ false starts before the pattern was clear.
 | 03 | `docs/specs/03-capture-ai.md` | Camera capture, `/api/extract`, Blob upload, Claude Haiku extraction, review flow, product matching. |
 | 04 | `docs/specs/04-inflation-engine.md` | Pure index engine: bucketing, carry-forward, Jevons, weighting, chaining, ISTAT comparison, exhaustive tests. |
 | 05 | `docs/specs/05-ui-design.md` | Full design system + all screens; produced `DESIGN.md` (implemented 2026-08-21). |
-| 06 | `docs/specs/06-pwa-offline.md` | Serwist, IndexedDB queue, sync manager, install experience, icons. |
+| 06 | `docs/specs/06-pwa-offline.md` | Serwist, IndexedDB queue, sync manager, install experience, icons. **Implemented 2026-08-21.** |
 | 07 | `docs/specs/07-receipt-import.md` | Digital receipt → per-line extraction, catalog aliases, review, `source='receipt'` entries. |
 | 08 | `docs/specs/08-go-live.md` | Operations: Turso + Vercel + Blob + Anthropic provisioning, preview/production scope matrix, first live collaudo, runbook. |
 

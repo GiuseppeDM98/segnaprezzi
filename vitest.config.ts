@@ -33,6 +33,9 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
+          // Spec 06: the offline modules need an IndexedDB. Files that also
+          // need a DOM opt into happy-dom with a @vitest-environment docblock.
+          setupFiles: ['./vitest.setup.ts'],
         },
       },
       {
@@ -41,6 +44,7 @@ export default defineConfig({
           name: 'components',
           environment: 'happy-dom',
           include: ['src/**/*.test.tsx'],
+          setupFiles: ['./vitest.setup.ts'],
         },
       },
     ],
