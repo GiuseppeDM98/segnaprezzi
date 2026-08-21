@@ -52,7 +52,12 @@
     "signup": "Registrati",
     "email": "Email",
     "password": "Password",
-    "logout": "Esci"
+    "name": "Nome",
+    "logout": "Esci",
+    "submit": "Invia",
+    "signupClosed": "Le registrazioni sono al momento chiuse.",
+    "invalidEmail": "Inserisci un indirizzo email valido",
+    "passwordTooShort": "La password deve avere almeno 8 caratteri"
   },
   "errors": {
     "NOT_FOUND": "Elemento non trovato",

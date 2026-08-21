@@ -1,0 +1,104 @@
+'use client';
+
+import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { z } from 'zod';
+
+import { authClient } from '@/lib/auth/client';
+import { useRouter } from '@/lib/i18n/navigation';
+
+const signupSchema = z.object({
+  name: z.string().min(1),
+  email: z.email(),
+  password: z.string().min(8),
+});
+
+export function SignupForm() {
+  const t = useTranslations('auth');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirectTo') || '/';
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+
+    const parsed = signupSchema.safeParse({ name, email, password });
+    if (!parsed.success) {
+      setError(t('invalidEmail'));
+      return;
+    }
+
+    setIsSubmitting(true);
+    const { error: signUpError } = await authClient.signUp.email({
+      name: parsed.data.name,
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
+    setIsSubmitting(false);
+
+    if (signUpError) {
+      setError(signUpError.message ?? t('invalidEmail'));
+      return;
+    }
+
+    router.push(redirectTo);
+  }
+
+  return (
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6">
+      <h1 className="font-semibold text-2xl">{t('signup')}</h1>
+      <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-3">
+        <label className="flex flex-col gap-1">
+          {t('name')}
+          <input
+            type="text"
+            name="name"
+            required
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="rounded border p-2"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          {t('email')}
+          <input
+            type="email"
+            name="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="rounded border p-2"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          {t('password')}
+          <input
+            type="password"
+            name="password"
+            required
+            minLength={8}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="rounded border p-2"
+          />
+        </label>
+        {error && (
+          <p role="alert" className="text-red-600 text-sm">
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={isSubmitting} className="rounded border p-2">
+          {t('submit')}
+        </button>
+      </form>
+    </main>
+  );
+}

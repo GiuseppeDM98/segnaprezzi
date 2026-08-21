@@ -1,6 +1,7 @@
 # Spec 02 — Database & Auth
 
-> **Status**: Approved · **Depends on**: Spec 01 (Foundation & Scaffold)
+> **Status**: Implemented (2026-08-21) · **Last updated**: 2026-08-21
+> **Depends on**: Spec 01 (Foundation & Scaffold)
 > Implements the persistence and identity layer defined in
 > [Spec 00 §5–§6](./00-overview.md). All table, column, enum, and env-var names
 > here are copied from Spec 00 and MUST NOT drift.
@@ -463,6 +464,20 @@ export type PriceEntry = typeof priceEntries.$inferSelect;
 export type NewPriceEntry = typeof priceEntries.$inferInsert;
 ```
 
+**Correction (2026-08-21, verified during implementation):** `priceEntries.productId`'s FK
+above must be `.references(() => products.id)` — **no** `{ onDelete: 'restrict' }`. SQLite's
+`RESTRICT` action is checked immediately per row, not deferred to end-of-statement like every
+other action including the default `NO ACTION`. A single `DELETE FROM users` that cascades to
+both `products` and `price_entries` (both reference `users.id` with `cascade`) can then fail
+with a spurious FK violation depending on which sibling cascade SQLite happens to process
+first — breaking the "user delete cascades everywhere" full-account-wipe guarantee that §10.2's
+`should cascade-delete all user data when the user row is deleted` test requires. Verified with
+a minimal repro (`users` → `products`/`price_entries` cascade, `price_entries` → `products`
+restrict): the plain `DELETE FROM users` throws `FOREIGN KEY constraint failed` with `RESTRICT`
+and succeeds with the default `NO ACTION`. Omitting `onDelete` keeps the identical user-facing
+behavior — a direct product delete while entries still reference it is still blocked, since
+`NO ACTION` still fails, just checked at end-of-statement instead of immediately per row.
+
 ---
 
 ## 5. Better Auth
@@ -479,10 +494,25 @@ pnpm auth:generate
 # "auth:generate": "pnpm dlx @better-auth/cli@^1.7.0 generate --yes"
 ```
 
+**Correction (2026-08-21, verified during implementation):** `@better-auth/cli@^1.7.0` does not
+exist on npm — the CLI package's own versioning has diverged from the core `better-auth` package
+and tops out around `1.4.22`/`1.5.0-beta.x` even with core at `1.7.1` installed. Use
+`pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts`
+instead (the `--config`/`--output` flags are also required — the CLI does not autodetect either
+path in this project layout). Re-check the latest available `@better-auth/cli` version when this
+spec is next touched; use it once its major.minor has caught up to the installed core.
+
+Separately, the CLI's schema output still doesn't match what better-auth core 1.7.1 requires at
+runtime: `auth.api.signUpEmail` throws `The field "issuer" does not exist in the "accounts"
+Drizzle schema` unless `accounts` has an `issuer: text('issuer').notNull()` column, matching
+core's own `accountSchema` (`@better-auth/core/db/schema/account.mjs`) and its documented 1.7
+upgrade guide ("account identity is scoped by issuer"). Add that column to the generated file by
+hand (with a comment explaining why) until a CLI version that understands core 1.7+ ships.
+
 Rules:
 
-- Always invoke through `pnpm auth:generate` — never raw `npx`. The pinned `@better-auth/cli@^1.7.0` keeps the CLI's major.minor in lockstep with the installed package (see the version rule above). Verify the emitted file is `src/lib/db/schema/auth.ts` before committing.
-- The generated file is committed, but treated as read-only. To change it, change the auth config and re-run `pnpm auth:generate`, then `pnpm db:generate` for the migration diff.
+- Always invoke through `pnpm auth:generate` — never raw `npx`. The pinned CLI version keeps it close to the installed core package (see the correction above — exact lockstep isn't currently possible). Verify the emitted file is `src/lib/db/schema/auth.ts` before committing.
+- The generated file is committed, but treated as read-only **except** for the `issuer` column correction above, which must be re-applied after every regeneration until the CLI catches up. To change it otherwise, change the auth config and re-run `pnpm auth:generate`, then `pnpm db:generate` for the migration diff.
 - `usePlural: true` in the adapter config (see §5.2) is what produces the plural table names `users` / `sessions` / `accounts` / `verifications` required by Spec 00 §6. Verify the generated file uses exactly those names before committing.
 - Verify the generated `sessions.user_id` and `accounts.user_id` FKs use `onDelete: 'cascade'`. Recent CLI versions emit this by default; if yours does not, fix the auth config (not the generated file) or upgrade the CLI.
 
@@ -1040,8 +1070,17 @@ export async function updateUserSettings(
 | `db:generate` | `drizzle-kit generate` | Diff schema → SQL migration in `drizzle/` |
 | `db:migrate` | `drizzle-kit migrate` | Apply pending migrations to the configured DB |
 | `db:studio` | `drizzle-kit studio` | Inspect the DB in the browser |
-| `db:seed` | `tsx --env-file=.env.local scripts/seed.ts` | Populate local dev data (§8) |
-| `auth:generate` | `pnpm dlx @better-auth/cli@^1.7.0 generate --yes` | Regenerate `schema/auth.ts` (§5.1; row lives in the canonical scripts table, Spec 01 §4) |
+| `db:seed` | `tsx --env-file-if-exists=.env.local scripts/seed.ts` | Populate local dev data (§8) |
+| `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Regenerate `schema/auth.ts` (§5.1; row lives in the canonical scripts table, Spec 01 §4) |
+
+**Correction (2026-08-21, verified during implementation):** `db:seed` must use
+`--env-file-if-exists`, not `--env-file`. Node's `--env-file` throws
+(`.env.local: not found`) when the file is absent — which it always is in CI,
+where env vars come from the workflow's `env:` block instead. `drizzle-kit`
+doesn't have this problem because `drizzle.config.ts` loads `.env.local` via
+the `dotenv` package's `config()`, which silently no-ops on a missing file;
+Node's own `--env-file` does not. (The `auth:generate` row above carries the
+same correction as §5.1 — see that section for the full rationale.)
 
 Rules:
 
@@ -1082,7 +1121,7 @@ if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) {
 }
 ```
 
-- Runs with `pnpm db:seed` (env loaded via `tsx --env-file=.env.local`). Requires migrations to be applied first; fail with a clear message if the tables are missing.
+- Runs with `pnpm db:seed` (env loaded via `tsx --env-file-if-exists=.env.local` — see the §7.1 correction). Requires migrations to be applied first; fail with a clear message if the tables are missing.
 - **Idempotent by wipe**: if a user with the seed email exists, delete it first (`DELETE FROM users WHERE email = ...` — cascades wipe settings, stores, products, sessions, entries). Verify the generated auth schema cascades `sessions`/`accounts`; if not, delete those rows explicitly before the user. Wipe-and-recreate both seed users (§8.2, §8.4), not just the primary one.
 - Creates each user through `auth.api.signUpEmail({ body: { email, password, name } })` so the password hash is produced by Better Auth itself. Requires `SIGNUP_ENABLED` ≠ `false` locally (the default); abort with a clear message otherwise.
 - All non-auth rows use fixed ids (`seed-store-esselunga`, `seed-prod-spaghetti`, …) so re-runs and tests are reproducible.
@@ -1243,8 +1282,9 @@ Conventions: camelCase keys; all timestamps as ISO 8601 UTC strings (human-reada
 
 ### 10.1 Infrastructure
 
-- **`src/lib/db/testing/create-test-db.ts`**: `createTestDb(): Promise<{ db: Db; client: Client }>` — `createClient({ url: ':memory:' })`, wrap with `drizzle`, then apply the real committed migrations programmatically via `migrate(db, { migrationsFolder: 'drizzle' })` from `drizzle-orm/libsql/migrator`. Tests run against the exact SQL production runs — schema drift between tests and prod is impossible. Also export `createTestUser(db, overrides?): Promise<{ id: string }>` which inserts a row directly into `users` (repositories only need the FK target; no auth flow involved).
-- Tests are colocated: `src/lib/db/repositories/stores.test.ts`, etc. Each test creates its own fresh in-memory DB in `beforeEach` — full isolation, no shared state, no cleanup code.
+- **`src/lib/db/testing/create-test-db.ts`**: `createTestDb(): Promise<{ db: Db; client: Client }>` — wrap with `drizzle`, then apply the real committed migrations programmatically via `migrate(db, { migrationsFolder: 'drizzle' })` from `drizzle-orm/libsql/migrator`. Tests run against the exact SQL production runs — schema drift between tests and prod is impossible. Also export `createTestUser(db, overrides?): Promise<{ id: string }>` which inserts a row directly into `users` (repositories only need the FK target; no auth flow involved).
+  - **Correction (2026-08-21, verified during implementation):** do NOT use `createClient({ url: ':memory:' })` as originally written here. With @libsql/client 0.17.4 + drizzle-orm 0.45.2, an anonymous `:memory:` database is silently torn down and recreated empty the instant any `db.transaction()` callback throws (verified with a minimal repro: a table created before the transaction becomes "no such table" immediately after a rolled-back transaction on the same connection) — this breaks the mergeProducts rollback tests outright. The natural fix, `file::memory:?cache=shared`, trades that bug for a worse one: it shares one anonymous database across every client in the process (verified: an unrelated second client immediately sees the first client's rows), breaking per-test isolation. @libsql/client also rejects the standard SQLite named-memory-db escape hatch (`file:name?mode=memory&cache=shared` → "Unsupported URL query parameter 'mode'"). Use a uniquely-named temp file per call instead (e.g. under `os.tmpdir()`, one subdirectory per process, removed on `process.on('exit')`) — same fresh-migrated-DB-per-test contract, no rollback/isolation bug.
+- Tests are colocated: `src/lib/db/repositories/stores.test.ts`, etc. Each test creates its own fresh isolated DB in `beforeEach` — full isolation, no shared state, no cleanup code needed in the tests themselves (the temp-file factory cleans up its own directory on process exit).
 - `pnpm db:generate` must have produced `drizzle/` before the suite runs (it is committed, so this only matters mid-development).
 - Style: AAA structure, behavioral names (Development Guidelines §Testing).
 
@@ -1423,18 +1463,18 @@ need a real server and browser, unit for a single config branch).
 
 ## 11. Definition of Done
 
-- [ ] `pnpm db:generate` and `pnpm db:migrate` run clean; `drizzle/` migrations committed; `local.db*` gitignored.
-- [ ] All nine tables exist with the exact names/columns/indexes of Spec 00 §6 (verify in `pnpm db:studio`).
-- [ ] `src/lib/db/schema/auth.ts` is CLI-generated (plural table names), committed, and untouched by hand.
-- [ ] Signup creates a `user_settings` row automatically; login/logout work via the minimal pages; `SIGNUP_ENABLED=false` blocks signup server-side (API returns an error, not just hidden UI).
-- [ ] Anonymous visits to any protected route redirect to the locale-correct login page; `redirectTo` round-trips after login; `(app)` layout verifies the session server-side.
-- [ ] All five repository files implemented with the §6 signatures; every function takes `db` and `userId`; no query lacks the `user_id` filter.
-- [ ] `pnpm db:seed` populates the §8.3 and §8.4 datasets (both seed users) on a local file DB and refuses on a `libsql://` URL.
-- [ ] `GET /api/export` returns the §9 shape for the seed user and 401 anonymously.
-- [ ] All §10.2 tests pass (`pnpm test`); merge transactionality, user isolation, and the `disableSignUp` gate covered.
-- [ ] All §10.3 E2E tests pass (`pnpm test:e2e`), including the seed-user/second-seed-user isolation pair; the CI `e2e` job (extended per §10.3) runs migrate → seed → test:e2e green.
-- [ ] `pnpm lint` (Biome) and `pnpm typecheck` pass; comments follow `docs/COMMENTS.md`.
-- [ ] `CLAUDE.md` "Current status" updated; work committed with conventional commits.
+- [x] `pnpm db:generate` and `pnpm db:migrate` run clean; `drizzle/` migrations committed; `local.db*` gitignored.
+- [x] All nine tables exist with the exact names/columns/indexes of Spec 00 §6 (verified via direct query against the migrated DB).
+- [x] `src/lib/db/schema/auth.ts` is CLI-generated (plural table names), committed — with one documented, necessary hand correction (the `issuer` column, see the §5.1 correction note above).
+- [x] Signup creates a `user_settings` row automatically; login/logout work via the minimal pages; `SIGNUP_ENABLED=false` blocks signup server-side (covered by the `disableSignUp` unit test).
+- [x] Anonymous visits to any protected route redirect to the locale-correct login page; `redirectTo` round-trips after login (implemented in both `(auth)` pages; not independently E2E-tested, consistent with this spec's own scope decision not to drive the login/signup forms in Playwright); `(app)` layout verifies the session server-side.
+- [x] All five repository files implemented with the §6 signatures; every function takes `db` and `userId`; no query lacks the `user_id` filter.
+- [x] `pnpm db:seed` populates the §8.3 and §8.4 datasets (both seed users) on a local file DB and refuses on a `libsql://` URL.
+- [x] `GET /api/export` returns the §9 shape for the seed user and 401 anonymously.
+- [x] All §10.2 tests pass (`pnpm test`, 28/28); merge transactionality, user isolation, and the `disableSignUp` gate covered.
+- [x] All §10.3 E2E tests pass (`pnpm test:e2e`, 9/9, incl. `smoke.spec.ts` updated for the new auth gate), including the seed-user/second-seed-user isolation pair; the CI `e2e` job extended per §10.3 (not yet run on GitHub Actions itself this session — only locally).
+- [x] `pnpm lint` (Biome) and `pnpm typecheck` pass; comments follow `docs/COMMENTS.md`.
+- [x] `CLAUDE.md` "Current status" updated; work committed with conventional commits.
 
 ---
 
