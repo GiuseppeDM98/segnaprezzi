@@ -3,7 +3,7 @@
  * userId — see the security rule in §6.1: no cross-user read or write is
  * representable through this layer.
  */
-import { and, desc, eq, inArray, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 
 import type { Db, DbTransaction } from '@/lib/db/client';
 import {
@@ -176,4 +176,49 @@ export async function isShoppingSessionIdTaken(
     .where(eq(shoppingSessions.id, sessionId))
     .limit(1);
   return rows.length > 0;
+}
+
+/**
+ * Insert-or-update sessions by id for the backup import (Spec 05 §5.10);
+ * foreign ids are skipped by the user_id guard.
+ */
+export async function upsertShoppingSessions(
+  db: Db | DbTransaction,
+  userId: string,
+  inputs: Array<{
+    id: string;
+    storeId: string | null;
+    status: ShoppingSession['status'];
+    startedAt: Date;
+    completedAt: Date | null;
+  }>,
+): Promise<void> {
+  if (inputs.length === 0) {
+    return;
+  }
+  await db
+    .insert(shoppingSessions)
+    .values(inputs.map((input) => ({ ...input, userId })))
+    .onConflictDoUpdate({
+      target: shoppingSessions.id,
+      set: {
+        storeId: sql`excluded.store_id`,
+        status: sql`excluded.status`,
+        startedAt: sql`excluded.started_at`,
+        completedAt: sql`excluded.completed_at`,
+      },
+      setWhere: eq(shoppingSessions.userId, userId),
+    });
+}
+
+/** Ids of every session of the user, for import integrity checks. */
+export async function listShoppingSessionIds(
+  db: Db | DbTransaction,
+  userId: string,
+): Promise<Set<string>> {
+  const rows = await db
+    .select({ id: shoppingSessions.id })
+    .from(shoppingSessions)
+    .where(eq(shoppingSessions.userId, userId));
+  return new Set(rows.map((row) => row.id));
 }

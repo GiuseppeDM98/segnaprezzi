@@ -3,7 +3,7 @@
  * userId — see the security rule in §6.1: no cross-user read or write is
  * representable through this layer.
  */
-import { and, asc, desc, eq, gte, lt, lte, or } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, lt, lte, or, sql } from 'drizzle-orm';
 
 import type { Db, DbTransaction } from '@/lib/db/client';
 import {
@@ -12,8 +12,11 @@ import {
   type Product,
   priceEntries,
   products,
+  type Store,
+  stores,
 } from '@/lib/db/schema/app';
 import type { CategoryId } from '@/lib/domain/categories';
+import type { EntrySource } from '@/lib/domain/entries';
 import { ValidationError } from '@/lib/errors';
 import type { IndexEntry } from '@/lib/inflation/types';
 
@@ -104,6 +107,9 @@ export interface ListPriceEntriesOptions {
   recordedFrom?: Date;
   /** Inclusive upper bound on recorded_at. */
   recordedTo?: Date;
+  /** Only promo (true) or only full-price (false) observations. */
+  isPromo?: boolean;
+  source?: EntrySource;
   /** Opaque cursor from a previous page's nextCursor. */
   cursor?: string;
   /** Page size; default 50, clamped to [1, 100]. */
@@ -112,6 +118,8 @@ export interface ListPriceEntriesOptions {
 
 export interface PriceEntryWithProduct extends PriceEntry {
   product: Pick<Product, 'id' | 'name' | 'brand' | 'category' | 'unitKind'>;
+  /** The store summary, or null for generic purchases / deleted stores. */
+  store: Pick<Store, 'id' | 'name'> | null;
 }
 
 export interface PriceEntriesPage {
@@ -177,6 +185,12 @@ export async function listPriceEntries(
   if (options.recordedTo) {
     conditions.push(lte(priceEntries.recordedAt, options.recordedTo));
   }
+  if (options.isPromo !== undefined) {
+    conditions.push(eq(priceEntries.isPromo, options.isPromo));
+  }
+  if (options.source) {
+    conditions.push(eq(priceEntries.source, options.source));
+  }
   if (options.cursor) {
     const { ms, id } = decodePriceEntriesCursor(options.cursor);
     const cursorDate = new Date(ms);
@@ -201,11 +215,15 @@ export async function listPriceEntries(
         category: products.category,
         unitKind: products.unitKind,
       },
+      storeId: stores.id,
+      storeName: stores.name,
     })
     .from(priceEntries)
     // Defense in depth: both the FK join and products.userId are checked,
     // so a category filter can never leak another user's product metadata.
     .innerJoin(products, and(eq(priceEntries.productId, products.id), eq(products.userId, userId)))
+    // The store is optional (generic purchases) and user-scoped the same way.
+    .leftJoin(stores, and(eq(priceEntries.storeId, stores.id), eq(stores.userId, userId)))
     .where(and(...conditions))
     .orderBy(desc(priceEntries.recordedAt), desc(priceEntries.id))
     .limit(limit + 1);
@@ -215,7 +233,11 @@ export async function listPriceEntries(
   const lastRow = page.at(-1);
 
   return {
-    entries: page.map((row) => ({ ...row.entry, product: row.product })),
+    entries: page.map((row) => ({
+      ...row.entry,
+      product: row.product,
+      store: row.storeId && row.storeName ? { id: row.storeId, name: row.storeName } : null,
+    })),
     nextCursor:
       hasMore && lastRow
         ? encodePriceEntriesCursor(lastRow.entry.recordedAt, lastRow.entry.id)
@@ -327,4 +349,154 @@ export async function listProductIdsWithEntriesAtStoreSince(
       ),
     );
   return rows.map((row) => row.productId);
+}
+
+export interface LatestProductEntry {
+  productId: string;
+  /** 1 = the newest observation of the product, 2 = the one before it. */
+  rank: number;
+  unitPriceMilli: number;
+  recordedAt: Date;
+}
+
+/**
+ * The newest `perProduct` observations of every product of the user, as
+ * flat rows ordered by product then rank (Spec 05 §5.6: the catalog shows
+ * the last unit price and a trend badge against the previous one).
+ *
+ * Why a window function rather than a correlated subquery per product: the
+ * catalog lists the whole catalog at once, and one ROW_NUMBER() scan over
+ * (user_id, product_id, recorded_at) — the composite index — is the only
+ * way to stay at a single query regardless of catalog size.
+ */
+export async function listLatestEntriesPerProduct(
+  db: Db,
+  userId: string,
+  perProduct = 2,
+): Promise<LatestProductEntry[]> {
+  const ranked = db
+    .select({
+      productId: priceEntries.productId,
+      unitPriceMilli: priceEntries.unitPriceMilli,
+      recordedAt: priceEntries.recordedAt,
+      rank: sql<number>`row_number() over (partition by ${priceEntries.productId} order by ${priceEntries.recordedAt} desc, ${priceEntries.id} desc)`.as(
+        'rank',
+      ),
+    })
+    .from(priceEntries)
+    .where(eq(priceEntries.userId, userId))
+    .as('ranked');
+
+  const rows = await db
+    .select({
+      productId: ranked.productId,
+      rank: ranked.rank,
+      unitPriceMilli: ranked.unitPriceMilli,
+      recordedAt: ranked.recordedAt,
+    })
+    .from(ranked)
+    .where(lte(ranked.rank, perProduct))
+    .orderBy(asc(ranked.productId), asc(ranked.rank));
+
+  return rows.map((row) => ({
+    ...row,
+    rank: Number(row.rank),
+    recordedAt: row.recordedAt instanceof Date ? row.recordedAt : new Date(Number(row.recordedAt)),
+  }));
+}
+
+/** Number of observations per store, keyed by store id (stores with none are absent). */
+export async function countPriceEntriesByStore(
+  db: Db,
+  userId: string,
+): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ storeId: priceEntries.storeId, total: count() })
+    .from(priceEntries)
+    .where(eq(priceEntries.userId, userId))
+    .groupBy(priceEntries.storeId);
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.storeId) {
+      counts.set(row.storeId, Number(row.total));
+    }
+  }
+  return counts;
+}
+
+/**
+ * Every observation of one product, newest first, with the store name —
+ * the product detail screen (Spec 05 §5.7) needs the whole history for its
+ * chart, stats and per-store comparison. Deliberately unpaginated: a single
+ * product accumulates tens of entries a year, not thousands.
+ */
+export async function listPriceEntriesForProduct(
+  db: Db,
+  userId: string,
+  productId: string,
+): Promise<PriceEntryWithProduct[]> {
+  const rows = await db
+    .select({
+      entry: priceEntries,
+      product: {
+        id: products.id,
+        name: products.name,
+        brand: products.brand,
+        category: products.category,
+        unitKind: products.unitKind,
+      },
+      storeId: stores.id,
+      storeName: stores.name,
+    })
+    .from(priceEntries)
+    .innerJoin(products, and(eq(priceEntries.productId, products.id), eq(products.userId, userId)))
+    .leftJoin(stores, and(eq(priceEntries.storeId, stores.id), eq(stores.userId, userId)))
+    .where(and(eq(priceEntries.userId, userId), eq(priceEntries.productId, productId)))
+    .orderBy(desc(priceEntries.recordedAt), desc(priceEntries.id));
+
+  return rows.map((row) => ({
+    ...row.entry,
+    product: row.product,
+    store: row.storeId && row.storeName ? { id: row.storeId, name: row.storeName } : null,
+  }));
+}
+
+/**
+ * Insert-or-update entries by id for the backup import (Spec 05 §5.10);
+ * foreign ids are skipped by the user_id guard. Callers must have verified
+ * that product/store/session references belong to the user first — the FK
+ * only checks existence, not ownership.
+ */
+export async function upsertPriceEntries(
+  db: Db | DbTransaction,
+  userId: string,
+  inputs: CreatePriceEntryWithIdInput[],
+): Promise<void> {
+  if (inputs.length === 0) {
+    return;
+  }
+  await db
+    .insert(priceEntries)
+    .values(inputs.map((input) => ({ ...input, userId })))
+    .onConflictDoUpdate({
+      target: priceEntries.id,
+      set: {
+        productId: sql`excluded.product_id`,
+        storeId: sql`excluded.store_id`,
+        sessionId: sql`excluded.session_id`,
+        recordedAt: sql`excluded.recorded_at`,
+        totalPriceCents: sql`excluded.total_price_cents`,
+        packageSize: sql`excluded.package_size`,
+        unitPriceMilli: sql`excluded.unit_price_milli`,
+        isPromo: sql`excluded.is_promo`,
+        promoKind: sql`excluded.promo_kind`,
+        source: sql`excluded.source`,
+        currency: sql`excluded.currency`,
+        photoUrl: sql`excluded.photo_url`,
+        aiConfidence: sql`excluded.ai_confidence`,
+        aiModel: sql`excluded.ai_model`,
+        aiRawJson: sql`excluded.ai_raw_json`,
+      },
+      setWhere: eq(priceEntries.userId, userId),
+    });
 }

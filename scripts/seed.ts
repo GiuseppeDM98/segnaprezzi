@@ -1,7 +1,10 @@
 /**
  * Deterministic dev seed (Spec 02 §8). Gives Specs 04/05 a realistic
- * four-month dataset (rising prices, promos, fuel) plus a second, minimal
- * user for cross-user isolation testing (§8.4).
+ * fourteen-month dataset (rising prices, promos, fuel, a second supermarket
+ * for per-store comparison) plus a second, minimal user for cross-user
+ * isolation testing (§8.4). Fourteen months, not four: Spec 05's dashboard
+ * leads with the year-over-year headline and a 12-month trend, and both
+ * need thirteen months of series to be real rather than a placeholder.
  *
  * Design: structured as small pure builder functions (buildSeedMonths,
  * buildGroceryEntries, buildFuelEntries) plus one writer that inserts via
@@ -92,10 +95,15 @@ function romeDateTime(ym: YearMonth, day: number, hour: number, minute: number):
   return new Date(Date.UTC(ym.year, ym.month - 1, day, hour, minute) - offsetMinutes * 60_000);
 }
 
-/** The four seed months, oldest first: M-3, M-2, M-1, M0 (current month). */
+/** Number of seeded months: M-13 … M0 (current month). */
+const SEED_MONTH_COUNT = 14;
+
+/** The seed months, oldest first: M-13 … M0 (current month). */
 function buildSeedMonths(): YearMonth[] {
   const current = getCurrentRomeYearMonth();
-  return [3, 2, 1, 0].map((delta) => subtractMonths(current, delta));
+  return Array.from({ length: SEED_MONTH_COUNT }, (_, index) =>
+    subtractMonths(current, SEED_MONTH_COUNT - 1 - index),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +126,17 @@ const STORE_ENI = {
   kind: 'fuel_station' as const,
 };
 
+/** A second supermarket so the per-store comparison (Spec 05 §5.7) has two rows. */
+const STORE_CARREFOUR = {
+  id: seedId('seed-store-carrefour'),
+  name: 'Carrefour Market Corso Genova',
+  chain: 'Carrefour',
+  city: 'Milano',
+  kind: 'supermarket' as const,
+};
+
+type PromoKind = 'discount' | 'loyalty' | 'coupon' | 'bundle';
+
 interface GroceryProductDef {
   id: string;
   name: string;
@@ -125,14 +144,16 @@ interface GroceryProductDef {
   category: (typeof products.$inferInsert)['category'];
   unitKind: (typeof products.$inferInsert)['unitKind'];
   packageSize: number;
-  /** unit_price_milli for [M-3, M-2, M-1, M0]. */
-  prices: [number, number, number, number];
+  /** unit_price_milli for [M-13 … M0], oldest first; the last four match Spec 02 §8.3. */
+  prices: number[];
   /** spaghetti and latte get a second entry on day 18. */
   secondEntryDay18?: boolean;
-  /** Month index (0-3) with a promo entry, and its kind. */
-  promo?: { monthIndex: 0 | 1 | 2 | 3; kind: 'discount' | 'loyalty' | 'coupon' | 'bundle' };
-  /** Month index (0-3) whose entry should be source='photo' instead of 'manual'. */
-  photoMonthIndex?: 0 | 1 | 2 | 3;
+  /** Month indexes (0 = M-13 … 13 = M0) with a promo entry, and their kind. */
+  promos?: Array<{ monthIndex: number; kind: PromoKind }>;
+  /** Month index whose entry should be source='photo' instead of 'manual'. */
+  photoMonthIndex?: number;
+  /** unit_price_milli at Carrefour for [M-1, M0], when the product is also bought there. */
+  carrefourPrices?: [number, number];
 }
 
 const GROCERY_PRODUCTS: GroceryProductDef[] = [
@@ -143,9 +164,10 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'food',
     unitKind: 'weight',
     packageSize: 0.5,
-    prices: [2580, 2580, 2780, 2780],
+    prices: [2380, 2380, 2380, 2480, 2480, 2480, 2580, 2580, 2580, 2580, 2580, 2580, 2780, 2780],
     secondEntryDay18: true,
-    photoMonthIndex: 3,
+    photoMonthIndex: 13,
+    carrefourPrices: [2690, 2690],
   },
   {
     id: seedId('seed-prod-latte'),
@@ -154,8 +176,9 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'food',
     unitKind: 'volume',
     packageSize: 1.0,
-    prices: [1690, 1750, 1750, 1790],
+    prices: [1590, 1590, 1590, 1650, 1650, 1650, 1690, 1690, 1690, 1690, 1690, 1750, 1750, 1790],
     secondEntryDay18: true,
+    carrefourPrices: [1790, 1850],
   },
   {
     id: seedId('seed-prod-olio'),
@@ -164,9 +187,10 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'food',
     unitKind: 'volume',
     packageSize: 1.0,
-    prices: [8990, 9490, 9490, 8990],
-    promo: { monthIndex: 3, kind: 'loyalty' },
-    photoMonthIndex: 3,
+    prices: [7990, 7990, 8490, 8490, 8490, 8990, 8990, 8990, 8990, 8990, 8990, 9490, 9490, 8990],
+    promos: [{ monthIndex: 13, kind: 'loyalty' }],
+    photoMonthIndex: 13,
+    carrefourPrices: [9290, 9290],
   },
   {
     id: seedId('seed-prod-pane'),
@@ -175,7 +199,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'food',
     unitKind: 'weight',
     packageSize: 0.5,
-    prices: [4380, 4380, 4580, 4580],
+    prices: [3980, 3980, 3980, 4180, 4180, 4180, 4180, 4380, 4380, 4380, 4380, 4380, 4580, 4580],
   },
   {
     id: seedId('seed-prod-parmigiano'),
@@ -184,7 +208,10 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'food',
     unitKind: 'weight',
     packageSize: 0.3,
-    prices: [19900, 20500, 20500, 21200],
+    prices: [
+      18900, 18900, 18900, 19400, 19400, 19400, 19400, 19900, 19900, 19900, 19900, 20500, 20500,
+      21200,
+    ],
   },
   {
     id: seedId('seed-prod-caffe'),
@@ -193,8 +220,14 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'food',
     unitKind: 'weight',
     packageSize: 0.25,
-    prices: [15160, 15160, 13960, 15960],
-    promo: { monthIndex: 2, kind: 'discount' },
+    prices: [
+      13960, 13960, 13960, 14560, 14560, 12960, 14560, 15160, 15160, 15160, 15160, 15160, 13960,
+      15960,
+    ],
+    promos: [
+      { monthIndex: 5, kind: 'discount' },
+      { monthIndex: 12, kind: 'discount' },
+    ],
   },
   {
     id: seedId('seed-prod-acqua'),
@@ -203,7 +236,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'beverages',
     unitKind: 'volume',
     packageSize: 9.0,
-    prices: [290, 290, 312, 312],
+    prices: [270, 270, 270, 270, 290, 290, 290, 290, 290, 290, 290, 290, 312, 312],
   },
   {
     id: seedId('seed-prod-succo'),
@@ -212,7 +245,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'beverages',
     unitKind: 'volume',
     packageSize: 1.0,
-    prices: [1990, 1990, 2090, 2090],
+    prices: [1890, 1890, 1890, 1890, 1990, 1990, 1990, 1990, 1990, 1990, 1990, 1990, 2090, 2090],
   },
   {
     id: seedId('seed-prod-piatti'),
@@ -221,7 +254,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'household',
     unitKind: 'volume',
     packageSize: 0.9,
-    prices: [1990, 2100, 2100, 2100],
+    prices: [1890, 1890, 1890, 1990, 1990, 1990, 1990, 1990, 1990, 1990, 1990, 2100, 2100, 2100],
   },
   {
     id: seedId('seed-prod-carta'),
@@ -230,7 +263,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'household',
     unitKind: 'count',
     packageSize: 4,
-    prices: [623, 623, 675, 675],
+    prices: [599, 599, 599, 599, 623, 623, 623, 623, 623, 623, 623, 623, 675, 675],
   },
   {
     id: seedId('seed-prod-shampoo'),
@@ -239,7 +272,10 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'personal-care',
     unitKind: 'volume',
     packageSize: 0.25,
-    prices: [15960, 15960, 17160, 17160],
+    prices: [
+      14960, 14960, 14960, 14960, 15960, 15960, 15960, 15960, 15960, 15960, 15960, 15960, 17160,
+      17160,
+    ],
   },
   {
     id: seedId('seed-prod-crocchette'),
@@ -248,7 +284,7 @@ const GROCERY_PRODUCTS: GroceryProductDef[] = [
     category: 'pets',
     unitKind: 'weight',
     packageSize: 2.0,
-    prices: [4745, 4745, 4995, 4995],
+    prices: [4495, 4495, 4495, 4495, 4495, 4745, 4745, 4745, 4745, 4745, 4745, 4745, 4995, 4995],
   },
 ];
 
@@ -260,11 +296,11 @@ const FUEL_PRODUCT = {
   brand: null as string | null,
   category: 'fuel' as const,
   unitKind: 'volume' as const,
-  /** unit_price_milli for [M-3, M-2, M-1, M0]. */
-  prices: [1789, 1812, 1846, 1799] as [number, number, number, number],
+  /** unit_price_milli for [M-13 … M0]; the last four match Spec 02 §8.3. */
+  prices: [1699, 1712, 1735, 1760, 1748, 1770, 1795, 1810, 1802, 1780, 1789, 1812, 1846, 1799],
 };
 
-/** Liters per fuel entry, consumed two at a time (one per month, in order). */
+/** Liters per fuel entry, consumed two at a time (one per month, cycling). */
 const FUEL_LITER_CYCLE = [35.0, 32.4, 38.2, 30.0, 33.5, 36.1, 31.8, 34.2];
 
 /** total_price_cents = round(unit_price_milli * package_size / 10) (Spec 02 §8.3). */
@@ -286,7 +322,8 @@ function buildGroceryEntries(
     months.forEach((ym, monthIndex) => {
       const unitPriceMilli = product.prices[monthIndex];
       const totalPriceCents = calculateTotalPriceCents(unitPriceMilli, product.packageSize);
-      const isPromo = product.promo?.monthIndex === monthIndex;
+      const promo = product.promos?.find((candidate) => candidate.monthIndex === monthIndex);
+      const isPromo = promo !== undefined;
       const isPhoto = product.photoMonthIndex === monthIndex;
       const sessionId = sessionIdByMonthIndex[monthIndex];
 
@@ -299,7 +336,7 @@ function buildGroceryEntries(
         packageSize: product.packageSize,
         unitPriceMilli,
         isPromo,
-        promoKind: isPromo ? product.promo?.kind : undefined,
+        promoKind: promo?.kind,
         source: isPhoto ? 'photo' : 'manual',
         currency: 'EUR',
         ...(isPhoto
@@ -321,6 +358,25 @@ function buildGroceryEntries(
           currency: 'EUR',
         });
       }
+
+      // The last two months also see the product at Carrefour (day 12),
+      // standalone — no session — so the timeline shows plain rows too.
+      const carrefourIndex = monthIndex - (months.length - 2);
+      const carrefourPrice = product.carrefourPrices?.[carrefourIndex];
+      if (carrefourPrice !== undefined) {
+        entries.push({
+          productId: product.id,
+          storeId: STORE_CARREFOUR.id,
+          sessionId: null,
+          recordedAt: romeDateTime(ym, 12, 18, 45),
+          totalPriceCents: calculateTotalPriceCents(carrefourPrice, product.packageSize),
+          packageSize: product.packageSize,
+          unitPriceMilli: carrefourPrice,
+          isPromo: false,
+          source: 'manual',
+          currency: 'EUR',
+        });
+      }
     });
   }
 
@@ -332,7 +388,8 @@ function buildFuelEntries(months: YearMonth[]): CreatePriceEntryInput[] {
 
   months.forEach((ym, monthIndex) => {
     const unitPriceMilli = FUEL_PRODUCT.prices[monthIndex];
-    const [litersDay6, litersDay20] = FUEL_LITER_CYCLE.slice(monthIndex * 2, monthIndex * 2 + 2);
+    const litersDay6 = FUEL_LITER_CYCLE[(monthIndex * 2) % FUEL_LITER_CYCLE.length];
+    const litersDay20 = FUEL_LITER_CYCLE[(monthIndex * 2 + 1) % FUEL_LITER_CYCLE.length];
 
     for (const [day, liters] of [
       [6, litersDay6],
@@ -383,6 +440,7 @@ async function seedPrimaryUser(): Promise<void> {
   await db.insert(stores).values([
     { ...STORE_ESSELUNGA, userId },
     { ...STORE_ENI, userId },
+    { ...STORE_CARREFOUR, userId },
   ]);
 
   await db.insert(products).values([
@@ -405,8 +463,9 @@ async function seedPrimaryUser(): Promise<void> {
   ]);
 
   const months = buildSeedMonths();
-  const sessionIdByMonthIndex = ['m3', 'm2', 'm1', 'm0'].map((suffix) =>
-    seedId(`seed-session-${suffix}`),
+  // Two-digit suffix: seedId pads with zeros, so 'm1' and 'm10' would collide.
+  const sessionIdByMonthIndex = months.map((_, index) =>
+    seedId(`seed-session-m${String(months.length - 1 - index).padStart(2, '0')}`),
   );
   await db.insert(shoppingSessions).values(
     months.map((ym, monthIndex) => ({
@@ -427,7 +486,7 @@ async function seedPrimaryUser(): Promise<void> {
   await createPriceEntries(db, userId, entries);
 
   console.log(
-    `Seeded primary dev user (${SEED_USER.email}): 2 stores, 13 products, ${entries.length} entries.`,
+    `Seeded primary dev user (${SEED_USER.email}): 3 stores, 13 products, ${months.length} months, ${entries.length} entries.`,
   );
 }
 

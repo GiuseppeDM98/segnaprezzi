@@ -1,12 +1,18 @@
 import { defineConfig } from '@playwright/test';
 
 /*
- * Design: the primary (and for now only) project is a 390×844 mobile
- * viewport — the app's real target is a phone held one-handed in a
- * supermarket aisle. Chromium mobile emulation keeps CI to a single
- * browser download; Spec 05 adds a desktop project and Spec 06 adds
- * WebKit for iOS PWA verification.
+ * Design: the primary project is a 390×844 mobile viewport — the app's real
+ * target is a phone held one-handed in a supermarket aisle. Spec 05 adds a
+ * desktop project (the ≥ 1024 px rail) limited to the smoke and
+ * accessibility suites; Spec 06 adds WebKit for iOS PWA verification.
+ *
+ * Why a configurable port: on a dev machine another project may already own
+ * :3000, and `next dev` would silently move to :3001 while baseURL kept
+ * pointing at the wrong app. PORT=3100 pnpm test:e2e pins both sides.
  */
+const port = Number(process.env.PORT ?? 3000);
+const baseURL = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: './tests/e2e',
   globalSetup: './tests/e2e/global-setup.ts',
@@ -15,7 +21,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -33,10 +39,19 @@ export default defineConfig({
         locale: 'it-IT',
       },
     },
+    {
+      name: 'desktop',
+      testMatch: /(smoke|a11y)\.spec\.ts/,
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 1280, height: 900 },
+        locale: 'it-IT',
+      },
+    },
   ],
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://localhost:3000',
+    command: `pnpm dev --port ${port}`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

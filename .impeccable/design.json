@@ -1,0 +1,487 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-21T00:00:00Z",
+  "title": "Design System: segnaprezzi",
+  "extensions": {
+    "colorMeta": {
+      "highlighter": {
+        "role": "primary",
+        "displayName": "Highlighter",
+        "canonical": "oklch(64% 0.17 48)",
+        "code": "accent",
+        "dark": "oklch(78% 0.16 62)",
+        "tonalRamp": [
+          "oklch(18% 0.08 48)",
+          "oklch(30% 0.12 48)",
+          "oklch(42% 0.15 48)",
+          "oklch(52% 0.15 45)",
+          "oklch(64% 0.17 48)",
+          "oklch(76% 0.14 52)",
+          "oklch(86% 0.09 65)",
+          "oklch(94% 0.05 75)"
+        ]
+      },
+      "highlighter-ink": {
+        "role": "primary",
+        "displayName": "Highlighter Ink",
+        "canonical": "oklch(52% 0.15 45)",
+        "code": "accent-ink",
+        "dark": "oklch(78% 0.16 62)",
+        "tonalRamp": [
+          "oklch(18% 0.08 45)",
+          "oklch(28% 0.11 45)",
+          "oklch(40% 0.14 45)",
+          "oklch(52% 0.15 45)",
+          "oklch(62% 0.15 45)",
+          "oklch(74% 0.12 50)",
+          "oklch(85% 0.08 60)",
+          "oklch(94% 0.04 70)"
+        ]
+      },
+      "highlighter-wash": {
+        "role": "primary",
+        "displayName": "Highlighter Wash",
+        "canonical": "oklch(94% 0.05 75)",
+        "code": "accent-soft",
+        "dark": "oklch(31% 0.06 60)",
+        "tonalRamp": [
+          "oklch(20% 0.05 70)",
+          "oklch(31% 0.06 60)",
+          "oklch(45% 0.07 72)",
+          "oklch(58% 0.08 74)",
+          "oklch(70% 0.08 75)",
+          "oklch(82% 0.07 75)",
+          "oklch(89% 0.06 75)",
+          "oklch(94% 0.05 75)"
+        ]
+      },
+      "ribbon-red": {
+        "role": "secondary",
+        "displayName": "Ribbon Red (price up)",
+        "canonical": "oklch(50% 0.19 28)",
+        "code": "negative",
+        "dark": "oklch(74% 0.14 26)",
+        "tonalRamp": [
+          "oklch(16% 0.08 28)",
+          "oklch(28% 0.13 28)",
+          "oklch(40% 0.17 28)",
+          "oklch(50% 0.19 28)",
+          "oklch(62% 0.17 27)",
+          "oklch(74% 0.14 26)",
+          "oklch(85% 0.08 27)",
+          "oklch(93.5% 0.033 28)"
+        ]
+      },
+      "ribbon-green": {
+        "role": "secondary",
+        "displayName": "Ribbon Green (price down)",
+        "canonical": "oklch(47% 0.13 150)",
+        "code": "positive",
+        "dark": "oklch(76% 0.15 150)",
+        "tonalRamp": [
+          "oklch(16% 0.06 150)",
+          "oklch(27% 0.09 150)",
+          "oklch(38% 0.12 150)",
+          "oklch(47% 0.13 150)",
+          "oklch(60% 0.14 150)",
+          "oklch(76% 0.15 150)",
+          "oklch(86% 0.09 150)",
+          "oklch(93% 0.05 150)"
+        ]
+      },
+      "amber-stamp": {
+        "role": "secondary",
+        "displayName": "Amber Stamp (needs review)",
+        "canonical": "oklch(52% 0.12 70)",
+        "code": "warning",
+        "dark": "oklch(80% 0.14 78)",
+        "tonalRamp": [
+          "oklch(16% 0.05 70)",
+          "oklch(28% 0.08 70)",
+          "oklch(40% 0.11 70)",
+          "oklch(52% 0.12 70)",
+          "oklch(66% 0.13 74)",
+          "oklch(80% 0.14 78)",
+          "oklch(89% 0.09 82)",
+          "oklch(95% 0.05 85)"
+        ]
+      },
+      "pink-marker": {
+        "role": "secondary",
+        "displayName": "Pink Marker (promo)",
+        "canonical": "oklch(55% 0.2 350)",
+        "code": "promo",
+        "dark": "oklch(77% 0.16 350)",
+        "tonalRamp": [
+          "oklch(16% 0.08 350)",
+          "oklch(28% 0.13 350)",
+          "oklch(42% 0.18 350)",
+          "oklch(55% 0.2 350)",
+          "oklch(66% 0.18 350)",
+          "oklch(77% 0.16 350)",
+          "oklch(87% 0.09 350)",
+          "oklch(95% 0.04 350)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "oklch(97.2% 0.014 88)",
+        "code": "background",
+        "dark": "oklch(18% 0.014 300)",
+        "tonalRamp": [
+          "oklch(15% 0.014 88)",
+          "oklch(27% 0.014 88)",
+          "oklch(40% 0.014 88)",
+          "oklch(55% 0.014 88)",
+          "oklch(70% 0.014 88)",
+          "oklch(84% 0.02 88)",
+          "oklch(92% 0.014 88)",
+          "oklch(97.2% 0.014 88)"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Sheet",
+        "canonical": "oklch(99.2% 0.006 88)",
+        "code": "surface",
+        "dark": "oklch(21.5% 0.014 300)",
+        "tonalRamp": [
+          "oklch(15% 0.006 88)",
+          "oklch(27% 0.006 88)",
+          "oklch(40% 0.006 88)",
+          "oklch(55% 0.006 88)",
+          "oklch(70% 0.006 88)",
+          "oklch(84% 0.006 88)",
+          "oklch(93% 0.006 88)",
+          "oklch(99.2% 0.006 88)"
+        ]
+      },
+      "green-bar": {
+        "role": "neutral",
+        "displayName": "Green Bar",
+        "canonical": "oklch(94.4% 0.034 140)",
+        "code": "band",
+        "dark": "oklch(24.5% 0.022 145)",
+        "tonalRamp": [
+          "oklch(15% 0.02 140)",
+          "oklch(24.5% 0.022 145)",
+          "oklch(38% 0.03 140)",
+          "oklch(52% 0.034 140)",
+          "oklch(66% 0.034 140)",
+          "oklch(80% 0.034 140)",
+          "oklch(88% 0.034 140)",
+          "oklch(94.4% 0.034 140)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ribbon Ink",
+        "canonical": "oklch(23% 0.018 300)",
+        "code": "text",
+        "dark": "oklch(94% 0.012 88)",
+        "tonalRamp": [
+          "oklch(15% 0.018 300)",
+          "oklch(23% 0.018 300)",
+          "oklch(35% 0.02 300)",
+          "oklch(46% 0.02 300)",
+          "oklch(58% 0.012 300)",
+          "oklch(71% 0.012 300)",
+          "oklch(84% 0.01 300)",
+          "oklch(94% 0.008 300)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(84% 0.02 88)",
+        "code": "border",
+        "dark": "oklch(33% 0.016 300)",
+        "tonalRamp": [
+          "oklch(15% 0.02 88)",
+          "oklch(27% 0.02 88)",
+          "oklch(40% 0.02 88)",
+          "oklch(55% 0.02 88)",
+          "oklch(70% 0.02 88)",
+          "oklch(84% 0.02 88)",
+          "oklch(91% 0.018 88)",
+          "oklch(96% 0.014 88)"
+        ]
+      },
+      "stamp-blue-focus": {
+        "role": "neutral",
+        "displayName": "Stamp Blue (focus ring)",
+        "canonical": "oklch(50% 0.15 255)",
+        "code": "focus",
+        "dark": "oklch(74% 0.13 250)",
+        "tonalRamp": [
+          "oklch(16% 0.07 255)",
+          "oklch(28% 0.1 255)",
+          "oklch(40% 0.13 255)",
+          "oklch(50% 0.15 255)",
+          "oklch(62% 0.14 252)",
+          "oklch(74% 0.13 250)",
+          "oklch(85% 0.08 250)",
+          "oklch(94% 0.04 250)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The signed headline percentage only; digits roll into cells on mount."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Screen titles and the large value in thin-data fact rows."
+      },
+      "heading": {
+        "displayName": "Section Heading",
+        "purpose": "Uppercase mono column header over a 3px double rule. It IS the h1/h2, never a kicker."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose, labels, button text (600), grotesk row text."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Machine-printed values in rows; 600 for the value column, 400 for names; 13px in dense rows."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Secondary row text and notes in the form voice."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "HH:MM time column, status chips, group-header meta."
+      }
+    },
+    "shadows": [
+      {
+        "name": "shadow-sheet",
+        "value": "0 -8px 32px -8px var(--shadow-ink)",
+        "purpose": "Bottom sheet rising from the bottom edge."
+      },
+      {
+        "name": "shadow-raised",
+        "value": "0 6px 20px -6px var(--shadow-ink), 0 1px 2px var(--shadow-ink)",
+        "purpose": "Toasts and the tablet dialog form of the sheet."
+      },
+      {
+        "name": "shadow-fab",
+        "value": "0 8px 20px -6px var(--shadow-ink), 0 2px 4px var(--shadow-ink)",
+        "purpose": "The Scan disc and rail Scan button."
+      }
+    ],
+    "motion": [
+      {
+        "name": "houseSpring",
+        "value": "{ type: 'spring', stiffness: 400, damping: 35 }",
+        "purpose": "Every movement: digit roll, FAB morph, sheet, tab bar, toggle knob. Instant cut under reduced motion."
+      },
+      {
+        "name": "quickFade",
+        "value": "{ duration: 0.15, ease: 'easeOut' }",
+        "purpose": "Opacity-only changes: route cross-fade, ISTAT overlay, toasts. Kept under reduced motion."
+      },
+      {
+        "name": "CARD_STAGGER_SECONDS",
+        "value": "0.03",
+        "purpose": "Stagger between review cards entering."
+      },
+      {
+        "name": "pressed",
+        "value": "whileTap scale 0.97",
+        "purpose": "Buttons; FAB uses scale 0.95."
+      }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "48rem" },
+      { "name": "rail", "value": "64rem" },
+      { "name": "desktop", "value": "90rem" }
+    ],
+    "rhythm": [
+      {
+        "name": "row",
+        "value": "48px",
+        "purpose": "Zebra rows, skeleton rows, sprocket hole pitch."
+      },
+      {
+        "name": "row-tall",
+        "value": "56px",
+        "purpose": "Two-line product rows, tab bar, screen header."
+      },
+      {
+        "name": "control",
+        "value": "44px",
+        "purpose": "Minimum tap target; buttons, inputs, filter chips, icon buttons, time column."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Highlighter fill with ink text; the one action per screen.",
+      "html": "<button class=\"ds-btn-primary\">Scansiona</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; min-width:44px; padding:0 16px; background:var(--color-accent); color:var(--color-accent-contrast); font-family:var(--font-sans), Barlow, sans-serif; font-size:15px; font-weight:600; line-height:1; border:none; border-radius:var(--radius-control, 0.375rem); transition:filter .15s, transform .15s; } .ds-btn-primary:hover { filter:brightness(.95); } .ds-btn-primary:active { transform:scale(.97); } .ds-btn-primary:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; } .ds-btn-primary:disabled { opacity:.5; cursor:not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Sheet fill with a firm ink frame; hovers to the green bar.",
+      "html": "<button class=\"ds-btn-secondary\">Inserisci a mano</button>",
+      "css": ".ds-btn-secondary { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:44px; padding:0 16px; background:var(--color-surface); color:var(--color-text); border:1px solid color-mix(in oklch, var(--color-text) 70%, transparent); font-family:var(--font-sans), Barlow, sans-serif; font-size:15px; font-weight:600; line-height:1; border-radius:var(--radius-control, 0.375rem); transition:background-color .15s, transform .15s; } .ds-btn-secondary:hover { background:var(--color-band); } .ds-btn-secondary:active { transform:scale(.97); } .ds-btn-secondary:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Transparent, ink text with a hairline underline.",
+      "html": "<button class=\"ds-btn-ghost\">Annulla</button>",
+      "css": ".ds-btn-ghost { display:inline-flex; align-items:center; justify-content:center; height:44px; padding:0 16px; background:transparent; color:var(--color-text); text-decoration:underline; text-decoration-color:var(--color-border); text-underline-offset:4px; font-family:var(--font-sans), Barlow, sans-serif; font-size:15px; font-weight:600; border:none; border-radius:var(--radius-control, 0.375rem); } .ds-btn-ghost:hover { background:var(--color-band); } .ds-btn-ghost:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; }"
+    },
+    {
+      "name": "Money Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Sheet frame with a mono prefix; right-aligned tabular decimal entry. Frame turns ink on focus.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Prezzo</span><span class=\"ds-input\"><span class=\"ds-input-affix\">€</span><input class=\"ds-input-control\" inputmode=\"decimal\" value=\"2,49\"><span class=\"ds-input-affix\">/kg</span></span></label>",
+      "css": ".ds-field { display:flex; flex-direction:column; gap:6px; font-family:var(--font-sans), Barlow, sans-serif; } .ds-field-label { font-size:15px; font-weight:500; color:var(--color-text); } .ds-input { display:flex; align-items:center; gap:8px; height:44px; padding:0 12px; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-control, 0.375rem); transition:border-color .15s, background-color .15s; } .ds-input:focus-within { border-color:var(--color-text); } .ds-input-affix { font-family:var(--font-mono), 'Martian Mono', monospace; font-size:14px; color:var(--color-text-muted); } .ds-input-control { flex:1; min-width:0; background:transparent; border:none; outline:none; text-align:right; font-family:var(--font-mono), 'Martian Mono', monospace; font-variant-numeric:tabular-nums slashed-zero; font-size:16px; color:var(--color-text); caret-color:var(--color-accent); }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-filter",
+      "description": "44px toggle pill; selected chips take the highlighter wash and an accent border.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"false\">Tutti</button> <button class=\"ds-chip ds-chip-selected\" aria-pressed=\"true\">Latticini</button>",
+      "css": ".ds-chip { display:inline-flex; align-items:center; gap:6px; height:44px; padding:0 14px; border-radius:9999px; border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text); font-family:var(--font-sans), Barlow, sans-serif; font-size:14px; font-weight:500; transition:background-color .15s; } .ds-chip:hover { background:var(--color-band); } .ds-chip-selected { border-color:var(--color-accent); background:var(--color-accent-soft); } .ds-chip:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; }"
+    },
+    {
+      "name": "Trend Badge",
+      "kind": "chip",
+      "refersTo": "trend-up",
+      "description": "Signed percentage with arrow. Rising price = red family, falling = green, flat = band.",
+      "html": "<span class=\"ds-trend ds-trend-up\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 7h10v10\"/><path d=\"M7 17 17 7\"/></svg>+4,2%</span> <span class=\"ds-trend ds-trend-down\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m7 7 10 10\"/><path d=\"M17 7v10H7\"/></svg>−1,3%</span>",
+      "css": ".ds-trend { display:inline-flex; align-items:center; gap:2px; height:28px; padding:0 8px; border-radius:9999px; font-family:var(--font-mono), 'Martian Mono', monospace; font-variant-numeric:tabular-nums slashed-zero; font-size:13px; font-weight:600; } .ds-trend-up { background:var(--color-negative-soft); color:var(--color-negative); } .ds-trend-down { background:var(--color-positive-soft); color:var(--color-positive); }"
+    },
+    {
+      "name": "Section Heading",
+      "kind": "custom",
+      "refersTo": "heading",
+      "description": "Uppercase mono column header over a 3px double rule; this is the heading, never a kicker.",
+      "html": "<div class=\"ds-heading\"><h2 class=\"ds-heading-text\">La tua inflazione</h2><span class=\"ds-heading-trail\">12 mesi</span></div>",
+      "css": ".ds-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding-bottom:6px; border-bottom:3px double var(--color-border); } .ds-heading-text { margin:0; font-family:var(--font-mono), 'Martian Mono', monospace; font-size:12px; font-weight:600; line-height:1; letter-spacing:.12em; text-transform:uppercase; color:var(--color-text-muted); } .ds-heading-trail { font-family:var(--font-mono), 'Martian Mono', monospace; font-size:13px; color:var(--color-text-muted); }"
+    },
+    {
+      "name": "Zebra List",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Green-bar rows on a 48px rhythm: mono name and value, grotesk caption, accent-soft hover. Lists never sit in cards.",
+      "html": "<ul class=\"ds-zebra\"><li class=\"ds-row\"><span class=\"ds-row-main\"><span class=\"ds-row-name\">Latte intero 1 L</span><span class=\"ds-row-caption\">Conad · 1 L</span></span><span class=\"ds-row-side\"><span class=\"ds-row-value\">1,49 €/L</span><span class=\"ds-row-meta\">ieri</span></span></li><li class=\"ds-row\"><span class=\"ds-row-main\"><span class=\"ds-row-name\">Pasta di semola 500 g</span><span class=\"ds-row-caption\">Esselunga · 500 g</span></span><span class=\"ds-row-side\"><span class=\"ds-row-value\">2,18 €/kg</span><span class=\"ds-row-meta\">3 giorni fa</span></span></li><li class=\"ds-row\"><span class=\"ds-row-main\"><span class=\"ds-row-name\">Benzina</span><span class=\"ds-row-caption\">Q8</span></span><span class=\"ds-row-side\"><span class=\"ds-row-value\">1,799 €/L</span><span class=\"ds-row-meta\">10:30</span></span></li></ul>",
+      "css": ".ds-zebra { list-style:none; margin:0; padding:0; background:var(--color-surface); } .ds-zebra > :nth-child(odd) { background:var(--color-band); } .ds-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:48px; padding:6px 12px; transition:background-color .15s; } .ds-row:hover { background:var(--color-accent-soft); } .ds-row-main, .ds-row-side { display:flex; flex-direction:column; min-width:0; } .ds-row-side { align-items:flex-end; flex-shrink:0; } .ds-row-name { font-family:var(--font-mono), 'Martian Mono', monospace; font-size:14px; line-height:1.375; color:var(--color-text); } .ds-row-caption { font-family:var(--font-sans), Barlow, sans-serif; font-size:12px; color:var(--color-text-muted); } .ds-row-value { font-family:var(--font-mono), 'Martian Mono', monospace; font-variant-numeric:tabular-nums slashed-zero; font-size:14px; font-weight:600; color:var(--color-text); } .ds-row-meta { font-family:var(--font-mono), 'Martian Mono', monospace; font-variant-numeric:tabular-nums; font-size:11px; color:var(--color-text-muted); }"
+    },
+    {
+      "name": "Tab Bar with Scan Disc",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Five-cell bottom bar on a dashed perforation; the highlighter Scan disc punches through it with a paper ring.",
+      "html": "<nav class=\"ds-tabbar\"><a class=\"ds-tab ds-tab-active\" aria-current=\"page\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/></svg><span>Home</span></a><a class=\"ds-tab\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z\"/><circle cx=\"7.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\"/></svg><span>Prodotti</span></a><a class=\"ds-fab-slot\"><span class=\"ds-fab\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/></svg></span><span class=\"ds-fab-label\">Scan</span></a><a class=\"ds-tab\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\"/><path d=\"M3 3v5h5\"/><path d=\"M12 7v5l4 2\"/></svg><span>Storico</span></a><a class=\"ds-tab\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 7h-9\"/><path d=\"M14 17H5\"/><circle cx=\"17\" cy=\"17\" r=\"3\"/><circle cx=\"7\" cy=\"7\" r=\"3\"/></svg><span>Impostazioni</span></a></nav>",
+      "css": ".ds-tabbar { position:relative; display:grid; grid-template-columns:repeat(5,1fr); height:56px; margin-top:32px; background:var(--color-surface); border-top:1px dashed var(--color-border); font-family:var(--font-sans), Barlow, sans-serif; } .ds-tab { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:var(--color-text-muted); font-size:11px; font-weight:500; line-height:1; text-decoration:none; cursor:pointer; transition:color .15s; } .ds-tab:hover { color:var(--color-text); } .ds-tab-active { color:var(--color-accent-ink); } .ds-fab-slot { display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:-28px; text-decoration:none; cursor:pointer; } .ds-fab { display:flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:9999px; background:var(--color-accent); color:var(--color-accent-contrast); box-shadow:0 8px 20px -6px var(--shadow-ink), 0 2px 4px var(--shadow-ink), 0 0 0 4px var(--color-background); transition:filter .15s, transform .15s; } .ds-fab-slot:hover .ds-fab { filter:brightness(.95); } .ds-fab-slot:active .ds-fab { transform:scale(.95); } .ds-fab-label { font-size:11px; font-weight:500; line-height:1; color:var(--color-accent-ink); }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip-status",
+      "description": "24px mono uppercase label tinted by tone; always carries text.",
+      "html": "<span class=\"ds-status ds-status-warning\">Da rivedere</span> <span class=\"ds-status ds-status-promo\">Promo</span> <span class=\"ds-status ds-status-positive\">Confermato</span>",
+      "css": ".ds-status { display:inline-flex; align-items:center; gap:4px; height:24px; padding:0 8px; border-radius:9999px; border:1px solid; font-family:var(--font-mono), 'Martian Mono', monospace; font-size:11px; letter-spacing:.025em; text-transform:uppercase; } .ds-status-warning { background:var(--color-warning-soft); color:var(--color-warning); border-color:color-mix(in oklch, var(--color-warning) 30%, transparent); } .ds-status-promo { background:var(--color-surface); color:var(--color-promo); border-color:color-mix(in oklch, var(--color-promo) 40%, transparent); } .ds-status-positive { background:var(--color-positive-soft); color:var(--color-positive); border-color:color-mix(in oklch, var(--color-positive) 30%, transparent); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Tabulato a modulo continuo",
+    "overview": "The personal index is a statement printed on continuous-form paper: rows you can scan, numbers you can trust, a sheet you could tear off. Everything the machine printed (every number, every product row, every column header) is set in a monospace with tabular figures; everything pre-printed on the form (labels, prose, controls) is a quiet grotesk. The page is cream stock with ribbon ink; dark mode is the print negative of the same sheet (ink field, paper-colored type), never a phosphor screen.\n\nDensity is printout density. Lists are 48 px green-bar zebra rows with no cards around them, separated by hairline and dashed rules rather than whitespace. Hierarchy is carried by ink weight (400/500/600) and by the two voices as much as by size; the only large thing on any screen is the headline percentage. This build refuses the fintech KPI-card dashboard: no tiles, no gradients, no glassmorphism, no drop shadows on resting surfaces.\n\nColor has a grammar, not a palette. One highlighter-orange accent marks the single live thing; ribbon red and ribbon green mean price direction and nothing else on data surfaces; amber means \"needs a human look\"; pink marker means \"promotional price\". That grammar, more than any single token, is the system.",
+    "keyCharacteristics": [
+      "Cream paper and ribbon ink; dark is the negative of the same print",
+      "Two voices: Martian Mono (width axis) for what the machine printed, Barlow 400/500/600 for the form",
+      "Green-bar zebra rows on a 48 px rhythm behind every list",
+      "A punched sprocket margin on the desktop rail; dashed tear-off perforation on the tab bar",
+      "Uppercase mono column headers over a double rule ARE the headings",
+      "One meaning per color; accent is the only brand color in the chrome",
+      "Flat at rest; only sheets, toasts and the Scan disc lift off the page",
+      "One spring, one fade, one reduced-motion switch"
+    ],
+    "rules": [
+      {
+        "name": "The One Meaning Rule",
+        "body": "Each semantic ink has exactly one meaning on data surfaces: accent = live, red = price up, green = price down, amber = needs review, pink = promo. Never borrow a status color for decoration or emphasis.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink-on-Highlighter Rule",
+        "body": "Text on the accent is always accent-contrast (ink). Accent as text is always accent-ink. White never touches the highlighter.",
+        "section": "colors"
+      },
+      {
+        "name": "The Rising-Is-Red Rule",
+        "body": "This is an inflation tracker: priceDirectionOf() maps a positive ratio to the negative family and a negative ratio to positive; exactly zero (|ratio| <= 0.00005) is neutral band. Every direction is also carried by sign, arrow and an sr-only word; color is never the only channel.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Places Rule",
+        "body": "A literal color appears only in globals.css and docs/assets/logo.svg. Components use semantic utilities only; Tailwind palette colors do not exist in this project.",
+        "section": "colors"
+      },
+      {
+        "name": "The Machine-Printed Rule",
+        "body": "Every number the app computed or extracted (prices, percentages, index values, counts, dates in rows, times) is mono with tabular figures and a true minus (U+2212). Labels describing them are grotesk. Mixed-voice rows are the signature, not a mistake.",
+        "section": "typography"
+      },
+      {
+        "name": "The Heading-Is-The-Heading Rule",
+        "body": "The uppercase mono line over the double rule is the h1/h2. It is never a kicker or eyebrow above a larger title; nothing sits between it and its content except its trailing control.",
+        "section": "typography"
+      },
+      {
+        "name": "The Weight-Before-Size Rule",
+        "body": "Within a row, hierarchy comes from weight (600 value vs 400 name) and voice before it comes from size; size steps move at most one notch (15 -> 14 -> 13 -> 12 -> 11).",
+        "section": "typography"
+      },
+      {
+        "name": "The Format Boundary Rule",
+        "body": "src/lib/format.ts is the only caller of Intl. Money: 2,49 € (it) / €2.49 (en). Unit price: 2 decimals, 3 when not a whole cent (1,799 €/L); units /kg, /L, /pz (it) or /pc (en). Percentages always signed except exactly zero, 1 decimal. Index values 1 decimal. Dates in Europe/Rome.",
+        "section": "typography"
+      },
+      {
+        "name": "The Off-The-Sheet Rule",
+        "body": "A shadow means the element is physically off the paper: sheets, toasts, the Scan disc. Cards, rows, inputs, headers and the tab bar never cast one.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do set every computed or extracted number in font-mono and pass it through src/lib/format.ts; tabular figures, slashed zero and the U+2212 minus come for free.",
+      "Do build lists as zebra rows on a 48 px rhythm, bleeding to the gutter, with hover accent-soft; paginate with a dashed rule, not with cards.",
+      "Do head sections with SectionHeading (uppercase mono over the double rule) and put the section's one control on the rule.",
+      "Do use accent-ink whenever the accent is text, and accent-contrast (ink) for text on an accent fill.",
+      "Do render price direction through TrendBadge / priceDirectionOf so rising = red, falling = green, with sign, arrow and sr-only word.",
+      "Do use the named breakpoints tablet: (48rem), rail: (64rem), desktop: (90rem) and the pt-safe / pb-safe utilities.",
+      "Do give sticky footers pb-11 on mobile (and rail:pb-3) so the Scan disc never covers their controls.",
+      "Do animate only with useAppMotion().spring / .fade; stagger review cards at 30 ms; keep route changes to the 150 ms cross-fade.",
+      "Do use 44 px tap targets and the global stamp-blue focus ring; never suppress :focus-visible."
+    ],
+    "donts": [
+      "Don't use Tailwind palette colors or literal hex/oklch in components; only the semantic tokens from globals.css.",
+      "Don't put white text on the accent, or use raw accent as body/link text.",
+      "Don't give a status color a second meaning: no red for \"important\", no green for \"brand\", no amber decoration.",
+      "Don't add kicker or eyebrow labels above a title; the mono heading is the heading.",
+      "Don't nest cards in cards or wrap zebra lists in cards; the only shadows belong to sheets, toasts and the Scan disc.",
+      "Don't show spinners for loading content; use zebra skeleton rows. The button's pending arc is the one spinner.",
+      "Don't declare ad-hoc springs, durations or whileTap values, or read useReducedMotion outside src/lib/motion.ts.",
+      "Don't use raw sm: / md: / lg: breakpoints; they are reset to nothing.",
+      "Don't invent new type sizes between the steps 17/15/14/13/12/11 px, or a second display size beside the hero clamp.",
+      "Don't call Intl.NumberFormat / Intl.DateTimeFormat outside src/lib/format.ts."
+    ]
+  }
+}

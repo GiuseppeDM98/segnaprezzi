@@ -5,11 +5,8 @@
  * transiently inside a computation, never in stored values.
  *
  * Scope: generic conversions plus the fuel two-of-three helpers added by
- * Spec 03 §11.2; display formatting lives exclusively in
- * src/lib/format.ts (Spec 05) — nothing here produces strings. Parsing the
- * other way (what the user typed, into an integer) does belong here: it is a
- * conversion, and Italian keyboards produce comma decimals that must never be
- * re-implemented per form.
+ * Spec 03 §11.2; display formatting AND input parsing live exclusively in
+ * src/lib/format.ts (Spec 05 §2.3) — nothing here touches strings.
  */
 
 /** Convert a euro amount (e.g. parsed user input 1.29) to integer cents. */
@@ -83,22 +80,4 @@ export function centsToEuros(cents: number): number {
 /** Integer milli-euros as a euro amount (1799 -> 1.799). */
 export function milliToEuros(milli: number): number {
   return milli / 1000;
-}
-
-/**
- * Parse a euro amount as typed by the user into a number.
- *
- * Italian keyboards and habits produce comma decimals ("1,29"), and a
- * `type="text"` input is the only control that accepts them on every mobile
- * browser — so the forms parse rather than rely on valueAsNumber.
- *
- * @param raw - Raw input value, possibly empty or malformed
- * @returns The parsed amount, or NaN when the input is not a number
- */
-export function parseDecimalInput(raw: string): number {
-  const normalized = raw.trim().replace(',', '.');
-  if (normalized === '') {
-    return Number.NaN;
-  }
-  return Number(normalized);
 }

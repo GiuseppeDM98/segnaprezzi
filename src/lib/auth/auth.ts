@@ -33,6 +33,15 @@ export const auth = betterAuth({
     minPasswordLength: 8,
   },
 
+  user: {
+    // Spec 05 §5.10: "Elimina account" wipes everything. The credential
+    // account re-checks the password on delete, and the DB cascades from
+    // users to every app table (Spec 02 §4.2), so one call removes all data.
+    deleteUser: {
+      enabled: true,
+    },
+  },
+
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days — personal app, long sessions are fine
     updateAge: 60 * 60 * 24, // refresh the expiry at most once a day

@@ -5,7 +5,7 @@
  */
 import { eq } from 'drizzle-orm';
 
-import type { Db } from '@/lib/db/client';
+import type { Db, DbTransaction } from '@/lib/db/client';
 import { type UserSettings, userSettings } from '@/lib/db/schema/app';
 
 export type UpdateUserSettingsPatch = Partial<
@@ -18,7 +18,10 @@ export type UpdateUserSettingsPatch = Partial<
  * row's existence is a persistence invariant, so healing it here is
  * persistence logic, not a business rule.
  */
-export async function getUserSettings(db: Db, userId: string): Promise<UserSettings> {
+export async function getUserSettings(
+  db: Db | DbTransaction,
+  userId: string,
+): Promise<UserSettings> {
   const [existing] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
   if (existing) {
     return existing;
@@ -41,7 +44,7 @@ export async function getUserSettings(db: Db, userId: string): Promise<UserSetti
 
 /** Apply a partial settings update and return the updated row. */
 export async function updateUserSettings(
-  db: Db,
+  db: Db | DbTransaction,
   userId: string,
   patch: UpdateUserSettingsPatch,
 ): Promise<UserSettings> {

@@ -34,10 +34,21 @@ export interface UseCameraResult {
   capturePhoto: () => Promise<Blob | null>;
   /** Re-run getUserMedia after the user changed the permission. */
   retryPermission: () => void;
+  /** Whether the active video track exposes a torch (phones with a flash). */
+  isTorchAvailable: boolean;
+  isTorchOn: boolean;
+  toggleTorch: () => Promise<void>;
+}
+
+/** The torch constraint is not in lib.dom yet; narrow the types locally. */
+interface TorchCapabilities extends MediaTrackCapabilities {
+  torch?: boolean;
 }
 
 export function useCamera(): UseCameraResult {
   const [state, setState] = useState<CameraState>('idle');
+  const [isTorchAvailable, setIsTorchAvailable] = useState(false);
+  const [isTorchOn, setIsTorchOn] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // getUserMedia resolves asynchronously; without this guard a permission
@@ -50,6 +61,7 @@ export function useCamera(): UseCameraResult {
       track.stop();
     }
     streamRef.current = null;
+    setIsTorchOn(false);
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -74,6 +86,9 @@ export function useCamera(): UseCameraResult {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
+      const [track] = stream.getVideoTracks();
+      const capabilities = track?.getCapabilities?.() as TorchCapabilities | undefined;
+      setIsTorchAvailable(Boolean(capabilities?.torch));
       setState('streaming');
     } catch (error) {
       if (isMountedRef.current) {
@@ -127,7 +142,30 @@ export function useCamera(): UseCameraResult {
     void acquireStream();
   }, [acquireStream]);
 
-  return { state, videoRef, capturePhoto, retryPermission };
+  const toggleTorch = useCallback(async (): Promise<void> => {
+    const [track] = streamRef.current?.getVideoTracks() ?? [];
+    if (!track) {
+      return;
+    }
+    const next = !isTorchOn;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+      setIsTorchOn(next);
+    } catch {
+      // The device advertised a torch it cannot drive right now; leave it off.
+      setIsTorchAvailable(false);
+    }
+  }, [isTorchOn]);
+
+  return {
+    state,
+    videoRef,
+    capturePhoto,
+    retryPermission,
+    isTorchAvailable,
+    isTorchOn,
+    toggleTorch,
+  };
 }
 
 /**

@@ -44,3 +44,10 @@ playwright/.auth/
 
 # Per-session scratch handoff: written, folded into the durable docs, deleted.
 SESSION_NOTES.md
+
+# impeccable (design skill) — keep the surface briefs and config, drop the
+# per-session decision logs, review captures and the hook cache.
+.impeccable/questions/
+.impeccable/review/
+.impeccable/hook.cache.json
+.impeccable/mocks/

@@ -186,3 +186,41 @@ export async function listProductsForIndex(db: Db, userId: string): Promise<Inde
     .where(eq(products.userId, userId))
     .orderBy(asc(products.id));
 }
+
+/**
+ * Insert-or-update products by id for the backup import (Spec 05 §5.10);
+ * same ownership guard as upsertStores — foreign ids are skipped.
+ */
+export async function upsertProducts(
+  db: Db | DbTransaction,
+  userId: string,
+  inputs: Array<CreateProductInput & { id: string }>,
+): Promise<void> {
+  if (inputs.length === 0) {
+    return;
+  }
+  await db
+    .insert(products)
+    .values(inputs.map((input) => ({ ...input, userId })))
+    .onConflictDoUpdate({
+      target: products.id,
+      set: {
+        name: sql`excluded.name`,
+        brand: sql`excluded.brand`,
+        category: sql`excluded.category`,
+        unitKind: sql`excluded.unit_kind`,
+        notes: sql`excluded.notes`,
+        isArchived: sql`excluded.is_archived`,
+      },
+      setWhere: eq(products.userId, userId),
+    });
+}
+
+/** Ids of every product of the user (archived included), for import integrity checks. */
+export async function listProductIds(db: Db | DbTransaction, userId: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(eq(products.userId, userId));
+  return new Set(rows.map((row) => row.id));
+}

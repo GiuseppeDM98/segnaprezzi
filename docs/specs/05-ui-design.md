@@ -1,6 +1,6 @@
 # Spec 05 — UI & Design System
 
-> **Status**: Approved · **Last updated**: 2026-08-20
+> **Status**: Implemented 2026-08-21 · **Last updated**: 2026-08-21 (implementation corrections inline — search "Correction")
 > **Depends on**: Specs 01–04 (scaffold, DB + auth, capture + extraction, inflation engine)
 > **Contract**: `docs/specs/00-overview.md` is authoritative for all names and data shapes.
 >
@@ -96,6 +96,19 @@ utilities Tailwind generates from these tokens (`bg-surface`, `text-accent`, …
 > (e.g. whether a rising price renders in the `negative` family) and records it in
 > `DESIGN.md`. `TrendBadge`, `CategoryBars`, and top-movers rows express price
 > direction through these two tokens only.
+>
+> **Correction (2026-08-21, implemented):** the mapping is decided — a **rising**
+> price renders in the `negative` family, a **falling** price in the `positive`
+> family, exactly zero is neutral (`priceDirectionOf` in
+> `src/components/charts/trend-badge.tsx`). The impeccable pass also added four
+> tokens beyond the list above, all in `src/app/globals.css`: `--color-band` (the
+> green-bar zebra row), `--color-accent-ink` (the accent used **as text** — the
+> highlighter itself is 3.3:1 on paper, the ink twin is ≥ 4.5:1; components use
+> `text-accent-ink` for words and `bg-accent`/`text-accent` only for fills and
+> icons), and the theme-invariant `--color-camera` / `--color-camera-contrast` for
+> the viewfinder chrome, which sits on the live feed and never follows the theme.
+> Raw `sm:`/`md:`/`lg:` breakpoints are disabled (`--breakpoint-*: initial`) so only
+> `tablet:`/`rail:`/`desktop:` exist.
 
 Theming follows Spec 01's mechanism exactly: light values live on `:root`; dark
 overrides live under a `.dark` class on `<html>`, driven by a `theme` cookie
@@ -189,6 +202,15 @@ export function parseDecimalInput(raw: string): number | null
 
 `NumberTicker` (and every other display component) receives **pre-formatted strings**
 from these functions — animation components never format numbers themselves.
+
+> **Correction (2026-08-21, implemented):** Spec 03 had shipped a
+> `parseDecimalInput` returning `NaN` in `src/lib/domain/money.ts`; it was
+> **moved** here with this spec's `number | null` contract (one definition, the
+> forms import it from `format.ts`). `format.ts` also grew the date helpers the
+> screens need (`formatDate`, `formatDateTime`, `formatTime`, `formatMonth`,
+> `formatMonthShort`, `formatDayHeading`, `formatRelativeDate`,
+> `calendarDaysBetween` — all Europe/Rome), `formatCount`, and
+> `formatInputDecimal` (the plain-dot value an editable decimal input shows).
 
 ---
 
@@ -383,6 +405,14 @@ no spinner). **Error** (camera hardware failure): same fallback as permission de
 explains — never a blocking modal.
 **i18n**: `scan`.
 
+> **Correction (2026-08-21, implemented):** the permission-denied / no-camera
+> fallback also renders the tray, the review CTA and a close button — a picked
+> photo travels the same pipeline as a captured one, and without the close button
+> the fallback (no tab bar on `/scan`) had no way out. The store picker's inline
+> create goes through the shared `createStore` action in
+> `src/app/[locale]/(app)/stores/actions.ts` (kind `supermarket` from `/scan` and
+> `/add/manual`, `fuel_station` from `/add/fuel`).
+
 ### 5.3 `/scan/review` — Review & Confirm
 
 **Purpose**: turn AI extractions into confirmed `price_entries` — fast to skim,
@@ -411,6 +441,13 @@ honest about uncertainty. Nothing touches the DB until batch confirm (Spec 00 §
    + running total (`formatMoney` of the sum). Disabled while any non-discarded card
    is invalid (the bar says why: "2 da completare"). Confirm → success checkmark draw
    (§7) → session `completed` → navigate to `/` with toast "Spesa salvata".
+
+   > **Correction (2026-08-21, implemented):** because the bar is disabled while a
+   > card is incomplete, Spec 03's "click confirm → `confirm-error` alert" E2E
+   > assertion became "confirm is disabled and the bar reads *1 da completare*"
+   > (`tests/e2e/capture-flow.spec.ts`). The catalog search inside `MatchPicker`
+   > is a Server Action (`searchProducts` in `scan/review/actions.ts`) because the
+   > review screen is otherwise server-data-free by design (Spec 03 §9).
 
 **Data**: per-card extraction payload (Spec 00 §8 fields) + match suggestions +
 `ai_confidence`. Raw confidence numbers are not displayed — the flag chip is the UX;
@@ -445,6 +482,13 @@ editable, chip "Lettura fallita" + retry — manual completion always possible.
 On save (`source: 'manual'`): success toast "Aggiunto ✓", form resets keeping store +
 date — optimized for entering several prices in a row.
 
+> **Correction (2026-08-21, implemented):** Spec 03's forms redirected to `/`
+> after saving; this form now stays put as written here (the E2E asserts the
+> success toast instead of the URL), while `/add/fuel` still returns to `/`
+> (§5.5). The default store for a manual entry prefers the most recent
+> **non-fuel** store (`getManualEntryContext`), so a fill-up yesterday no longer
+> preselects a petrol station for this morning's groceries.
+
 **Data**: products (search), stores, form draft. **Empty state**: none (the form is
 the state); the product search's "no results" row is the create affordance.
 **Loading**: skeleton for the product search results only. **Error**: inline field
@@ -463,6 +507,12 @@ preserved). **i18n**: `addManual`.
    `unit_kind: 'volume'`) with the **canonical stored names** 'Benzina 95',
    'Diesel', 'GPL' — the identity keys for get-or-create. Chip labels may localize
    via `addFuel.products.*` keys, but the stored product name is always canonical.
+
+   > **Correction (2026-08-21):** superseded by Spec 03 as implemented — the picks
+   > are the **four** of `src/lib/domain/fuel-products.ts` (Benzina, Diesel, GPL,
+   > Metano), each with its own `unitKind` (methane is sold per kilogram), and the
+   > canonical names are those (AGENTS.md §1.3, §2.3). The chips render from that
+   > constant; the quantity label and suffix follow the pick's unit.
 3. **Station select**: stores with `kind = 'fuel_station'` (+ inline create).
 4. **Big numeric inputs** — the heart of the screen, keypad-friendly
    (`inputmode="decimal"`, Data role type, large targets):
@@ -600,6 +650,16 @@ index option. Grouped sections in cards:
 **Data**: `users.email`, `user_settings` fields, app version. **Empty**: n/a.
 **Loading**: skeleton rows per section. **Error**: per-row toast on failed save;
 optimistic toggles roll back. **i18n**: `settings`.
+
+> **Correction (2026-08-21, implemented):** "Elimina account" uses Better Auth's
+> `user.deleteUser` (enabled in `src/lib/auth/auth.ts`; the credential account
+> re-checks the password, the DB cascades from `users`). The import is
+> `importUserData` in `src/lib/services/settings.ts`: Zod-validated against the
+> `/api/export` shape (`schemaVersion: 1`, ids re-checked as nanoid(21)), upserted
+> by id inside one transaction with an ownership guard (`setWhere user_id = ?`),
+> and entries are re-linked only to products/stores/sessions the user owns —
+> the FK checks existence, not ownership. The theme control writes the `theme`
+> cookie client-side and toggles `.dark` immediately; "Sistema" clears it.
 
 ### 5.11 `/login` · `/signup` — Auth
 
@@ -832,28 +892,34 @@ missing translation fails CI.
 
 Spec 05 is done when **all** of the following hold:
 
-- [ ] Every route in the Spec 00 route map is implemented with **all four states**
+> **Verified 2026-08-21** (see `CLAUDE.md` → Current status for the numbers): every
+> item below holds — axe 0 violations on every route in both themes and both
+> Playwright projects, Lighthouse accessibility 100 on the four named routes,
+> `pnpm lint`/`typecheck`/`test`/`test:e2e` green, `DESIGN.md` generated by the
+> impeccable documenter and referenced from `AGENTS.md`.
+
+- [x] Every route in the Spec 00 route map is implemented with **all four states**
       (data, empty, loading, error) as specified in §5 — including the first-run
       dashboard empty state, the thin-data state, and the global offline pattern.
-- [ ] Both themes (light/dark + system) render correctly on every screen; no
+- [x] Both themes (light/dark + system) render correctly on every screen; no
       hardcoded color values outside `globals.css`.
-- [ ] Both locales complete and key-complete; language switch works on every screen;
+- [x] Both locales complete and key-complete; language switch works on every screen;
       all numbers flow through `src/lib/format.ts` (unit-tested).
-- [ ] Full motion inventory (§7) implemented with `houseSpring`, including the FAB →
+- [x] Full motion inventory (§7) implemented with `houseSpring`, including the FAB →
       camera morph, and `prefers-reduced-motion` honored per the table.
-- [ ] Charts render live on seed data: `pnpm db:seed` (`scripts/seed.ts`, the
+- [x] Charts render live on seed data: `pnpm db:seed` (`scripts/seed.ts`, the
       canonical dataset from Spec 02 §8) makes the dashboard, product detail, and
       history visually complete during iteration and demos. If design iteration
       needs richer data, **extend `scripts/seed.ts`** (updating Spec 02 §8 in the
       same change) — never a separate dev-seed script or a `pnpm seed` alias.
-- [ ] **axe clean**: automated axe checks (Playwright + axe-core) report zero
+- [x] **axe clean**: automated axe checks (Playwright + axe-core) report zero
       violations on every route, both themes.
-- [ ] **Lighthouse accessibility ≥ 95** (mobile emulation) on Dashboard, Scan,
+- [x] **Lighthouse accessibility ≥ 95** (mobile emulation) on Dashboard, Scan,
       Review, and Settings.
-- [ ] Touch targets, focus rings, aria-labels, and chart fallback tables verified
+- [x] Touch targets, focus rings, aria-labels, and chart fallback tables verified
       per §8.
-- [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e` all pass.
-- [ ] The impeccable build is approved, `DESIGN.md` is generated by the impeccable
+- [x] `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e` all pass.
+- [x] The impeccable build is approved, `DESIGN.md` is generated by the impeccable
       documenter, and `AGENTS.md` references it as required reading for UI work.
 
 ---

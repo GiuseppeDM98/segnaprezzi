@@ -1,11 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import {
-  calculateFuelQuantity,
-  calculateFuelTotalCents,
-  calculateUnitPriceMilli,
-  parseDecimalInput,
-} from './money';
+import { calculateFuelQuantity, calculateFuelTotalCents, calculateUnitPriceMilli } from './money';
 
 /*
  * Spec 03 §11.2 adds the fuel half of the money helpers. The rounding is the
@@ -51,20 +46,5 @@ describe('calculateUnitPriceMilli', () => {
 
   test('should keep three decimals of precision on a fuel-sized quantity', () => {
     expect(calculateUnitPriceMilli(9160, 50.9)).toBe(1800);
-  });
-});
-
-describe('parseDecimalInput', () => {
-  test.each([
-    ['1,29', 1.29],
-    ['1.29', 1.29],
-    ['  0,5 ', 0.5],
-    ['38', 38],
-  ])('should parse %j as %d', (raw, expected) => {
-    expect(parseDecimalInput(raw)).toBe(expected);
-  });
-
-  test.each(['', '   ', 'abc'])('should return NaN for %j', (raw) => {
-    expect(parseDecimalInput(raw)).toBeNaN();
   });
 });

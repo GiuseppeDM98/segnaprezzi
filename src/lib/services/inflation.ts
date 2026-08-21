@@ -22,21 +22,42 @@ import type { Db } from '@/lib/db/client';
 import { listEntriesForIndex } from '@/lib/db/repositories/price-entries';
 import { listProductsForIndex } from '@/lib/db/repositories/products';
 import { getUserSettings } from '@/lib/db/repositories/settings';
-import { computePersonalCpi, type PersonalCpiResult } from '@/lib/inflation';
+import {
+  computePersonalCpi,
+  type IndexEntry,
+  type IndexProduct,
+  type IndexSettings,
+  type PersonalCpiResult,
+} from '@/lib/inflation';
 
-/** Compute the personal CPI for a user from their full entry history. */
-export async function getPersonalCpi(db: Db, userId: string): Promise<PersonalCpiResult> {
+export interface IndexInputs {
+  entries: IndexEntry[];
+  products: IndexProduct[];
+  settings: IndexSettings;
+}
+
+/**
+ * The three projections the engine consumes, read once. Exported so the
+ * dashboard read model (Spec 05) can derive its thin-data stats and mover
+ * sparklines from the same rows instead of reading the entries twice.
+ */
+export async function loadIndexInputs(db: Db, userId: string): Promise<IndexInputs> {
   const [settings, entries, products] = await Promise.all([
     getUserSettings(db, userId),
     listEntriesForIndex(db, userId),
     listProductsForIndex(db, userId),
   ]);
-  return computePersonalCpi({
+  return {
     entries,
     products,
     settings: {
       includePromosInIndex: settings.includePromosInIndex,
       carryForwardMonths: settings.carryForwardMonths,
     },
-  });
+  };
+}
+
+/** Compute the personal CPI for a user from their full entry history. */
+export async function getPersonalCpi(db: Db, userId: string): Promise<PersonalCpiResult> {
+  return computePersonalCpi(await loadIndexInputs(db, userId));
 }
