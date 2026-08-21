@@ -57,6 +57,7 @@ I/O, no imports from db/ai/next, heavily unit-tested. The offline photo queue
 - **Tag scanning + AI extraction** (Spec 03): camera → WebP ≤400 KB → Vercel Blob → `claude-haiku-4-5` → review screen → confirm. Nothing hits the DB unconfirmed.
 - **Personal CPI engine** (Spec 04): matched-model relatives, Jevons within category, expenditure-weighted across categories, chained index base=100, carry-forward imputation, coverage stats.
 - **Quick entry** (Spec 03): manual form (`/add/manual`) and fuel form (`/add/fuel`).
+- **Receipt import** (Spec 07): digital receipt (PDF) or photo → `/api/extract-receipt` → per-line extraction with `claude-haiku-4-5` → alias/fuzzy match to the catalog → review → N entries `source='receipt'`. File never stored; aliases learned on confirm.
 - **Dashboard + product histories** (Spec 05): index hero, trend chart, category breakdown, top movers, per-product price history.
 - **Offline-first PWA** (Spec 06): Serwist, IndexedDB photo queue, sync on reconnect.
 - **Auth + multi-user isolation** (Spec 02): Better Auth, every query scoped by `user_id`; `SIGNUP_ENABLED=false` closes registration.
@@ -80,8 +81,9 @@ its spec file.
 | Spec 05 — UI & Design System | ☐ |
 | Spec 06 — PWA & Offline | ☐ |
 | DESIGN.md (generated after Spec 05) | ☐ |
+| Spec 07 — Receipt Import | ☐ |
 
-*Status last updated: 2026-08-20.*
+*Status last updated: 2026-08-21 (Spec 07 added to the plan).*
 
 **INSTRUCTION**: whoever completes a milestone updates this table and the date
 above **in the same commit** as the milestone.
@@ -95,7 +97,7 @@ above **in the same commit** as the milestone.
 2. Canonical table/column/route/env names live in `docs/specs/00-overview.md`
    — use them exactly. Money is integer only: `total_price_cents` (euro
    cents), `unit_price_milli` (milli-euros per base unit kg/L/piece).
-3. **One spec per session**, in order 01 → 02 → (03 ∥ 04) → 05 → 06, using the
+3. **One spec per session**, in order 01 → 02 → (03 ∥ 04) → 05 → 06 → 07, using the
    Implementation Prompt at the end of the spec file, with the recommended
    model/effort:
 
@@ -107,6 +109,7 @@ above **in the same commit** as the milestone.
    | 04 | Claude Opus 5 (Fable 5 if available) | xhigh |
    | 05 | Claude Fable 5 + impeccable skill | xhigh |
    | 06 | Claude Opus 5 | high |
+   | 07 | Claude Opus 5 | high |
 
 4. **Never contradict 00-overview.** If a spec must deviate, change
    `docs/specs/00-overview.md` (and the spec file) in the same PR as the code.
@@ -128,7 +131,8 @@ above **in the same commit** as the milestone.
 | DB | Turso (libSQL) + Drizzle |
 | Photos | Vercel Blob |
 | Auth | Better Auth, email + password |
-| AI | `claude-haiku-4-5`, Anthropic SDK, server-side key only |
+| AI | `claude-haiku-4-5`, Anthropic SDK, server-side key only (tags and receipts; separate model constants) |
+| Receipts | Per-line import only; file hashed and discarded, never stored; `quantity` on entries, `product_aliases` learned |
 | PWA | Serwist + IndexedDB (Dexie) photo queue |
 | i18n | next-intl, `it` + `en` from day one |
 | Money | Integers only: `total_price_cents`, `unit_price_milli`; floats only for index ratios |
@@ -140,5 +144,5 @@ above **in the same commit** as the milestone.
 | License | MIT, public from first commit |
 | UI | "Wow" bar — designed with the impeccable skill |
 
-Non-goals v1: barcode scanning, receipt OCR, shared/community prices,
-multi-currency, budgeting, native app stores.
+Non-goals v1: barcode scanning, automatic receipt ingestion (e-mail/bank),
+shared/community prices, multi-currency, budgeting, native app stores.

@@ -148,14 +148,15 @@ segnaprezzi is built specs-first: every part of the system is fully specified �
 | [04 — Inflation Engine](docs/specs/04-inflation-engine.md) | Pure index math: bucketing, chaining, weighting, coverage stats, exhaustive test plan |
 | [05 — UI & Design System](docs/specs/05-ui-design.md) | Design system, dashboard, charts, all screens |
 | [06 — PWA & Offline](docs/specs/06-pwa-offline.md) | Serwist service worker, IndexedDB photo queue, sync manager |
+| [07 — Receipt Import](docs/specs/07-receipt-import.md) | Digital receipt (PDF) → per-line extraction, catalog aliases, review, `source='receipt'` entries |
 
-Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 06.
+Implementation order: 01 → 02 → (03 ∥ 04) → 05 → 06 → 07.
 
 ### After v1
 
-- **v1.1** — receipt (*scontrino*) OCR: one photo for a whole trip · barcode scanning · richer ISTAT category-level comparison · private signed photo URLs
+- **v1.1** — barcode scanning · richer ISTAT category-level comparison · private signed photo URLs · multi-file receipt upload and private receipt archive
 - **v1.2** — household sharing (shared basket, private accounts) · price alerts ("olive oil below €7/L")
-- **Later** — import bank/receipt data · EU HICP comparison · multi-currency
+- **Later** — automatic receipt ingestion (e-mail/bank) · EU HICP comparison · multi-currency
 
 ## Contributing
 

@@ -39,7 +39,9 @@ inflation engine, Spec 05's charts) consumes the entries produced here.
 - Visual design polish of every screen (Spec 05). Spec 03 must ship
   *functional* `/scan`, `/scan/review`, `/add/manual`, `/add/fuel` pages that
   Spec 05 restyles without changing contracts.
-- Barcode scanning, receipt OCR (roadmap, Spec 00 §3).
+- Barcode scanning (roadmap, Spec 00 §3); receipt import (Spec 07, which
+  reuses this spec's gateway error mapping, product matching and review
+  cards).
 
 ### 1.1 End-to-end flow
 

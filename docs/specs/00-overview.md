@@ -1,8 +1,8 @@
 # Spec 00 — Project Overview & Canonical Contract
 
-> **Status**: Approved · **Last updated**: 2026-08-20
+> **Status**: Approved · **Last updated**: 2026-08-21
 > This document is the single source of truth for names, data shapes, and decisions.
-> Every other spec (01–06) elaborates on this contract and MUST NOT contradict it.
+> Every other spec (01–07) elaborates on this contract and MUST NOT contradict it.
 > If a spec needs to deviate, update this file first.
 
 ---
@@ -21,10 +21,13 @@ with headline numbers ("your inflation: +4.2% YoY"), category breakdowns, and
 per-product price histories — including a comparison against the official ISTAT
 index.
 
-Fuel and generic purchases enter through dedicated quick forms, and everything
-can also be entered manually. The app is a mobile-first, offline-first PWA:
-supermarkets have terrible connectivity, so photos are always captured locally
-and processed when the network returns.
+Digital receipts (the *scontrino digitale* that chains like Coop e-mail as
+PDF) can be imported too: every product line becomes its own price
+observation — the receipt proves the price actually paid, the catalog supplies
+the package size. Fuel and generic purchases enter through dedicated quick
+forms, and everything can also be entered manually. The app is a mobile-first,
+offline-first PWA: supermarkets have terrible connectivity, so photos are
+always captured locally and processed when the network returns.
 
 The project is open source (MIT), self-hostable, and initially private in
 usage: each user sees only their own prices, stores, and products.
@@ -37,6 +40,8 @@ usage: each user sees only their own prices, stores, and products.
 |---|---|---|
 | Price tag | segnaprezzi / cartellino | The shelf label showing price and unit price |
 | Price entry | rilevazione | One observation: product + store + date + prices |
+| Receipt | scontrino | A purchase document (PDF or photo); imported line by line, never as a whole |
+| Alias | alias | A normalized receipt line learned to map to a product ("pasta bar spagh n5 500g") |
 | Shopping session | spesa | One shopping trip; groups photos/entries |
 | Unit price | prezzo al kg/L | Price per base unit (kg, L, piece) — the comparable quantity |
 | Personal CPI | inflazione personale | Chained index computed from the user's own entries |
@@ -55,6 +60,8 @@ usage: each user sees only their own prices, stores, and products.
 | Photo storage | Vercel Blob | Blobs don't belong in SQLite; native Vercel integration |
 | Auth | Better Auth (email + password) | Open source, self-hostable, native Drizzle adapter |
 | AI extraction | Claude Haiku 4.5 (`claude-haiku-4-5`), Anthropic SDK, server-side key | Fast, ~$1/$5 per MTok — fractions of a cent per photo; structured outputs |
+| Receipt extraction | Same model, separate constant `RECEIPT_EXTRACTION_MODEL`; PDF sent as native document block | ≈ $0.03 per receipt; sanctioned upgrade path is `claude-sonnet-5` if quality demands |
+| Receipt storage | The receipt file is **not** persisted; only the structured extraction + content hash | Receipts carry loyalty/payment data — too sensitive for public Blob URLs |
 | PWA | Serwist, offline-first with IndexedDB photo queue | Supermarkets have poor connectivity |
 | i18n | next-intl, `it` + `en` from day one | Author uses IT; OSS audience uses EN; retrofitting i18n is painful |
 | Styling | Tailwind CSS 4 | Current standard |
@@ -70,7 +77,9 @@ usage: each user sees only their own prices, stores, and products.
 ### Non-goals for v1
 
 - Barcode/EAN scanning (roadmap)
-- Receipt (scontrino) OCR — one photo for a whole trip (roadmap; complements tags: receipts prove paid prices, tags carry unit prices)
+- Automatic receipt ingestion (e-mail/bank integrations) — receipts are
+  imported manually one file at a time (Spec 07); receipts prove paid prices,
+  tags carry unit prices
 - Community/shared price data — the app is private per user
 - Multi-currency, budgeting features, shopping lists
 - Native app stores — PWA only
@@ -181,6 +190,7 @@ app-side. All timestamps are `integer` epoch **milliseconds UTC**
 | category | text NOT NULL | enum, see taxonomy below |
 | unit_kind | text NOT NULL | enum: `weight` \| `volume` \| `count` |
 | notes | text NULL | |
+| default_package_size | real NULL | Last confirmed size in base units; lets receipt lines (which rarely print a size) resolve a unit price |
 | is_archived | integer bool, default 0 | Hidden from suggestions, kept in history |
 | created_at / updated_at | integer ms | |
 
@@ -203,15 +213,17 @@ app-side. All timestamps are `integer` epoch **milliseconds UTC**
 | product_id | text FK → products.id, indexed | |
 | store_id | text FK → stores.id NULL | NULL for generic purchases |
 | session_id | text FK → shopping_sessions.id NULL | |
-| recorded_at | integer ms NOT NULL, indexed | Observation moment |
-| total_price_cents | integer NOT NULL | Shelf/pump price actually shown |
+| receipt_id | text FK → receipts.id NULL | Set for `source = receipt` |
+| recorded_at | integer ms NOT NULL, indexed | Observation moment (receipt date for receipts) |
+| total_price_cents | integer NOT NULL | Price of **one** package as shown/paid |
+| quantity | integer NOT NULL, default 1 | Packages bought ("2 × 1,29" → 2). Spend = total × quantity; the monthly mean ignores it |
 | package_size | real NOT NULL | In base units of product.unit_kind |
 | unit_price_milli | integer NOT NULL | Per base unit; from tag or computed |
 | is_promo | integer bool, default 0 | |
 | promo_kind | text NULL | enum: `discount` \| `loyalty` \| `coupon` \| `bundle` |
-| source | text NOT NULL | enum: `photo` \| `manual` \| `fuel` |
+| source | text NOT NULL | enum: `photo` \| `manual` \| `fuel` \| `receipt` |
 | currency | text NOT NULL, default 'EUR' | |
-| photo_url | text NULL | Vercel Blob URL |
+| photo_url | text NULL | Vercel Blob URL; always NULL for receipts |
 | ai_confidence | real NULL | 0..1 |
 | ai_model | text NULL | e.g. "claude-haiku-4-5" |
 | ai_raw_json | text NULL | Full extraction payload, for debugging |
@@ -219,6 +231,37 @@ app-side. All timestamps are `integer` epoch **milliseconds UTC**
 
 Composite index: `(user_id, product_id, recorded_at)` — powers price history and
 monthly bucketing. Also `(user_id, recorded_at)` for the entries timeline.
+
+**`receipts`** — one imported receipt (Spec 07); an import record, not an observation
+| column | type | notes |
+|---|---|---|
+| id | text PK | |
+| user_id | text FK, indexed | |
+| store_id | text FK → stores.id NULL | |
+| status | text NOT NULL | enum: `extracted` \| `confirmed` \| `discarded` |
+| purchased_at | integer ms NOT NULL | Date printed on the receipt (fallback: upload time) |
+| receipt_total_cents | integer NOT NULL | For the Σ-lines cross-check |
+| line_count | integer NOT NULL | |
+| content_hash | text NOT NULL | SHA-256 of the file; unique per user — idempotency, no file stored |
+| file_kind | text NOT NULL | enum: `pdf` \| `image` |
+| ai_model | text NOT NULL | |
+| ai_raw_json | text NOT NULL | Full extraction incl. every `rawLine` — the audit trail |
+| confirmed_at | integer ms NULL | |
+| created_at / updated_at | integer ms | |
+
+**`product_aliases`** — learned receipt-line → product mappings (Spec 07)
+| column | type | notes |
+|---|---|---|
+| id | text PK | |
+| user_id | text FK, indexed | |
+| product_id | text FK → products.id (cascade) | Merge moves aliases to the surviving product |
+| alias | text NOT NULL | Normalized receipt description |
+| store_chain | text NULL | Same abbreviation can differ per chain |
+| hit_count | integer NOT NULL, default 1 | |
+| last_seen_at | integer ms NOT NULL | |
+| created_at | integer ms | |
+
+Unique index: `(user_id, alias, store_chain)`.
 
 ### Category taxonomy (code-defined enum, i18n labels — no DB table)
 
@@ -258,7 +301,8 @@ Full algorithm, worked numeric examples, and the exhaustive test plan live in
    — mirrors ISTAT's elementary aggregates.
 4. **Across categories**: arithmetic mean of category relatives weighted by the
    user's expenditure share per category over the trailing 12 months
-   (`total_price_cents` sums), renormalized over categories with data.
+   (sums of `total_price_cents × quantity`), renormalized over categories
+   with data.
 5. **Chain**: `I(m) = I(m−1) × overallRelative(m)`, base month = 100.
 6. **Headlines**: MoM %, YoY % (needs ≥13 months), since-start %. Every number
    ships with coverage stats (products compared, categories covered, imputed
@@ -286,6 +330,24 @@ Full pipeline, exact prompt, and schema live in **Spec 03**. The contract:
 - Cost: a photo ≈ 1–2K input tokens → well under €0.01; even 200 photos/month
   costs cents.
 
+### 8.1 Receipt import summary (Spec 07)
+
+- Endpoint: `POST /api/extract-receipt` — one file (`application/pdf`,
+  `image/webp`, `image/jpeg`; ≤ 5 MB, ≤ 10 pages), online only.
+- Same model and SDK pattern; PDFs go to the API as a native `document`
+  block. The file is hashed, extracted and discarded — never stored.
+- Extraction is **per line**: `description`, `brand`, `category`, `quantity`,
+  `lineTotalCents`, `discountCents`, `packageSizeHint`, `isPromo`,
+  `promoKind`, `confidence`, `rawLine`; plus header (`storeChain`,
+  `purchasedAt`, `receiptTotalCents`). Non-product lines (totals, payments,
+  VAT, points) are excluded by the prompt; discount lines are folded into the
+  line they refer to.
+- Line resolution: learned alias → fuzzy catalog match → new product. Unit
+  price = per-package price ÷ package size, where the size comes from the
+  receipt, else `products.default_package_size`, else the user on review.
+- Nothing is saved to `price_entries` until the user confirms; confirming
+  also learns aliases so the next receipt from that chain resolves itself.
+
 ---
 
 ## 9. Route Map
@@ -299,6 +361,8 @@ All app routes live under the `[locale]` segment (`it` default, `en`).
 | `/scan/review` | Review extracted entries, fix, match products, confirm batch |
 | `/add/manual` | Manual price entry form |
 | `/add/fuel` | Fuel quick form (€/L + total ⇄ liters) |
+| `/add/receipt` | Upload a digital receipt (PDF) or receipt photo |
+| `/add/receipt/review` | Review extracted lines, match products, fill sizes, confirm |
 | `/products` | Product catalog, search, merge duplicates |
 | `/products/[id]` | Product detail: price history chart, entries, stats |
 | `/history` | All entries timeline, filters |
@@ -312,6 +376,7 @@ API route handlers (everything else uses Server Actions):
 |---|---|
 | `/api/auth/[...all]` | Better Auth |
 | `/api/extract` | Photo → Blob upload → Claude extraction |
+| `/api/extract-receipt` | Receipt file → Claude line extraction → resolution (file not stored) |
 | `/api/export` | Full user data export (JSON) |
 
 Navigation: bottom tab bar (mobile) — Home, Products, central **Scan** FAB,
@@ -334,7 +399,7 @@ segnaprezzi/
 ├── public/                     # PWA icons, manifest assets
 ├── src/
 │   ├── app/                    # App Router: [locale]/(app)/..., api/...
-│   ├── components/             # ui/ (primitives), charts/, capture/, layout/
+│   ├── components/             # ui/ (primitives), charts/, capture/, receipt/, layout/
 │   ├── lib/
 │   │   ├── domain/             # categories.ts, units.ts, money.ts (pure)
 │   │   ├── inflation/          # index engine (pure, no I/O)
@@ -379,18 +444,20 @@ segnaprezzi/
 | 04 | Inflation Engine | 02 (types only) | Claude Opus 5 (Fable 5 if available) | xhigh |
 | 05 | UI & Design System | 02–04 | Claude Fable 5 + impeccable skill | xhigh |
 | 06 | PWA & Offline | 03, 05 | Claude Opus 5 | high |
+| 07 | Receipt Import | 02, 03, 05 | Claude Opus 5 | high |
 
-Order: 01 → 02 → (03 ∥ 04) → 05 → 06. One spec per Claude Code session,
+Order: 01 → 02 → (03 ∥ 04) → 05 → 06 → 07. One spec per Claude Code session,
 using the Implementation Prompt at the end of each spec file. After each
 milestone: update the *Current status* section in `CLAUDE.md`, commit with
 conventional commits.
 
 ### Roadmap after v1
 
-v1.1: receipt (scontrino) OCR · barcode scanning · richer ISTAT category-level
-comparison. v1.2: household sharing (shared basket, private accounts) · price
-alerts ("olive oil below €7/L"). Later: import bank/receipt data, EU HICP
-comparison, multi-currency.
+v1.1: barcode scanning · richer ISTAT category-level comparison · multi-file
+receipt upload and private signed-URL receipt archive. v1.2: household sharing
+(shared basket, private accounts) · price alerts ("olive oil below €7/L").
+Later: automatic receipt ingestion (e-mail/bank), EU HICP comparison,
+multi-currency.
 
 ---
 

@@ -1,6 +1,6 @@
 # Spec 04 — Personal Inflation Engine
 
-> **Status**: Approved · **Last updated**: 2026-08-20
+> **Status**: Approved · **Last updated**: 2026-08-21
 > Implements section 7 of `docs/specs/00-overview.md`. This spec is the full
 > algorithm, the exhaustive edge-case contract, and the acceptance fixtures.
 > The worked example in §6 is normative: its numbers **are** the test fixtures.
@@ -148,7 +148,10 @@ export interface IndexEntry {
   productId: string;
   category: CategoryId;
   recordedAt: number; // epoch milliseconds UTC
-  totalPriceCents: number; // integer euro cents actually paid/displayed
+  totalPriceCents: number; // integer euro cents for ONE package, as paid/displayed
+  // Packages bought in this observation (receipt "2 x 1,29" → 2; always 1 for
+  // photo/manual/fuel). Only expenditure weights use it — never the price means.
+  quantity: number;
   unitPriceMilli: number; // integer milli-euros per base unit (kg | L | piece)
   isPromo: boolean;
 }
@@ -400,9 +403,12 @@ relative.
 
 ### 4.5 Step 5 — Expenditure weights across categories
 
-For month `m`, sum `totalPriceCents` per category over the trailing 12
-calendar months **up to and including `m`** (`m−11 … m`, truncated at the
-start of the grid). Promo entries **always** count toward expenditure,
+For month `m`, sum `totalPriceCents × quantity` per category over the
+trailing 12 calendar months **up to and including `m`** (`m−11 … m`,
+truncated at the start of the grid). Every fixture in this spec has
+`quantity = 1`, so the worked numbers are unchanged; one dedicated test (§7)
+checks that `quantity = 3` triples a category's weight without touching its
+relative. Promo entries **always** count toward expenditure,
 regardless of `includePromosInIndex` — expenditure is what was actually paid;
 the promo setting only governs which *price observations* enter the means.
 
@@ -657,6 +663,7 @@ AAA-structured, behavioral names. Helper builders (`buildEntry`,
 | 13 | should clamp a relative above 5 and count it in outliersClamped | 1000 → 60000 (×60, a €/100g mix-up) | relative treated as 5; `outliersClamped: 1` |
 | 14 | should clamp a relative below 0.2 and count it in outliersClamped | 60000 → 1000 | relative treated as 0.2; `outliersClamped: 1` |
 | 15 | should weight categories by trailing 12-month expenditure renormalized over matched categories | 3 categories, one unmatched in month m | unmatched category's weight redistributed; weights sum to 1 |
+| 15b | should multiply expenditure by quantity without affecting price relatives | two categories, same prices; one entry `quantity: 3` | that category's weight triples relative to `quantity: 1`; its relative unchanged |
 | 16 | should start a category series at 100 in the month the category first appears | `fuel` entries start in month 3 of 5 | fuel series starts at month 3 with index 100; overall series unchanged before month 3 |
 | 17 | should compute the category relative as a geometric mean of product relatives | two food products +10% and −10% | food relative √(1.1 × 0.9) = 0.99499, not 1.0 |
 | 18 | should report yoyPct only from the 13th month of the series | 13 months, +1% every month | months 1–12 `yoyPct: null`; month 13 `yoyPct ≈ 12.6825` (1.01¹² − 1) |
