@@ -33,19 +33,22 @@ test('should convert grams to kilos and store integer money from the manual form
 }) => {
   await page.goto('/add/manual');
 
-  await page.getByLabel('Nuovo prodotto').check();
-  await page.getByPlaceholder('Nome del prodotto').fill(MANUAL_PRODUCT_NAME);
-  await page.getByPlaceholder('Marca').fill('Mutti');
+  // No catalog match for the typed name → inline create (Spec 05 §5.4).
+  await page.getByTestId('product-search').fill(MANUAL_PRODUCT_NAME);
+  await page.getByTestId('create-product').click();
+  await expect(page.getByTestId('new-product-name')).toHaveValue(MANUAL_PRODUCT_NAME);
+  await page.getByTestId('new-product-brand').fill('Mutti');
 
-  await page.getByLabel('Prezzo pagato (€)').fill('1,29');
-  await page.getByLabel('Quantità', { exact: true }).fill('700');
-  await page.getByLabel('Unità').selectOption('g');
+  await page.getByTestId('total-price').fill('1,29');
+  await page.getByTestId('package-size').fill('700');
+  await page.getByTestId('size-unit').selectOption('g');
 
   // 700 g is 0.7 kg, so €1,29 is €1,843/kg — derived live, before submitting.
-  await expect(page.getByLabel('Prezzo unitario (€)')).toHaveValue('1.843');
+  await expect(page.getByTestId('unit-price')).toHaveValue('1.843');
 
-  await page.getByRole('button', { name: 'Salva rilevazione' }).click();
-  await expect(page).toHaveURL('/');
+  await page.getByTestId('save-entry').click();
+  // The form stays put for the next price; the toast confirms the save.
+  await expect(page.getByTestId('toast-success')).toBeVisible();
 
   const payload = await (await page.request.get('/api/export')).json();
   const product = payload.products.find(
@@ -78,7 +81,7 @@ test('should derive the total from €/L and litres and store it as the fuel ent
   // €1,799/L x 38,2 L = €68,72 — the third field follows the two just typed.
   await expect(page.getByTestId('fuel-total')).toHaveValue('68.72');
 
-  await page.getByRole('button', { name: 'Salva rifornimento' }).click();
+  await page.getByTestId('save-fuel').click();
   await expect(page).toHaveURL('/');
 
   const payload = await (await page.request.get('/api/export')).json();
@@ -104,19 +107,19 @@ test('should price methane per kilogram, not per litre', async ({ page }) => {
 
   // Petrol first: its labels must be the litre ones.
   await page.getByRole('button', { name: 'Benzina' }).click();
-  await expect(page.getByText('€/L')).toBeVisible();
-  await expect(page.getByText('Litri')).toBeVisible();
+  await expect(page.getByLabel('€/L')).toBeVisible();
+  await expect(page.getByLabel('Litri')).toBeVisible();
 
   // Methane is dispensed and priced by weight in Italy, so the form follows.
   await page.getByRole('button', { name: 'Metano' }).click();
-  await expect(page.getByText('€/kg')).toBeVisible();
-  await expect(page.getByText('Chili')).toBeVisible();
+  await expect(page.getByLabel('€/kg')).toBeVisible();
+  await expect(page.getByLabel('Chili')).toBeVisible();
 
   await page.getByTestId('fuel-unit-price').fill('1,899');
   await page.getByTestId('fuel-quantity').fill('15');
   await expect(page.getByTestId('fuel-total')).toHaveValue('28.49');
 
-  await page.getByRole('button', { name: 'Salva rifornimento' }).click();
+  await page.getByTestId('save-fuel').click();
   await expect(page).toHaveURL('/');
 
   const payload = await (await page.request.get('/api/export')).json();

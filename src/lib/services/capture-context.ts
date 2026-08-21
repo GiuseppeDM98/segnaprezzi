@@ -100,7 +100,13 @@ export async function getManualEntryContext(db: Db, userId: string): Promise<Man
       unitKind: product.unitKind,
     })),
     stores: storeSummaries,
-    defaultStoreId: pickDefaultStoreId(storeSummaries, recentStoreIds, () => true),
+    // A hand-typed price is almost never a fill-up: prefer the last
+    // supermarket over a fuel station that merely happens to be more recent.
+    defaultStoreId: pickDefaultStoreId(
+      storeSummaries,
+      recentStoreIds,
+      (store) => store.kind !== 'fuel_station',
+    ),
   };
 }
 

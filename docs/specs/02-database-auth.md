@@ -1108,7 +1108,24 @@ App-schema change → edit `app.ts` → `pnpm db:generate` → review the SQL �
 
 ## 8. Seed — `scripts/seed.ts`
 
-Purpose: one command gives Specs 04/05 a realistic four-month dataset with rising prices, promos, and fuel — enough for a meaningful index, charts, and lists.
+Purpose: one command gives Specs 04/05 a realistic dataset with rising prices, promos, and fuel — enough for a meaningful index, charts, and lists.
+
+> **Correction (2026-08-21, Spec 05):** the dataset was extended from four to
+> **fourteen** months (`M-13 … M0`) so the dashboard renders its real
+> year-over-year headline and a full 12-month trend on seed data, as Spec 05 §10
+> requires ("extend `scripts/seed.ts`, never a separate seed script"). The
+> four-month table below is kept as the reference for the **last four months**;
+> the ten earlier months are fixed arrays in `scripts/seed.ts`
+> (`GroceryProductDef.prices`, oldest first) and follow the same rules. Two more
+> additions from the same change: a third store, `seed-store-carrefour`
+> (Carrefour Market Corso Genova, Milano, `supermarket`), where `spaghetti`,
+> `latte` and `olio` are also bought on day 12 of `M-1` and `M0` (standalone
+> entries, no session — they give the per-store comparison and the plain
+> timeline rows of Spec 05 something to show), and a second promo on `caffe` in
+> `M-8` (`discount`). Session ids are `seed-session-m13` … `seed-session-m00`
+> with a **two-digit** suffix, because `seedId()` pads with zeros and `m1`/`m10`
+> would otherwise collide. The primary user now has 3 stores, 13 products and
+> 230 entries.
 
 ### 8.1 Guards & lifecycle
 
@@ -1144,16 +1161,17 @@ if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) {
 
 ### 8.3 Dataset
 
-**Stores (2)**
+**Stores (3)**
 
 | id | name | chain | city | kind |
 |---|---|---|---|---|
 | `seed-store-esselunga` | Esselunga Viale Papiniano | Esselunga | Milano | `supermarket` |
 | `seed-store-eni` | Eni Station Via Lorenteggio | Eni | Milano | `fuel_station` |
+| `seed-store-carrefour` | Carrefour Market Corso Genova | Carrefour | Milano | `supermarket` |
 
-**Months**: `M-3 … M0` = the three previous calendar months plus the current one, computed at run time (Europe/Rome) so the dashboard always shows fresh data. Prices and structure are fixed → content is deterministic; only the dates slide with the run date.
+**Months**: `M-13 … M0` = the thirteen previous calendar months plus the current one, computed at run time (Europe/Rome) so the dashboard always shows fresh data. Prices and structure are fixed → content is deterministic; only the dates slide with the run date.
 
-**Products (13, 6 categories) with unit prices (`unit_price_milli`) per month**
+**Products (13, 6 categories) with unit prices (`unit_price_milli`) for the last four months** (the ten earlier months are in `scripts/seed.ts`)
 
 | id (`seed-prod-…`) | name | brand | category | unitKind | packageSize | M-3 | M-2 | M-1 | M0 |
 |---|---|---|---|---|---|---|---|---|---|
@@ -1178,9 +1196,9 @@ if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) {
 
 - Grocery products: one entry per product per month on **day 5, 10:30 Europe/Rome**, at `seed-store-esselunga`. `spaghetti` and `latte` get a **second** entry on day 18 at the same month's unit price (exercises the monthly-mean bucketing in Spec 04).
 - `total_price_cents = Math.round(unit_price_milli * package_size / 10)` (e.g. spaghetti: 2580 × 0.5 / 10 = 129 → €1.29).
-- Fuel: two entries per month (days 6 and 20, 08:15) at `seed-store-eni`, `source = 'fuel'`, `package_size` = liters from the fixed cycle `[35.0, 32.4, 38.2, 30.0, 33.5, 36.1, 31.8, 34.2]` (M-3 uses the first two, and so on); total from the same rounding formula.
+- Fuel: two entries per month (days 6 and 20, 08:15) at `seed-store-eni`, `source = 'fuel'`, `package_size` = liters from the fixed cycle `[35.0, 32.4, 38.2, 30.0, 33.5, 36.1, 31.8, 34.2]` (consumed two per month, cycling); total from the same rounding formula.
 - `source`: `'manual'` for grocery entries, except the M0 entries for `spaghetti` and `olio` which use `'photo'` with `ai_confidence = 0.93`, `ai_model = 'claude-haiku-4-5'`, `photo_url = null`, `ai_raw_json = null` (exercises AI badges in Spec 05 without needing Blob assets).
-- One `shopping_sessions` row per month (`seed-session-m3` … `seed-session-m0`): store = Esselunga, `status = 'completed'`, `started_at` = day 5 10:15, `completed_at` = day 5 11:00; the month's grocery entries link to it via `session_id`. Fuel entries have `session_id = null`.
+- One `shopping_sessions` row per month (`seed-session-m13` … `seed-session-m00`): store = Esselunga, `status = 'completed'`, `started_at` = day 5 10:15, `completed_at` = day 5 11:00; the month's grocery entries link to it via `session_id`. Fuel entries and the Carrefour entries have `session_id = null`.
 - All entries: `currency = 'EUR'`.
 
 Structure the script as small pure builder functions (`buildSeedMonths()`, `buildSeedEntries(months)`) plus one writer that inserts via the repositories (passing the real `db`) — the seed doubles as an end-to-end smoke test of the repository layer.

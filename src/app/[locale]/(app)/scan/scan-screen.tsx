@@ -1,19 +1,31 @@
 'use client';
 
 /**
- * Client half of the capture screen: session resume, store picker, camera,
- * tray (Spec 03 §2.3, §3.2).
+ * Client half of the capture screen (Spec 03 §2.3, §3.2 · Spec 05 §5.2):
+ * session resume, store chip + picker sheet, immersive viewfinder, tray
+ * and the review CTA. The FAB's accent disc morphs into this screen
+ * through the shared layoutId.
  *
  * Design: the spesa is client-owned. The session id is minted on the first
  * shutter press and never waits for the network; uploads are fired and
  * forgotten. Everything the user sees comes from Dexie, so a lost connection
  * changes only the status chips, never what is on screen.
  */
+import { ChevronDown, Store as StoreIcon, X } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 
-import { CameraCapture } from '@/components/capture/camera-capture';
+import { CameraView } from '@/components/capture/camera-view';
 import { PhotoTray } from '@/components/capture/photo-tray';
+import { type StoreOption, StorePickerSheet } from '@/components/capture/store-picker-sheet';
+import { Button } from '@/components/ui/button';
+import { SCAN_MORPH_LAYOUT_ID } from '@/components/ui/fab';
+import { IconButton } from '@/components/ui/icon-button';
+import { Sheet } from '@/components/ui/sheet';
+import { cx } from '@/lib/cx';
+import { useRouter } from '@/lib/i18n/navigation';
+import { useAppMotion } from '@/lib/motion';
 import { compressPhoto } from '@/lib/offline/compress';
 import type { PendingPhoto } from '@/lib/offline/db';
 import {
@@ -29,6 +41,7 @@ import {
 } from '@/lib/offline/photo-queue';
 import { uploadPendingPhoto } from '@/lib/offline/upload-photo';
 import type { ScanContext } from '@/lib/services/capture-context';
+import { createStore } from '../stores/actions';
 import { discardShoppingSession } from './actions';
 
 /** After this long a spesa is more likely forgotten than still in progress. */
@@ -40,10 +53,15 @@ export interface ScanScreenProps {
 
 export function ScanScreen({ context }: ScanScreenProps) {
   const t = useTranslations('scan');
+  const router = useRouter();
+  const { isReduced, spring } = useAppMotion();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
-  const [storeId, setStoreId] = useState<string | undefined>(context.defaultStoreId ?? undefined);
+  const [stores, setStores] = useState<StoreOption[]>(context.stores);
+  const [storeId, setStoreId] = useState<string | null>(context.defaultStoreId);
+  const [isStorePickerOpen, setIsStorePickerOpen] = useState(false);
   const [isResumeDismissed, setIsResumeDismissed] = useState(false);
+  const [hasCapturedOnce, setHasCapturedOnce] = useState(false);
 
   const refreshPhotos = useCallback(async (activeSessionId: string) => {
     setPhotos(await listSessionPhotos(activeSessionId));
@@ -71,10 +89,11 @@ export function ScanScreen({ context }: ScanScreenProps) {
 
   async function handleCapture(source: Blob): Promise<void> {
     const activeSessionId = ensureSessionId();
+    setHasCapturedOnce(true);
     const compressed = await compressPhoto(source);
     const photo = await enqueuePendingPhoto({
       sessionId: activeSessionId,
-      storeId,
+      storeId: storeId ?? undefined,
       blob: compressed.blob,
     });
     await refreshPhotos(activeSessionId);
@@ -127,7 +146,18 @@ export function ScanScreen({ context }: ScanScreenProps) {
   function handleResume(serverSessionId: string): void {
     writeActiveSessionId(serverSessionId);
     setSessionId(serverSessionId);
+    setIsResumeDismissed(true);
     void refreshPhotos(serverSessionId);
+  }
+
+  async function handleCreateStore(name: string): Promise<StoreOption | null> {
+    const result = await createStore({ name, chain: null, city: null, kind: 'supermarket' });
+    if (!result.ok) {
+      return null;
+    }
+    const created = { id: result.data.id, name, chain: null };
+    setStores((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
+    return created;
   }
 
   // A spesa with photos queued on THIS device always wins over the server's
@@ -139,63 +169,91 @@ export function ScanScreen({ context }: ScanScreenProps) {
     serverSession.id !== sessionId &&
     photos.length === 0;
   const isStale = serverSession !== null && Date.now() - serverSession.startedAt > STALE_SESSION_MS;
+  const selectedStore = stores.find((store) => store.id === storeId) ?? null;
+  const reviewableCount = photos.length;
 
   return (
-    <div className="flex flex-col gap-4">
-      {shouldOfferResume && serverSession && (
-        <section className="flex flex-col gap-2 rounded-2xl bg-surface-raised p-4">
-          <h2 className="font-medium">{isStale ? t('stale.title') : t('resume.title')}</h2>
-          <p className="text-sm text-text-muted">{isStale ? t('stale.body') : t('resume.body')}</p>
-          <div className="flex gap-3">
+    <motion.div
+      layoutId={isReduced ? undefined : SCAN_MORPH_LAYOUT_ID}
+      transition={spring}
+      className="fixed inset-0 z-30 overflow-hidden bg-camera"
+      style={{ borderRadius: 0 }}
+      data-testid="scan-screen"
+    >
+      <CameraView
+        onCapture={handleCapture}
+        onClose={() => router.push('/')}
+        isHintVisible={!hasCapturedOnce}
+        topBar={
+          <div className="flex flex-1 items-center gap-2">
+            <IconButton
+              icon={<X />}
+              label={t('close')}
+              onClick={() => router.push('/')}
+              className="bg-camera/50 text-camera-contrast hover:bg-camera/70"
+            />
             <button
               type="button"
-              onClick={() => handleResume(serverSession.id)}
-              className="rounded-full bg-accent px-4 py-2 font-medium text-accent-contrast text-sm"
+              onClick={() => setIsStorePickerOpen(true)}
+              data-testid="store-chip"
+              className={cx(
+                'flex h-11 max-w-[60%] items-center gap-2 rounded-full px-3.5 font-sans font-medium text-[14px] backdrop-blur-sm',
+                selectedStore
+                  ? 'bg-camera-contrast text-camera'
+                  : 'bg-camera/50 text-camera-contrast',
+              )}
             >
-              {t('resume.resume')}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDiscard(serverSession.id)}
-              className="rounded-full border border-border px-4 py-2 text-sm"
-            >
-              {t('resume.discard')}
+              <StoreIcon aria-hidden="true" className="size-4 shrink-0" />
+              <span className="truncate">{selectedStore?.name ?? t('chooseStore')}</span>
+              <ChevronDown aria-hidden="true" className="size-4 shrink-0 opacity-70" />
             </button>
           </div>
-        </section>
-      )}
+        }
+        bottomBar={({ isOnCamera }) => (
+          <div className="flex flex-col gap-3">
+            <PhotoTray
+              photos={photos}
+              onRetry={handleRetry}
+              onDelete={handleDelete}
+              isOnCamera={isOnCamera}
+            />
+            {reviewableCount > 0 && (
+              <Button href="/scan/review" size="lg" data-testid="review-cta" className="w-full">
+                {t('review', { count: reviewableCount })}
+              </Button>
+            )}
+          </div>
+        )}
+      />
 
-      {context.stores.length > 0 && (
-        <label className="flex items-center gap-2 text-sm">
-          {t('storePicker.label')}
-          <select
-            value={storeId ?? ''}
-            onChange={(event) => setStoreId(event.target.value || undefined)}
-            className="flex-1 rounded-lg border border-border bg-surface p-2"
-          >
-            <option value="">{t('storePicker.none')}</option>
-            {context.stores.map((store) => (
-              <option key={store.id} value={store.id}>
-                {store.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      <StorePickerSheet
+        isOpen={isStorePickerOpen}
+        onClose={() => setIsStorePickerOpen(false)}
+        stores={stores}
+        selectedId={storeId}
+        onSelect={setStoreId}
+        onCreate={handleCreateStore}
+        noneLabel={t('storePicker.none')}
+        title={t('storePicker.title')}
+      />
 
-      <CameraCapture onCapture={handleCapture} />
-
-      <PhotoTray photos={photos} onRetry={handleRetry} onDelete={handleDelete} />
-
-      {sessionId && photos.length > 0 && (
-        <button
-          type="button"
-          onClick={() => handleDiscard(sessionId)}
-          className="self-start text-sm text-text-muted underline"
-        >
-          {t('discardSession')}
-        </button>
-      )}
-    </div>
+      <Sheet
+        isOpen={shouldOfferResume}
+        onClose={() => setIsResumeDismissed(true)}
+        title={isStale ? t('stale.title') : t('resume.title')}
+        description={isStale ? t('stale.body') : t('resume.body')}
+      >
+        {serverSession && (
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => handleResume(serverSession.id)} size="lg">
+              {t('resume.resume')}
+            </Button>
+            <Button variant="secondary" onClick={() => void handleDiscard(serverSession.id)}>
+              {t('resume.discard')}
+            </Button>
+          </div>
+        )}
+      </Sheet>
+    </motion.div>
   );
 }

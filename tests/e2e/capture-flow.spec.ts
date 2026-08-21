@@ -111,11 +111,12 @@ test('should capture a photo, review it and confirm it into the database', async
   expect(uploads[0].contentType).toBe('image/webp');
   expect(uploads[0].byteLength).toBeLessThan(400 * 1024);
 
-  await page.getByRole('link', { name: 'Rivedi' }).click();
+  await page.getByTestId('review-cta').click();
 
   const card = page.getByTestId('review-card');
   await expect(card).toHaveCount(1);
-  await expect(card).toContainText('Yogurt bianco');
+  // The match row names the preselected catalog product.
+  await expect(card.getByTestId('match-row')).toContainText('Yogurt bianco');
   // A 0.95 suggestion is preselected, so confirming needs no product pick.
   await expect(page.getByTestId('needs-review-badge')).toHaveCount(0);
 
@@ -155,15 +156,15 @@ test('should flag a doubtful extraction and block confirm until it is fixed', as
   await page.setInputFiles('[data-testid="photo-file-input"]', PHOTO_FIXTURE);
   await expect(page.getByTestId('photo-status-extracted')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Rivedi' }).click();
+  await page.getByTestId('review-cta').click();
   await expect(page.getByTestId('needs-review-badge')).toBeVisible();
 
   // A 0.95 suggestion is still preselected, so the only thing standing in the
-  // way is the number the user must look at — clear it and confirm is refused.
+  // way is the number the user must look at — clear it and the confirm bar
+  // disables itself and says why (Spec 05 §5.3: "1 da completare").
   await page.getByTestId('field-total-price').fill('');
-  await page.getByTestId('confirm-batch').click();
-
-  await expect(page.getByTestId('confirm-error')).toBeVisible();
+  await expect(page.getByTestId('confirm-batch')).toBeDisabled();
+  await expect(page.getByText('1 da completare')).toBeVisible();
   await expect(page).toHaveURL(/\/scan\/review/);
 
   const exportResponse = await page.request.get('/api/export');

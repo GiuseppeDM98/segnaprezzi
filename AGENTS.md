@@ -6,26 +6,30 @@ can apply without re-deriving them. It does not replace the specs — it tells
 you where the law is and how to work under it.
 
 > **Reality check**: Specs 01 (Foundation & Scaffold), 02 (Database & Auth),
-> 03 (Capture & AI Extraction) and 04 (Inflation Engine) are implemented —
-> there is a real DB, real auth, real repositories, a real Anthropic
-> extraction gateway, the capture, review and quick-entry screens, and the
-> pure personal-CPI engine with its service and the committed ISTAT series.
-> The current implementation state is tracked in **`CLAUDE.md` → "Current
-> status"** — read it first, trust it over any assumption. Sections below
-> marked **[PLANNED]** describe code that does not exist yet (Spec 05
-> onward) but whose shape is already decided; build exactly that shape. Where
-> a spec's literal code text and the actually-implemented code differ, this
-> file and the spec's own inline correction notes (search the spec for
-> "Correction") describe what was actually verified to work — a handful of
-> Spec 02's, Spec 03's and Spec 04's literal snippets didn't survive contact
-> with the real dependency versions, the Next.js runtime and the live ISTAT
-> service (see §4.15–§4.30).
+> 03 (Capture & AI Extraction), 04 (Inflation Engine) and 05 (UI & Design
+> System) are implemented — there is a real DB, real auth, real repositories,
+> a real Anthropic extraction gateway, the pure personal-CPI engine with its
+> service and the committed ISTAT series, and every screen of the Spec 00
+> route map in the "tabulato a modulo continuo" visual world recorded in
+> **`DESIGN.md`** (mandatory reading before any UI work). The current
+> implementation state is tracked in **`CLAUDE.md` → "Current status"** —
+> read it first, trust it over any assumption. Sections below marked
+> **[PLANNED]** describe code that does not exist yet (Spec 06 onward) but
+> whose shape is already decided; build exactly that shape. Where a spec's
+> literal code text and the actually-implemented code differ, this file and
+> the spec's own inline correction notes (search the spec for "Correction")
+> describe what was actually verified to work — a handful of Spec 02's, 03's,
+> 04's and 05's literal snippets didn't survive contact with the real
+> dependency versions, the Next.js runtime, the live ISTAT service and the
+> accessibility gates (see §4.15–§4.38).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
 commit, and guided-collaudo discipline) → `docs/specs/00-overview.md`
 (contract) → the spec you are implementing → this file (conventions) →
-`docs/DEVELOPMENT_GUIDELINES.md` and `docs/COMMENTS.md` (general discipline).
+`docs/DEVELOPMENT_GUIDELINES.md` and `docs/COMMENTS.md` (general discipline)
+→ **`DESIGN.md`** whenever the session touches anything under
+`src/components/` or a `*.tsx` in `src/app/`.
 
 ---
 
@@ -87,10 +91,12 @@ export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: nu
   explicit `Math.round` at the end. The integer conversions
   (`calculateUnitPriceMilli`, `toCents`, `toMilli`, `centsToMilli`) live in
   `src/lib/domain/money.ts` (Spec 02) — pure, integer in/out, string-free.
-- **All** string rendering of money (and every other `Intl.NumberFormat`
-  display helper) lives exclusively in `src/lib/format.ts` (Spec 05), which
-  divides at the last moment (`cents / 100`, `milli / 1000`) — components
-  never divide by 100 themselves.
+- **All** string rendering of money (and every other `Intl.NumberFormat` /
+  `Intl.DateTimeFormat` display helper) lives exclusively in
+  `src/lib/format.ts` (Spec 05), which divides at the last moment
+  (`cents / 100`, `milli / 1000`) — components never divide by 100
+  themselves. Input parsing (`parseDecimalInput`, comma or dot, `null` when
+  not a number) lives there too; `money.ts` stays string-free.
 - The **only** place floats are legitimate: index math in `src/lib/inflation/`
   (price relatives and means are ratios, not money) and `package_size`
   (a physical quantity, stored as `real`). Inside the engine, sums of
@@ -420,15 +426,31 @@ Namespace map **[decided]** — top-level keys of both message files:
 ### 1.12 Design tokens (semantic only)
 
 - Tailwind 4: tokens are defined in `src/app/globals.css` under `@theme` —
-  there is **no `tailwind.config.*`** (see §4).
+  there is **no `tailwind.config.*`** (see §4). `DESIGN.md` is the
+  authoritative record of every token, type role, spacing and motion rule —
+  read it before touching UI.
 - Components use **semantic token utilities only** (`bg-surface`,
-  `text-accent`, etc. — exact token names are fixed by `DESIGN.md` after
-  Spec 05). Never hex colors, never `text-[#123456]` arbitrary values, never
-  raw palette references in components.
-- Colors are OKLCH at the token layer. Animation uses Motion springs
-  (stiffness 400, damping 35 per the design guidelines).
-- Until `DESIGN.md` exists, UI work is limited to what Spec 01–04 need
-  (scaffold-level); the real design pass is Spec 05 with the impeccable skill.
+  `text-text-muted`, `bg-band`, `text-accent-ink`, …). Never hex colors,
+  never `text-[#123456]` arbitrary values, never Tailwind palette colors
+  (`bg-orange-600`, `text-white`) in components — the only literal colors
+  live in `src/app/globals.css` and `docs/assets/logo.svg`. The viewfinder
+  uses the theme-invariant `camera` / `camera-contrast` tokens, not
+  `black`/`white`.
+- **Accent has two utilities on purpose**: `bg-accent` / `text-accent` for
+  fills and icons (the highlighter, 3.3:1 on paper) and `text-accent-ink`
+  for any *word* in accent (≥ 4.5:1). Text on `bg-accent` is
+  `text-accent-contrast` (ink), never white.
+- **One meaning per color**: `negative` = a price that went **up**,
+  `positive` = a price that went **down**, `warning` = needs a human look,
+  `promo` = promotional price, `accent` = the one live/active thing.
+- Colors are OKLCH at the token layer. Motion uses `houseSpring` /
+  `quickFade` from `src/lib/motion.ts` (stiffness 400, damping 35) and asks
+  `useAppMotion()` about reduced motion — ad-hoc spring values are forbidden.
+- Breakpoints are the named `tablet:` (48rem), `rail:` (64rem), `desktop:`
+  (90rem) variants; `sm:`/`md:`/`lg:` are reset to nothing.
+- Every display number goes through `src/lib/format.ts`; every data element
+  is `font-mono` (tabular by the base stylesheet); every list of rows is a
+  `zebra` list of 48 px rows.
 
 ### 1.13 Comments discipline (digest of docs/COMMENTS.md)
 
@@ -505,11 +527,15 @@ segnaprezzi/
 │   │   │                       #   NEVER: business logic, Drizzle queries, fetch to Anthropic.
 │   │   └── api/                # Only the three handlers in §1.10.
 │   ├── components/
-│   │   ├── ui/                 # Primitives (button, card, sheet, field...). Pure presentation.
-│   │   ├── charts/             # Trend/history charts.
-│   │   ├── capture/            # Camera, photo tray, queue status widgets.
-│   │   └── layout/             # Tab bar, page shells.
-│   │                           #   components/ NEVER imports db/, services/, ai/, blob/, env.
+│   │   ├── ui/                 # Primitives (button, sheet, field, input, chip, toast, tab-bar, fab…).
+│   │   ├── charts/             # Hand-rolled SVG: area-chart, category-bars, sparkline, trend-badge,
+│   │   │                       #   number-ticker + scale.ts (pure, tested).
+│   │   ├── capture/            # camera-view, photo-tray, extraction-card, match-picker, store-picker-sheet.
+│   │   ├── entries/            # entry-sheet (view/edit/delete one observation; detail + timeline).
+│   │   ├── auth/               # auth-form (progressive-reveal login/signup form).
+│   │   └── layout/             # app-shell, nav-rail, screen-header, offline-banner.
+│   │                           #   components/ NEVER imports db/, services/, ai/, blob/, env,
+│   │                           #   nor Server Actions — screens pass actions down as callbacks.
 │   ├── lib/
 │   │   ├── domain/             # categories.ts, units.ts, money.ts, schemas.ts. Pure, zero imports.
 │   │   ├── inflation/          # Index engine: bucketing, relatives, chaining, coverage.
@@ -527,12 +553,16 @@ segnaprezzi/
 │   │   ├── auth/               # auth.ts (Better Auth config), client.ts, session.ts (requireUser).
 │   │   ├── i18n/               # routing.ts, navigation.ts (wrapped Link/router), request config.
 │   │   ├── env.ts              # Zod-validated env access. The ONLY file reading process.env.
-│   │   ├── format.ts           # ALL Intl display formatting (money, dates, units). Spec 05.
+│   │   ├── format.ts           # ALL Intl display formatting (money, dates, units) + input parsing.
+│   │   ├── motion.ts           # houseSpring, quickFade, useAppMotion() — the only motion constants.
+│   │   ├── cx.ts               # Class-name joiner (no clsx dependency).
+│   │   ├── use-media-query.ts  # tablet:/rail: queries for components that branch on width.
+│   │   ├── use-container-width.ts # ResizeObserver width for the SVG charts.
 │   │   └── errors.ts           # DomainError + DomainErrorCode + ActionResult (§1.7).
 │   └── middleware.ts           # next-intl locale routing + auth guard.
 ├── tests/
 │   └── e2e/                    # Playwright specs (*.spec.ts). Critical paths only.
-├── AGENTS.md · CLAUDE.md · README.md · CONTRIBUTING.md · DESIGN.md (after Spec 05)
+├── AGENTS.md · CLAUDE.md · DESIGN.md · PRODUCT.md · README.md · CONTRIBUTING.md
 ├── LICENSE (MIT) · biome.json · drizzle.config.ts · next.config.ts · package.json
 ```
 
@@ -611,7 +641,7 @@ are listed now and marked; do not invent different names for them.
 | `typecheck` | `tsc --noEmit` | Spec 01 | Always run before declaring a task done; `next build` alone is not the type gate. |
 | `test` | `vitest run` | Spec 01 | Full unit/integration suite, single pass (CI mode). |
 | `test:watch` | `vitest` | Spec 01 | TDD loop while implementing (essential for Spec 04). |
-| `test:e2e` | `playwright test` | Spec 01 | Critical-path E2E. Needs a prod build or dev server per Playwright config. |
+| `test:e2e` | `playwright test` | Spec 01 | Critical-path E2E + axe. Two projects (`mobile`, `desktop`); `PORT=3100 pnpm test:e2e` when :3000 is taken (§4.32). |
 | `db:generate` | `drizzle-kit generate` | Spec 02 | After every schema change: emits SQL migration into `drizzle/`. |
 | `db:migrate` | `drizzle-kit migrate` | Spec 02 | Apply pending migrations to the DB in `TURSO_DATABASE_URL`. |
 | `db:studio` | `drizzle-kit studio` | Spec 02 | Browse/edit data in a local GUI while debugging. |
@@ -779,8 +809,8 @@ locale follows the host OS/CI runner, which is often `en-US` — that then
 outranks the app's Italian default at `/`, and
 `tests/e2e/smoke.spec.ts`'s Italian-heading assertion fails nondeterministically.
 Fix: `playwright.config.ts` → `projects[].use.locale = 'it-IT'`. Any new
-Playwright project added later (desktop in Spec 05, WebKit in Spec 06) needs
-the same explicit locale.
+Playwright project added later (WebKit in Spec 06; the `desktop` project of
+Spec 05 already does) needs the same explicit locale.
 
 **4.15 SQLite's `RESTRICT` FK action is not deferred to end-of-statement —
 never use it when a cascading delete elsewhere can touch the same row
@@ -957,6 +987,55 @@ with `@vitest/coverage-v8` installed transiently (`pnpm add -D`, measure,
 `git checkout package.json pnpm-lock.yaml && pnpm install --frozen-lockfile`);
 it is deliberately not a project dependency.
 
+**4.31 Python one-liners on Windows write CRLF unless told otherwise.**
+`open(path, 'w')` in text mode converts `\n` to `\r\n`, and Biome's formatter
+then fails every touched file ("Formatter would have printed…") while the diff
+looks unchanged. Either open with `newline=''`, write bytes, or run a
+CRLF→LF normalization over `git status` files before `pnpm lint` — the Spec 05
+session lost two lint rounds to this before the pattern was clear.
+
+**4.32 Playwright's `baseURL` must follow the dev server's port, and Better
+Auth must agree.** `next dev` silently moves to :3001 when :3000 is taken by
+another project, while `playwright.config.ts` kept pointing at :3000 —
+`reuseExistingServer` then runs the suite against the *other* app. The config
+now reads `PORT` (`PORT=3001 pnpm test:e2e`, `pnpm dev --port 3001`). On a
+non-default port, start the dev server with `BETTER_AUTH_URL` set to that
+origin too, or sign-out (which enforces trusted origins) 403s and the auth
+suite fails for a reason that has nothing to do with the code.
+
+**4.33 axe measures contrast on rendered pixels — let the 150 ms route
+cross-fade finish first.** The a11y suite reported `color-contrast` failures
+on pages that pass when inspected by hand: `AppShell` fades `<main>` in over
+150 ms, and a half-transparent page fails every text node against its blend.
+`tests/e2e/a11y.spec.ts` waits for `main` to reach opacity 1 before
+`AxeBuilder` runs. Also: the highlighter accent (`--color-accent`, 3.3:1 on
+paper) is fine for fills and icons (≥ 3:1) but not for words — hence
+`--color-accent-ink` (§1.12).
+
+**4.34 A `<fieldset>` with `display: grid` reserves a row for its legend
+even when the legend is `sr-only`.** The `Segmented` control rendered its
+radios in the top half of the box. Keep the fieldset unstyled
+(`m-0 border-0 p-0`) and put the grid on an inner `<div>`.
+
+**4.35 Motion's `whileTap` on a non-button element adds `tabindex="0"` on
+the client only.** A `motion.span` with `whileTap` inside a `<Link>` produced
+a hydration mismatch on every page (the FAB). Use a real `<button>`, or move
+the press feedback to CSS (`group-active:scale-95`) when the element is not
+the interactive one.
+
+**4.36 `seedId()` pads with zeros, so readable seed labels that differ only
+by a trailing digit collide.** `seed-session-m1` and `seed-session-m10` both
+pad to `seed-session-m1000000`. Use fixed-width suffixes (`m01`, `m10`).
+
+**4.37 Input file elements hidden with `sr-only` still need an accessible
+name.** axe's `label` rule flags a label-less `<input type="file">` even when
+a visible button triggers it; give it `aria-label`.
+
+**4.38 The impeccable decision page needs an unsandboxed shell.**
+`serve-question.mjs --start` binds a local port and daemonizes; under the
+sandboxed Bash tool it cannot, so run it (and the `--wait`) with the sandbox
+disabled, then open the printed URL with `Start-Process` from PowerShell.
+
 **4.30 The Bash tool on this Windows machine truncates long commands (~8 KB).**
 A heredoc that writes a whole TypeScript module, or a Python edit script with
 several large `old`/`new` blocks, fails with `unexpected EOF while looking for
@@ -978,7 +1057,7 @@ false starts before the pattern was clear.
 | 02 | `docs/specs/02-database-auth.md` | Turso + Drizzle schema, migrations, repositories, Better Auth, seed script. |
 | 03 | `docs/specs/03-capture-ai.md` | Camera capture, `/api/extract`, Blob upload, Claude Haiku extraction, review flow, product matching. |
 | 04 | `docs/specs/04-inflation-engine.md` | Pure index engine: bucketing, carry-forward, Jevons, weighting, chaining, ISTAT comparison, exhaustive tests. |
-| 05 | `docs/specs/05-ui-design.md` | Full design system + all screens; produces `DESIGN.md`. |
+| 05 | `docs/specs/05-ui-design.md` | Full design system + all screens; produced `DESIGN.md` (implemented 2026-08-21). |
 | 06 | `docs/specs/06-pwa-offline.md` | Serwist, IndexedDB queue, sync manager, install experience, icons. |
 | 07 | `docs/specs/07-receipt-import.md` | Digital receipt → per-line extraction, catalog aliases, review, `source='receipt'` entries. |
 | 08 | `docs/specs/08-go-live.md` | Operations: Turso + Vercel + Blob + Anthropic provisioning, preview/production scope matrix, first live collaudo, runbook. |
@@ -1046,7 +1125,8 @@ drifts silently.
 | `docs/specs/01–06` | Per-area implementation specs | The one you are implementing, in full |
 | `docs/DEVELOPMENT_GUIDELINES.md` | Layers, naming, errors, testing, security, performance | Once fully; re-check when unsure |
 | `docs/COMMENTS.md` | Comment types and discipline | Before writing any code with comments |
-| `DESIGN.md` | Tokens, typography, layout vocabulary, animation, anti-patterns | **Mandatory before any UI work** — exists after Spec 05 |
+| `DESIGN.md` | Tokens, typography, layout vocabulary, animation, anti-patterns — generated by the impeccable documenter from the shipped Spec 05 build | **Mandatory before any UI work** |
+| `PRODUCT.md` | Product truth for the impeccable skill (users, positioning, constraints, brand commitments) | Before any impeccable command or a new surface |
 | `CLAUDE.md` | Current implementation status + working notes | First thing, every session |
 | `CONTRIBUTING.md` | External-contributor workflow (PRs, issues) | When touching contribution flow |
 

@@ -1,4 +1,20 @@
-import { createClient } from '@libsql/client';
+import { type Client, createClient } from '@libsql/client';
+
+/**
+ * Open the local file database with the same busy timeout the app client
+ * sets (AGENTS.md §4.18): these helpers run from parallel Playwright workers
+ * while the dev server writes, and a raw client without it surfaces
+ * SQLITE_BUSY as a 13 ms test failure that passes on retry.
+ */
+async function openLocalClient(): Promise<Client> {
+  const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
+  if (!url.startsWith('file:')) {
+    throw new Error('E2E db helpers refuse to run against a non-local database.');
+  }
+  const client = createClient({ url });
+  await client.execute('PRAGMA busy_timeout = 5000');
+  return client;
+}
 
 /**
  * Delete a throwaway E2E signup user by email. Playwright tests assert
@@ -7,11 +23,7 @@ import { createClient } from '@libsql/client';
  * don't accumulate signup-test users that scripts/seed.ts doesn't know about.
  */
 export async function deleteUserByEmail(email: string): Promise<void> {
-  const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
-  if (!url.startsWith('file:')) {
-    throw new Error('deleteUserByEmail refuses to run against a non-local database.');
-  }
-  const client = createClient({ url });
+  const client = await openLocalClient();
   await client.execute({ sql: 'DELETE FROM users WHERE email = ?', args: [email] });
   client.close();
 }
@@ -26,11 +38,7 @@ export async function deleteUserByEmail(email: string): Promise<void> {
  * idempotent no matter how the previous run ended.
  */
 export async function resetCaptureFixtures(email: string): Promise<void> {
-  const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
-  if (!url.startsWith('file:')) {
-    throw new Error('resetCaptureFixtures refuses to run against a non-local database.');
-  }
-  const client = createClient({ url });
+  const client = await openLocalClient();
   await client.execute({
     sql: `DELETE FROM price_entries
           WHERE source = 'photo'
@@ -54,14 +62,10 @@ export async function resetCaptureFixtures(email: string): Promise<void> {
  * relies on — so the entries go first.
  */
 export async function deleteProductsByName(email: string, names: string[]): Promise<void> {
-  const url = process.env.TURSO_DATABASE_URL ?? 'file:local.db';
-  if (!url.startsWith('file:')) {
-    throw new Error('deleteProductsByName refuses to run against a non-local database.');
-  }
   if (names.length === 0) {
     return;
   }
-  const client = createClient({ url });
+  const client = await openLocalClient();
   const placeholders = names.map(() => '?').join(', ');
   const selectProducts = `SELECT id FROM products
      WHERE name IN (${placeholders})

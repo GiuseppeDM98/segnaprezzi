@@ -9,11 +9,16 @@
  * nothing reaching the service is assumed to resemble what was extracted.
  */
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { toFieldErrorCode } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
+import {
+  type ProductSearchHit,
+  searchProducts as searchProductsService,
+} from '@/lib/services/catalog';
 import {
   type ConfirmShoppingSessionResult,
   confirmShoppingSession as confirmShoppingSessionService,
@@ -71,5 +76,24 @@ export async function beginSessionReview(input: {
     return { ok: true, data: { sessionId: session.id } };
   } catch (error) {
     return { ok: false, error: toLoggedActionError('beginSessionReview', error) };
+  }
+}
+
+const searchProductsSchema = z.object({ query: z.string().trim().max(100) });
+
+/** Catalog search for the match picker (Spec 05 §5.3). */
+export async function searchProducts(input: {
+  query: string;
+}): Promise<ActionResult<ProductSearchHit[]>> {
+  const parsed = searchProductsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+  }
+  try {
+    const user = await requireUser();
+    const data = await searchProductsService(db, user.id, parsed.data.query);
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: toLoggedActionError('searchProducts', error) };
   }
 }

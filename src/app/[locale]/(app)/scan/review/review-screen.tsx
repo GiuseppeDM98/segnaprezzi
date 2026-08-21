@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client half of the review screen (Spec 03 §9.1).
+ * Client half of the review screen (Spec 03 §9.1 · Spec 05 §5.3).
  *
  * Design: the AI payload stored in Dexie is immutable — it becomes
  * price_entries.ai_raw_json and is the audit trail the user compares against
@@ -9,22 +9,26 @@
  * every card must be resolved (a product picked, no "not legible" zeros left)
  * before the batch can be confirmed. Nothing reaches the database until then.
  */
-import { useTranslations } from 'next-intl';
+import { AnimatePresence, motion } from 'motion/react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { ExtractionCard, type ExtractionCardMatch } from '@/components/capture/extraction-card';
+import { type MatchOption, MatchPicker } from '@/components/capture/match-picker';
+import { ScreenHeader } from '@/components/layout/screen-header';
+import { Button } from '@/components/ui/button';
+import { Chip } from '@/components/ui/chip';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/components/ui/toast';
 import type { ExtractionResult } from '@/lib/ai/extraction-schema';
 import type { ReviewedExtraction, ReviewReason } from '@/lib/ai/flag-extraction';
-import { CATEGORY_IDS, type CategoryId } from '@/lib/domain/categories';
-import { PROMO_KINDS, type PromoKind } from '@/lib/domain/entries';
-import {
-  calculateUnitPriceMilli,
-  centsToEuros,
-  milliToEuros,
-  toCents,
-  toMilli,
-} from '@/lib/domain/money';
-import { UNIT_KINDS, type UnitKind } from '@/lib/domain/units';
+import type { CategoryId } from '@/lib/domain/categories';
+import { calculateUnitPriceMilli } from '@/lib/domain/money';
+import type { UnitKind } from '@/lib/domain/units';
+import { type AppLocale, formatDate, formatMoney } from '@/lib/format';
 import { useRouter } from '@/lib/i18n/navigation';
+import { CARD_STAGGER_SECONDS, useAppMotion } from '@/lib/motion';
 import type { PendingPhoto } from '@/lib/offline/db';
 import {
   clearActiveSessionId,
@@ -33,14 +37,16 @@ import {
   readActiveSessionId,
 } from '@/lib/offline/photo-queue';
 import type { ProductSuggestion } from '@/lib/services/match-products';
-import { beginSessionReview, confirmShoppingSession } from './actions';
+import { beginSessionReview, confirmShoppingSession, searchProducts } from './actions';
 import type { ConfirmShoppingSessionInput } from './schema';
 
 /** Above this score the top suggestion is safe to preselect (Spec 03 §9.1). */
 const PRESELECT_SCORE_THRESHOLD = 0.7;
+/** How long the success checkmark stays before navigating home. */
+const SUCCESS_HOLD_MS = 700;
 
 export type SelectedProduct =
-  | { kind: 'existing'; productId: string }
+  | { kind: 'existing'; productId: string; name: string; brand: string | null }
   | { kind: 'new'; name: string; brand: string | null; category: CategoryId; unitKind: UnitKind };
 
 export interface ReviewEntryDraft {
@@ -63,22 +69,31 @@ export interface ReviewEntryDraft {
   isUnitPriceEdited: boolean;
 }
 
+type LoadState = 'loading' | 'ready';
+
 export function ReviewScreen() {
   const t = useTranslations('review');
-  const tCategories = useTranslations('categories');
-  const tUnits = useTranslations('units');
+  const locale = useLocale() as AppLocale;
   const router = useRouter();
+  const { toast } = useToast();
+  const { isReduced, spring, fade } = useAppMotion();
+  const [loadState, setLoadState] = useState<LoadState>('loading');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<PendingPhoto[]>([]);
   const [drafts, setDrafts] = useState<ReviewEntryDraft[]>([]);
+  const [discarded, setDiscarded] = useState<Map<string, ReviewEntryDraft>>(new Map());
+  const [matchFor, setMatchFor] = useState<string | null>(null);
+  const [isFlaggedOnly, setIsFlaggedOnly] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const cardRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
     const activeSessionId = readActiveSessionId();
     setSessionId(activeSessionId);
     if (!activeSessionId) {
+      setLoadState('ready');
       return;
     }
 
@@ -89,6 +104,7 @@ export function ReviewScreen() {
     void listSessionPhotos(activeSessionId).then((photos) => {
       setPendingPhotos(photos);
       setDrafts(photos.filter(hasExtraction).map(toDraft));
+      setLoadState('ready');
     });
   }, []);
 
@@ -121,6 +137,71 @@ export function ReviewScreen() {
     });
   }
 
+  function discardDraft(id: string): void {
+    const draft = drafts.find((item) => item.id === id);
+    if (!draft) {
+      return;
+    }
+    setDrafts((current) => current.filter((item) => item.id !== id));
+    setDiscarded((current) => new Map(current).set(id, draft));
+    toast({
+      kind: 'info',
+      message: t('discarded'),
+      action: {
+        label: t('undo'),
+        onClick: () => {
+          setDiscarded((current) => {
+            const next = new Map(current);
+            next.delete(id);
+            return next;
+          });
+          setDrafts((current) => [...current, draft]);
+        },
+      },
+    });
+  }
+
+  const handleSearch = useCallback(async (query: string): Promise<MatchOption[]> => {
+    const result = await searchProducts({ query });
+    return result.ok
+      ? result.data.map((hit) => ({ productId: hit.id, name: hit.name, brand: hit.brand }))
+      : [];
+  }, []);
+
+  // Search hits are remembered so a pick from search can show its name.
+  const lastSearchHits = useRef(new Map<string, MatchOption>());
+
+  function handlePick(draftId: string, pick: { productId: string } | 'new'): void {
+    updateDraft(draftId, (draft) => {
+      if (pick === 'new') {
+        return { ...draft, selectedProduct: toNewProductPick(draft.fields) };
+      }
+      const known =
+        draft.suggestions.find((s) => s.productId === pick.productId) ??
+        lastSearchHits.current.get(pick.productId);
+      return {
+        ...draft,
+        selectedProduct: {
+          kind: 'existing',
+          productId: pick.productId,
+          name: known?.name ?? draft.fields.productName,
+          brand: known?.brand ?? null,
+        },
+      };
+    });
+  }
+
+  const handleSearchRemembering = useCallback(
+    async (query: string) => {
+      const hits = await handleSearch(query);
+      for (const hit of hits) {
+        lastSearchHits.current.set(hit.productId, hit);
+      }
+      return hits;
+    },
+    [handleSearch],
+  );
+
   async function handleConfirm(): Promise<void> {
     if (!sessionId) {
       return;
@@ -128,6 +209,7 @@ export function ReviewScreen() {
 
     const unresolved = drafts.find((draft) => !isDraftResolved(draft));
     if (unresolved) {
+      setIsFlaggedOnly(false);
       cardRefs.current[unresolved.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setErrorCode('INVALID_INPUT');
       return;
@@ -149,249 +231,226 @@ export function ReviewScreen() {
 
     await clearSessionPhotos(sessionId);
     clearActiveSessionId();
-    router.push('/');
+    setIsSuccess(true);
+    window.setTimeout(
+      () => {
+        toast({ kind: 'success', message: t('saved') });
+        router.push('/');
+      },
+      isReduced ? 300 : SUCCESS_HOLD_MS,
+    );
   }
 
   // The batch is all-or-nothing: a photo still travelling would be silently
   // dropped from the spesa if we let the user confirm around it.
-  const hasUnfinishedPhotos = pendingPhotos.some((photo) => photo.status !== 'extracted');
-
-  if (drafts.length === 0) {
-    return <p className="text-text-muted">{t('empty')}</p>;
-  }
+  const hasUnfinishedPhotos = pendingPhotos.some(
+    (photo) => photo.status !== 'extracted' && !discarded.has(photo.id),
+  );
+  const flaggedCount = drafts.filter(
+    (draft) => draft.needsReview || !isDraftResolved(draft),
+  ).length;
+  const incompleteCount = drafts.filter((draft) => !isDraftResolved(draft)).length;
+  const runningTotalCents = drafts.reduce((sum, draft) => sum + draft.fields.totalPriceCents, 0);
+  const visibleDrafts = isFlaggedOnly
+    ? drafts.filter((draft) => draft.needsReview || !isDraftResolved(draft))
+    : drafts;
+  const activeMatchDraft = drafts.find((draft) => draft.id === matchFor) ?? null;
+  const captionDate = pendingPhotos[0]
+    ? formatDate(pendingPhotos[0].createdAt, locale)
+    : formatDate(Date.now(), locale);
 
   return (
-    <div className="flex flex-col gap-4">
-      <ul className="flex flex-col gap-4">
-        {drafts.map((draft) => (
-          <li
-            key={draft.id}
-            ref={(element) => {
-              cardRefs.current[draft.id] = element;
-            }}
-            className="flex flex-col gap-3 rounded-2xl bg-surface p-4"
-            data-testid="review-card"
-          >
-            <div className="flex gap-3">
-              {/* biome-ignore lint/performance/noImgElement: a Vercel Blob URL
-                  outside next/image's configured remote patterns; Spec 05 owns
-                  the styled thumbnail component. */}
-              <img src={draft.blobUrl} alt="" className="size-20 rounded-xl object-cover" />
-              <div className="flex flex-1 flex-col gap-1">
-                {draft.needsReview && (
-                  <span
-                    className="w-fit rounded-full bg-warning px-2 py-0.5 font-medium text-xs"
-                    data-testid="needs-review-badge"
-                  >
-                    {t('needsReview')}
-                  </span>
-                )}
-                {draft.reviewReasons.map((reason) => (
-                  <span key={reason} className="text-text-muted text-xs">
-                    {t(reason === 'price-mismatch' ? 'priceMismatch' : 'lowConfidence')}
-                  </span>
-                ))}
-              </div>
-            </div>
+    <div className="flex flex-1 flex-col">
+      <ScreenHeader
+        title={t('title')}
+        backHref="/scan"
+        caption={
+          loadState === 'ready'
+            ? t('caption', { count: pendingPhotos.length, date: captionDate })
+            : undefined
+        }
+        actions={
+          flaggedCount > 0 ? (
+            <Chip
+              variant="filter"
+              isSelected={isFlaggedOnly}
+              onClick={() => setIsFlaggedOnly((value) => !value)}
+              data-testid="flagged-filter"
+            >
+              {isFlaggedOnly ? t('showAll') : t('flagged', { count: flaggedCount })}
+            </Chip>
+          ) : undefined
+        }
+      />
 
-            <label className="flex flex-col gap-1 text-sm">
-              {t('fields.productName')}
-              <input
-                value={draft.fields.productName}
-                onChange={(event) => updateFields(draft.id, { productName: event.target.value })}
-                className="rounded-lg border border-border p-2"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              {t('fields.brand')}
-              <input
-                value={draft.fields.brand ?? ''}
-                onChange={(event) => updateFields(draft.id, { brand: event.target.value || null })}
-                className="rounded-lg border border-border p-2"
-              />
-            </label>
-
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1 text-sm">
-                {t('fields.category')}
-                <select
-                  value={draft.fields.category}
-                  onChange={(event) =>
-                    updateFields(draft.id, { category: event.target.value as CategoryId })
-                  }
-                  className="rounded-lg border border-border p-2"
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 pt-4 pb-28">
+        {loadState === 'loading' ? (
+          <SkeletonCards />
+        ) : drafts.length === 0 ? (
+          <EmptyState
+            title={t('empty.title')}
+            body={t('empty.body')}
+            data-testid="review-empty"
+            action={<Button href="/scan">{t('empty.cta')}</Button>}
+          />
+        ) : (
+          <ul className="flex flex-col gap-4">
+            <AnimatePresence initial={!isReduced}>
+              {visibleDrafts.map((draft, index) => (
+                <motion.li
+                  key={draft.id}
+                  ref={(element) => {
+                    cardRefs.current[draft.id] = element;
+                  }}
+                  layout={!isReduced}
+                  initial={isReduced ? { opacity: 0 } : { opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={isReduced ? fade : { ...spring, delay: index * CARD_STAGGER_SECONDS }}
                 >
-                  {CATEGORY_IDS.map((category) => (
-                    <option key={category} value={category}>
-                      {tCategories(category)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                {t('fields.unitKind')}
-                <select
-                  value={draft.fields.unitKind}
-                  onChange={(event) =>
-                    updateFields(draft.id, { unitKind: event.target.value as UnitKind })
-                  }
-                  className="rounded-lg border border-border p-2"
-                >
-                  {UNIT_KINDS.map((unitKind) => (
-                    <option key={unitKind} value={unitKind}>
-                      {tUnits(unitKind)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <label className="flex flex-col gap-1 text-sm">
-                {t('fields.totalPrice')}
-                <input
-                  type="number"
-                  step="0.01"
-                  inputMode="decimal"
-                  data-testid="field-total-price"
-                  value={toInputValue(draft.fields.totalPriceCents, centsToEuros)}
-                  onChange={(event) =>
-                    updateFields(draft.id, { totalPriceCents: toCents(Number(event.target.value)) })
-                  }
-                  className="rounded-lg border border-border p-2"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                {t('fields.packageSize')}
-                <input
-                  type="number"
-                  step="0.001"
-                  inputMode="decimal"
-                  value={draft.fields.packageSize === 0 ? '' : draft.fields.packageSize}
-                  onChange={(event) =>
-                    updateFields(draft.id, { packageSize: Number(event.target.value) })
-                  }
-                  className="rounded-lg border border-border p-2"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                {t('fields.unitPrice')}
-                <input
-                  type="number"
-                  step="0.001"
-                  inputMode="decimal"
-                  value={toInputValue(draft.fields.unitPriceMilli, milliToEuros)}
-                  onChange={(event) =>
-                    updateFields(draft.id, { unitPriceMilli: toMilli(Number(event.target.value)) })
-                  }
-                  className="rounded-lg border border-border p-2"
-                />
-              </label>
-            </div>
-
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={draft.fields.isPromo}
-                onChange={(event) =>
-                  updateFields(draft.id, {
-                    isPromo: event.target.checked,
-                    promoKind: event.target.checked ? draft.fields.promoKind : null,
-                  })
-                }
-              />
-              {t('fields.isPromo')}
-            </label>
-
-            {draft.fields.isPromo && (
-              <label className="flex flex-col gap-1 text-sm">
-                {t('fields.promoKind')}
-                <select
-                  value={draft.fields.promoKind ?? ''}
-                  onChange={(event) =>
-                    updateFields(draft.id, {
-                      promoKind: (event.target.value || null) as PromoKind | null,
-                    })
-                  }
-                  className="rounded-lg border border-border p-2"
-                >
-                  <option value="">—</option>
-                  {PROMO_KINDS.map((promoKind) => (
-                    <option key={promoKind} value={promoKind}>
-                      {t(`promoKinds.${promoKind}`)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-
-            <fieldset className="flex flex-col gap-2 text-sm">
-              <legend className="font-medium">{t('matchPicker')}</legend>
-              {draft.suggestions.map((suggestion) => (
-                <label key={suggestion.productId} className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name={`product-${draft.id}`}
-                    checked={
-                      draft.selectedProduct?.kind === 'existing' &&
-                      draft.selectedProduct.productId === suggestion.productId
-                    }
-                    onChange={() =>
-                      updateDraft(draft.id, (current) => ({
-                        ...current,
-                        selectedProduct: { kind: 'existing', productId: suggestion.productId },
-                      }))
-                    }
+                  <ExtractionCard
+                    data-testid="review-card"
+                    blobUrl={draft.blobUrl}
+                    fields={draft.fields}
+                    match={toCardMatch(draft.selectedProduct)}
+                    isFlagged={draft.needsReview}
+                    reviewReasons={draft.reviewReasons}
+                    isUnitPriceDerived={!draft.isUnitPriceEdited}
+                    onChange={(patch) => updateFields(draft.id, patch)}
+                    onOpenMatch={() => setMatchFor(draft.id)}
+                    onDiscard={() => discardDraft(draft.id)}
                   />
-                  <span>
-                    {suggestion.brand ? `${suggestion.brand} ` : ''}
-                    {suggestion.name}
-                  </span>
-                  <span className="text-text-muted text-xs">
-                    {Math.round(suggestion.score * 100)}%
-                  </span>
-                </label>
+                </motion.li>
               ))}
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name={`product-${draft.id}`}
-                  data-testid="pick-new-product"
-                  checked={draft.selectedProduct?.kind === 'new'}
-                  onChange={() =>
-                    updateDraft(draft.id, (current) => ({
-                      ...current,
-                      selectedProduct: toNewProductPick(current.fields),
-                    }))
-                  }
-                />
-                {t('newProduct')}
-              </label>
-            </fieldset>
-          </li>
-        ))}
-      </ul>
+            </AnimatePresence>
+          </ul>
+        )}
+      </div>
 
-      {hasUnfinishedPhotos && <p className="text-sm text-warning">{t('waitingForUploads')}</p>}
-      {errorCode && (
-        <p role="alert" data-testid="confirm-error" className="text-negative text-sm">
-          {t('confirmError')}
-        </p>
+      {drafts.length > 0 && (
+        <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-20 border-border border-t border-dashed bg-surface/95 px-4 pt-3 pb-11 backdrop-blur-sm rail:bottom-0 rail:pb-3">
+          <div className="mx-auto flex w-full max-w-2xl flex-col gap-2">
+            {hasUnfinishedPhotos && (
+              <p className="font-sans text-[13px] text-warning">{t('waitingForUploads')}</p>
+            )}
+            {errorCode && (
+              <p data-testid="confirm-error" className="font-sans text-[13px] text-negative">
+                {t('confirmError')}
+              </p>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col">
+                <span className="font-mono text-[11px] text-text-muted uppercase tracking-wide">
+                  {incompleteCount > 0
+                    ? t('incomplete', { count: incompleteCount })
+                    : t('runningTotal')}
+                </span>
+                <span className="font-mono font-semibold text-[17px] text-text tabular-nums">
+                  {formatMoney(runningTotalCents, locale)}
+                </span>
+              </div>
+              <Button
+                onClick={() => void handleConfirm()}
+                isPending={isSubmitting}
+                disabled={hasUnfinishedPhotos || incompleteCount > 0 || isSuccess}
+                data-testid="confirm-batch"
+                size="lg"
+              >
+                {t('confirmBatch', { count: drafts.length })}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
-      <button
-        type="button"
-        onClick={handleConfirm}
-        disabled={isSubmitting || hasUnfinishedPhotos}
-        data-testid="confirm-batch"
-        className="rounded-full bg-accent px-6 py-3 font-medium text-accent-contrast disabled:opacity-40"
-      >
-        {t('confirmBatch')}
-      </button>
+      {activeMatchDraft && (
+        <MatchPicker
+          isOpen={matchFor !== null}
+          onClose={() => setMatchFor(null)}
+          suggestions={activeMatchDraft.suggestions.map((suggestion) => ({
+            productId: suggestion.productId,
+            name: suggestion.name,
+            brand: suggestion.brand,
+            score: suggestion.score,
+          }))}
+          selectedProductId={
+            activeMatchDraft.selectedProduct?.kind === 'existing'
+              ? activeMatchDraft.selectedProduct.productId
+              : null
+          }
+          isNewSelected={activeMatchDraft.selectedProduct?.kind === 'new'}
+          newProductName={activeMatchDraft.fields.productName}
+          onPick={(pick) => handlePick(activeMatchDraft.id, pick)}
+          onSearch={handleSearchRemembering}
+        />
+      )}
+
+      <SuccessOverlay isVisible={isSuccess} />
+    </div>
+  );
+}
+
+/** Confirm success: an SVG checkmark drawing its stroke, then a spring pop (§7). */
+function SuccessOverlay({ isVisible }: { isVisible: boolean }) {
+  const t = useTranslations('review');
+  const { isReduced, spring, fade } = useAppMotion();
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          role="status"
+          aria-live="polite"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={fade}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/90 backdrop-blur-sm"
+        >
+          <motion.span
+            initial={isReduced ? false : { scale: 0.6 }}
+            animate={{ scale: 1 }}
+            transition={{ ...spring, delay: isReduced ? 0 : 0.35 }}
+            className="flex size-24 items-center justify-center rounded-full bg-positive-soft text-positive"
+          >
+            <svg viewBox="0 0 48 48" className="size-12" fill="none" aria-hidden="true">
+              <motion.path
+                d="M12 25l8 8 16-18"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                initial={isReduced ? false : { pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={isReduced ? { duration: 0 } : { duration: 0.4, ease: 'easeOut' }}
+              />
+            </svg>
+          </motion.span>
+          <p className="font-sans font-semibold text-lg text-text">{t('saved')}</p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function SkeletonCards() {
+  return (
+    <div className="flex flex-col gap-4" aria-busy="true">
+      {[0, 1].map((index) => (
+        <div
+          key={index}
+          className="flex flex-col gap-3 rounded-control border border-border bg-surface p-3"
+        >
+          <div className="flex gap-3">
+            <Skeleton shape="block" width="5rem" height="5rem" />
+            <div className="flex flex-1 flex-col gap-3">
+              <Skeleton width="70%" />
+              <Skeleton width="45%" />
+            </div>
+          </div>
+          <Skeleton shape="block" height="2.75rem" />
+          <Skeleton shape="block" height="2.75rem" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -419,7 +478,12 @@ function toDraft(
     suggestions,
     selectedProduct:
       topSuggestion && topSuggestion.score >= PRESELECT_SCORE_THRESHOLD
-        ? { kind: 'existing', productId: topSuggestion.productId }
+        ? {
+            kind: 'existing',
+            productId: topSuggestion.productId,
+            name: topSuggestion.name,
+            brand: topSuggestion.brand,
+          }
         : null,
     recordedAt: photo.createdAt,
     original: extraction,
@@ -438,6 +502,13 @@ function toNewProductPick(fields: ExtractionResult): SelectedProduct {
   };
 }
 
+function toCardMatch(selected: SelectedProduct | null): ExtractionCardMatch | null {
+  if (!selected) {
+    return null;
+  }
+  return { kind: selected.kind, label: selected.name, brand: selected.brand };
+}
+
 /** A card is ready when it has a product and no "not legible" zeros left. */
 function isDraftResolved(draft: ReviewEntryDraft): boolean {
   return (
@@ -450,10 +521,20 @@ function isDraftResolved(draft: ReviewEntryDraft): boolean {
 }
 
 function toConfirmEntry(draft: ReviewEntryDraft): ConfirmShoppingSessionInput['entries'][number] {
+  const selected = draft.selectedProduct ?? toNewProductPick(draft.fields);
   return {
     id: draft.id,
     // isDraftResolved() has already guaranteed a pick before confirm runs.
-    product: draft.selectedProduct ?? toNewProductPick(draft.fields),
+    product:
+      selected.kind === 'existing'
+        ? { kind: 'existing', productId: selected.productId }
+        : {
+            kind: 'new',
+            name: selected.name,
+            brand: selected.brand,
+            category: selected.category,
+            unitKind: selected.unitKind,
+          },
     recordedAt: draft.recordedAt,
     totalPriceCents: draft.fields.totalPriceCents,
     packageSize: draft.fields.packageSize,
@@ -467,9 +548,4 @@ function toConfirmEntry(draft: ReviewEntryDraft): ConfirmShoppingSessionInput['e
     aiModel: draft.aiModel,
     aiRawJson: JSON.stringify(draft.original),
   };
-}
-
-/** Render the "not legible" 0 sentinel as an empty input the user must fill. */
-function toInputValue(value: number, convert: (value: number) => number): number | '' {
-  return value === 0 ? '' : convert(value);
 }

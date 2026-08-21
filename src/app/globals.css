@@ -1,21 +1,30 @@
 @import "tailwindcss";
 
 /*
- * Design: theme tokens (docs/specs/01-foundation.md §8).
+ * Design: the visual world is "tabulato a modulo continuo" — the personal
+ * index printed as a continuous-form statement (direction seed 12e30ec0,
+ * locked 2026-08-21; the contract comment lives in src/app/[locale]/layout.tsx
+ * and the full system in DESIGN.md).
  *
- * Two layers:
- *  1. Raw custom properties on :root / .dark hold the actual colors and
- *     flip with the theme.
- *  2. @theme inline maps them to Tailwind color tokens, generating the
- *     utilities the app uses (bg-background, text-text-muted, border-border,
- *     bg-accent, …).
+ * Two layers, as Spec 01 §8 set them up:
+ *  1. Raw custom properties on :root / .dark hold the colors and flip with
+ *     the theme. Light is the paper register (cream stock, ribbon ink);
+ *     dark is the print negative (ink field, paper type) — never a
+ *     phosphor screen.
+ *  2. @theme inline maps them to Tailwind tokens, generating the only
+ *     utilities components may use (bg-surface, text-text-muted, …).
  *
- * Components use ONLY semantic utilities — never raw hex/oklch values, never
- * Tailwind palette colors (bg-orange-600 is a review rejection).
+ * Components use semantic utilities ONLY — never raw hex/oklch values,
+ * never Tailwind palette colors. This file and docs/assets/logo.svg are
+ * the only places a literal color may appear (Spec 05 §2.1).
  *
- * PLACEHOLDER VALUES — final palette owned by Spec 05 / DESIGN.md.
- * `positive` = favorable movement (e.g. a price drop), `negative` =
- * unfavorable (a price rise); the exact perceptual mapping is Spec 05's call.
+ * One meaning per color (raise kept from the Televideo challenger):
+ *   ink = text · accent (highlighter orange) = the one live/active thing, and
+ *   accent-ink its darker twin for words ·
+ *   negative (red ribbon) = a price that went UP · positive (green ribbon)
+ *   = a price that went DOWN · warning = needs a human look · promo (pink
+ *   marker) = promotional price. Text on the highlighter is the ink it
+ *   covers, so accent-contrast is the text color, not white.
  */
 
 /* Dark theme applies when .dark is on <html> — set pre-paint by the theme
@@ -23,48 +32,222 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: oklch(98.4% 0.003 75);
-  --surface: oklch(100% 0 0);
-  --surface-raised: oklch(96.2% 0.004 75);
-  --text: oklch(21% 0.01 75);
-  --text-muted: oklch(50% 0.01 75);
-  --accent: oklch(64.6% 0.222 41.116); /* #EA580C — brand seed, logo.svg */
-  --accent-contrast: oklch(98.5% 0.01 41);
-  --positive: oklch(62.7% 0.194 149.214);
-  --negative: oklch(57.7% 0.245 27.325);
-  --warning: oklch(66.6% 0.179 58.318);
-  --border: oklch(90% 0.005 75);
+  /* Paper register */
+  --background: oklch(97.2% 0.014 88);
+  --surface: oklch(99.2% 0.006 88);
+  --surface-raised: oklch(99.6% 0.004 88);
+  --band: oklch(94.4% 0.034 140);
+  --text: oklch(23% 0.018 300);
+  --text-muted: oklch(46% 0.02 300);
+  --accent: oklch(64% 0.17 48);
+  --accent-contrast: oklch(23% 0.018 300);
+  --accent-ink: oklch(52% 0.15 45);
+  --accent-soft: oklch(94% 0.05 75);
+  --positive: oklch(47% 0.13 150);
+  --positive-soft: oklch(93% 0.05 150);
+  --negative: oklch(50% 0.19 28);
+  --negative-soft: oklch(93.5% 0.033 28);
+  --warning: oklch(52% 0.12 70);
+  --warning-soft: oklch(95% 0.05 85);
+  --border: oklch(84% 0.02 88);
+  --overlay: oklch(23% 0.018 300 / 0.55);
+  --promo: oklch(55% 0.2 350);
+  --chart-compare: oklch(58% 0.012 300);
+  --chart-grid: oklch(88% 0.018 88);
+  --focus: oklch(50% 0.15 255);
+  --shadow-ink: oklch(23% 0.018 300 / 0.14);
 }
 
 .dark {
-  --background: oklch(17% 0.005 75);
-  --surface: oklch(21% 0.006 75);
-  --surface-raised: oklch(25% 0.008 75);
-  --text: oklch(95% 0.005 75);
-  --text-muted: oklch(65% 0.01 75);
-  --accent: oklch(70% 0.19 45);
-  --accent-contrast: oklch(20% 0.05 45);
-  --positive: oklch(72.3% 0.219 149.579);
-  --negative: oklch(63.7% 0.237 25.331);
-  --warning: oklch(76.9% 0.188 70.08);
-  --border: oklch(30% 0.008 75);
+  /* Print negative */
+  --background: oklch(18% 0.014 300);
+  --surface: oklch(21.5% 0.014 300);
+  --surface-raised: oklch(27% 0.014 300);
+  --band: oklch(24.5% 0.022 145);
+  --text: oklch(94% 0.012 88);
+  --text-muted: oklch(71% 0.012 88);
+  --accent: oklch(78% 0.16 62);
+  --accent-contrast: oklch(18% 0.014 300);
+  --accent-ink: oklch(78% 0.16 62);
+  --accent-soft: oklch(31% 0.06 60);
+  --positive: oklch(76% 0.15 150);
+  --positive-soft: oklch(29% 0.05 150);
+  --negative: oklch(74% 0.14 26);
+  --negative-soft: oklch(30% 0.06 26);
+  --warning: oklch(80% 0.14 78);
+  --warning-soft: oklch(31% 0.06 78);
+  --border: oklch(33% 0.016 300);
+  --overlay: oklch(10% 0.01 300 / 0.65);
+  --promo: oklch(77% 0.16 350);
+  --chart-compare: oklch(64% 0.012 88);
+  --chart-grid: oklch(29% 0.014 300);
+  --focus: oklch(74% 0.13 250);
+  --shadow-ink: oklch(5% 0.01 300 / 0.5);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-band: var(--band);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
   --color-accent: var(--accent);
   --color-accent-contrast: var(--accent-contrast);
+  /* Accent used AS TEXT: the highlighter is too light for 4.5:1 on paper, so
+   * words in accent (links, active tab labels) print in a deeper marker. */
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
   --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
   --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
   --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
   --color-border: var(--border);
+  --color-overlay: var(--overlay);
+  --color-promo: var(--promo);
+  --color-chart-compare: var(--chart-compare);
+  --color-chart-grid: var(--chart-grid);
+  --color-focus: var(--focus);
+
+  /* The viewfinder is the one surface that ignores the theme: camera UI
+   * sits on the live feed, so its chrome is always white on black. */
+  --color-camera: oklch(8% 0 0);
+  --color-camera-contrast: oklch(100% 0 0);
+
+  /* Two voices of the printed statement: the preprinted form (labels,
+   * prose, controls) and what the machine printed (every number, every
+   * row). Font files come from next/font in the root layout. */
+  --font-sans: var(--font-form), "Barlow", "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-print), "Martian Mono", ui-monospace, "Cascadia Mono", Menlo, monospace;
+
+  /* Named breakpoints (Spec 05 §3): raw sm/md/lg never decide layout. */
+  --breakpoint-*: initial;
+  --breakpoint-tablet: 48rem;
+  --breakpoint-rail: 64rem;
+  --breakpoint-desktop: 90rem;
+
+  /* Print has no elevation; only what lifts off the sheet gets a shadow. */
+  --shadow-sheet: 0 -8px 32px -8px var(--shadow-ink);
+  --shadow-raised: 0 6px 20px -6px var(--shadow-ink), 0 1px 2px var(--shadow-ink);
+  --shadow-fab: 0 8px 20px -6px var(--shadow-ink), 0 2px 4px var(--shadow-ink);
+
+  /* Radii: a stamped control, not a pebble. */
+  --radius-control: 0.375rem;
+  --radius-sheet: 0.75rem;
 }
 
-body {
-  background-color: var(--color-background);
-  color: var(--color-text);
+@layer base {
+  html {
+    color-scheme: light;
+    /* Why: the scrollbar gutter must not shift layout between routes with
+     * and without overflow — every screen is measured at 390px. */
+    scrollbar-gutter: stable;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Everything the machine printed is tabular by construction. */
+  .font-mono,
+  [class*="font-mono"] {
+    font-variant-numeric: tabular-nums slashed-zero;
+  }
+
+  /* Browser surfaces carry the world too: selection is a highlighter
+   * stroke, the caret is ink, the focus ring is the blue of a stamp. */
+  ::selection {
+    background-color: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  input,
+  textarea,
+  select {
+    caret-color: var(--color-accent);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  /* Reduced motion: every CSS transition collapses; Motion springs are
+   * handled by useAppMotion() in src/lib/motion.ts. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      /* biome-ignore lint/complexity/noImportantStyles: the accessibility override must beat every component-level duration */
+      transition-duration: 0.01ms !important;
+      /* biome-ignore lint/complexity/noImportantStyles: same */
+      animation-duration: 0.01ms !important;
+      /* biome-ignore lint/complexity/noImportantStyles: same */
+      animation-iteration-count: 1 !important;
+      /* biome-ignore lint/complexity/noImportantStyles: same */
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@utility sprocket-margin {
+  /* The punched feed strip of continuous-form paper: one hole every
+   * half inch (48px), drawn as a repeating radial gradient so it costs no
+   * markup and stays aligned with the 48px row rhythm. */
+  background-image: radial-gradient(
+    circle at 50% 24px,
+    var(--color-background) 0 4px,
+    var(--color-border) 4.5px 5.5px,
+    transparent 6px
+  );
+  background-size: 100% 48px;
+  background-repeat: repeat-y;
+  background-color: var(--color-surface);
+  border-right: 1px dashed var(--color-border);
+}
+
+@utility zebra {
+  /* Green-bar paper: alternate rows so the eye never loses its line. */
+  & > :nth-child(odd) {
+    background-color: var(--color-band);
+  }
+}
+
+@utility rule-double {
+  /* A printout's "=====" header rule. */
+  border-bottom: 3px double var(--color-border);
+}
+
+@utility rule-dashed {
+  border-bottom: 1px dashed var(--color-border);
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

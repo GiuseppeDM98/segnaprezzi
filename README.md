@@ -37,19 +37,21 @@ The project is fully specified up front; each spec lands in its own session, and
 
 - [x] **Tag scanning** — photograph shelf price tags; Claude Haiku 4.5 extracts product, total price, and unit price with a review-before-save flow
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
-- [ ] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and side-by-side ISTAT comparison *(the engine and the official ISTAT series ship; the dashboard that shows them is next)*
-- [ ] **Product price histories** — per-product charts across stores and time, with duplicate-product merging
+- [x] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and a one-tap ISTAT comparison rebased to your own starting month, on a dashboard that leads with your year-over-year number and its coverage line
+- [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, and duplicate-product merging
+- [x] **History & stores** — every observation day by day with shopping trips grouped under their total, filters by category/store/promo/source, and store management
 - [x] **Promo tracking** — flag discounts, loyalty prices, coupons, and bundles; choose whether promos count toward your index
 - [ ] **Offline-first PWA** — installable on your phone, captures photos with zero connectivity, syncs later *(the offline photo queue ships; installability and background sync are next)*
 - [x] **Accounts & private data** — email + password sign-up/login; every price, product, and store is scoped to your account alone
 - [x] **Italian + English** — full i18n from day one
 - [x] **Dark / light theme**
 - [x] **Data export** — your complete data as JSON, always
-- [ ] **Self-hostable** — your prices live in your own database, on your own deployment (auth, DB and capture are self-hosted already; the index is still to come)
+- [x] **Backup import** — restore a previous export into your account, merged by id and never wiped
+- [ ] **Self-hostable** — your prices live in your own database, on your own deployment (everything runs locally today; the go-live runbook is Spec 08)
 
-## Screenshots
+## Design
 
-Coming with implementation — screenshots will live in `docs/assets/screenshots/`.
+The interface is a *tabulato a modulo continuo* — your index printed as a continuous-form statement: cream stock and ribbon ink (a print-negative dark theme), green-bar rows behind every list, a monospace with tabular figures for everything the machine printed, one highlighter-orange accent. It was designed with the [impeccable](https://impeccable.style) skill and is recorded in [`DESIGN.md`](DESIGN.md); every screen passes automated accessibility checks (axe, WCAG 2.1 AA) in both themes and scores 100 on Lighthouse accessibility. Screenshots will live in `docs/assets/screenshots/`.
 
 ## Tech stack
 
@@ -63,11 +65,12 @@ Coming with implementation — screenshots will live in `docs/assets/screenshots
 | Photo storage | [Vercel Blob](https://vercel.com/storage/blob) |
 | PWA / offline | [Serwist](https://serwist.pages.dev) + [Dexie](https://dexie.org) (IndexedDB photo queue) |
 | i18n | [next-intl](https://next-intl.dev) (`it` + `en`) |
-| Styling | Tailwind CSS 4 |
+| Styling | Tailwind CSS 4 (CSS-first tokens, see [`DESIGN.md`](DESIGN.md)) |
+| Icons | [lucide-react](https://lucide.dev) |
 | Animation | [Motion](https://motion.dev) |
 | Validation | Zod |
 | Lint / format | [Biome](https://biomejs.dev) |
-| Testing | Vitest (unit/integration) + Playwright (E2E) |
+| Testing | Vitest (unit/integration) + Playwright (E2E, with axe-core accessibility checks) |
 | Package manager | pnpm |
 
 Exact versions the specs were written against are listed in [Spec 00, section 4](docs/specs/00-overview.md#4-tech-stack-versions-current-as-of-2026-08-20).
@@ -112,10 +115,12 @@ All variables are validated with Zod at boot (`src/lib/env.ts`); a misconfigured
 
 ## Local development
 
-> **Note:** Specs 01–04 are implemented — a real local database, sign-up/login,
-> the full capture flow (camera, AI extraction, review, quick entry) and the
-> personal inflation engine with the official ISTAT series. The dashboard that
-> renders the index is Spec 05, still to come.
+> **Note:** Specs 01–05 are implemented — a real local database, sign-up/login,
+> the full capture flow (camera, AI extraction, review, quick entry), the
+> personal inflation engine with the official ISTAT series, and every screen
+> of the app (dashboard, products, history, stores, settings). What is left
+> before a public deployment is the go-live runbook (Spec 08), the installable
+> PWA with background sync (Spec 06) and receipt import (Spec 07).
 
 Requirements: Node 22+ and pnpm.
 
@@ -127,6 +132,7 @@ cp .env.example .env.local        # then fill in ANTHROPIC_API_KEY and BETTER_AU
                                    # (generate a secret: openssl rand -base64 32)
 pnpm db:migrate                   # applies migrations to a local file:local.db — no Turso account needed
 pnpm db:seed                      # optional: seeds a demo account (dev@segnaprezzi.local / segnaprezzi-dev)
+                                   # with 14 months of prices, so the dashboard shows a real year-over-year number
 pnpm dev                          # http://localhost:3000 (Italian), http://localhost:3000/en
 ```
 
@@ -141,11 +147,11 @@ capture screen, the queue, the review screen and both quick-entry forms still
 work; only the extraction call itself fails (and the queue treats it as
 retryable, so the photo waits rather than being lost).
 
-Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm db:studio` (browse the local DB), `pnpm istat:update` (refresh the bundled ISTAT NIC series in `data/istat-nic.json`).
+Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright — two projects, `mobile` and `desktop`, including the axe accessibility suite; if port 3000 is busy, `PORT=3001 pnpm test:e2e` with the dev server started as `BETTER_AUTH_URL=http://localhost:3001 pnpm dev --port 3001`), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm db:studio` (browse the local DB), `pnpm istat:update` (refresh the bundled ISTAT NIC series in `data/istat-nic.json`).
 
 ## Project status & roadmap
 
-**Current status: Spec 04 (Inflation Engine) implemented — Spec 05 (UI & Design System) next.**
+**Current status: Spec 05 (UI & Design System) implemented — Spec 08 (Go-live & Operations) next.**
 
 segnaprezzi is built specs-first: every part of the system is fully specified — exact schemas, algorithms with worked numeric examples, prompts, test plans — before a line of application code is written. Each spec is then implemented in its own focused session. The specs are public and are the best way to understand the project in depth:
 
@@ -156,7 +162,7 @@ segnaprezzi is built specs-first: every part of the system is fully specified �
 | [02 — Database & Auth](docs/specs/02-database-auth.md) | Drizzle schema and migrations, Better Auth setup, repositories |
 | [03 — Capture & AI Extraction](docs/specs/03-capture-ai.md) | Camera flow, `/api/extract`, Claude prompt and schema, review screen, product matching |
 | [04 — Inflation Engine](docs/specs/04-inflation-engine.md) | Pure index math: bucketing, chaining, weighting, coverage stats, exhaustive test plan |
-| [05 — UI & Design System](docs/specs/05-ui-design.md) | Design system, dashboard, charts, all screens |
+| [05 — UI & Design System](docs/specs/05-ui-design.md) | Design system, dashboard, charts, all screens — the shipped system is recorded in [`DESIGN.md`](DESIGN.md) |
 | [06 — PWA & Offline](docs/specs/06-pwa-offline.md) | Serwist service worker, IndexedDB photo queue, sync manager |
 | [07 — Receipt Import](docs/specs/07-receipt-import.md) | Digital receipt (PDF) → per-line extraction, catalog aliases, review, `source='receipt'` entries |
 | [08 — Go-live & Operations](docs/specs/08-go-live.md) | Turso + Vercel + Blob + Anthropic provisioning, preview/production environments, first live collaudo, runbook |

@@ -1,14 +1,38 @@
 {
   "common": {
     "appName": "segnaprezzi",
+    "tagline": "Your personal inflation, computed from the prices you actually pay.",
     "loading": "Loading…",
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "delete": "Delete",
-    "retry": "Retry"
+    "retry": "Retry",
+    "close": "Close",
+    "back": "Back",
+    "done": "Done",
+    "edit": "Edit",
+    "search": "Search",
+    "clear": "Clear",
+    "optional": "optional",
+    "computed": "computed",
+    "none": "None",
+    "undo": "Undo",
+    "needsConnection": "This needs a connection. Try again when you're online.",
+    "notSaved": "Not saved. Check your connection and try again.",
+    "trend": {
+      "up": "rising",
+      "down": "falling",
+      "flat": "flat"
+    },
+    "table": {
+      "month": "Month",
+      "category": "Category",
+      "change": "Change"
+    }
   },
   "nav": {
+    "main": "Main navigation",
     "home": "Home",
     "products": "Products",
     "scan": "Scan",
@@ -17,76 +41,158 @@
   },
   "dashboard": {
     "title": "Your inflation",
-    "emptyState": "Photograph your first price tag to get started"
+    "heroSinceStart": "Since you started",
+    "heroYoy": "Year over year",
+    "mom": "Month over month",
+    "sinceStart": "Since start",
+    "yoy": "Year over year",
+    "indexValue": "Index",
+    "indexBase": "base 100 = {month}",
+    "updatedAt": "Updated to {month}",
+    "coverage": "Based on {products, plural, one {# product} other {# products}} in {categories, plural, one {# category} other {# categories}}",
+    "coverageImputed": " · {pct} estimated",
+    "trendTitle": "Trend",
+    "trendSeries": "Your index",
+    "istat": "ISTAT",
+    "istatSeries": "ISTAT NIC",
+    "istatToggle": "Compare with ISTAT",
+    "trendSummary": "Personal index, last {months} months: from {from} to {to}, {change}",
+    "categoriesTitle": "By category",
+    "categoriesSummary": "Change by category, {count, plural, one {# category} other {# categories}}",
+    "moversTitle": "Biggest movers",
+    "moversSummary": "The products that changed the most over the last twelve months",
+    "quickAddManual": "Add manually",
+    "quickAddFuel": "Fuel",
+    "empty": {
+      "title": "Official inflation isn't yours",
+      "body": "It's computed on an average basket that isn't your basket. Photograph shelf price tags while you shop and segnaprezzi computes your inflation, from the prices you actually pay.",
+      "cta": "Photograph your first price tag",
+      "secondary": "Or enter one manually"
+    },
+    "thin": {
+      "title": "Your index arrives with the second month of entries",
+      "body": "Comparing prices takes at least two months of the same product. Here's what you have so far.",
+      "entries": "Entries",
+      "products": "Products",
+      "spent": "Recorded spend",
+      "chartPlaceholder": "Your index will trend here, month by month, with the ISTAT comparison."
+    },
+    "error": {
+      "title": "Couldn't compute your index",
+      "body": "Something went wrong reading your entries. Try again in a moment."
+    }
   },
   "scan": {
-    "title": "Shopping in progress",
+    "title": "Shopping trip",
+    "close": "Close the camera",
+    "chooseStore": "Choose store",
+    "torchOn": "Turn torch on",
+    "torchOff": "Turn torch off",
+    "review": "Review ({count})",
     "camera": {
-      "frameHint": "Fit the price tag in the frame",
-      "shutter": "Take photo",
+      "frameHint": "Frame the price tag",
+      "shutter": "Capture",
       "unavailable": "Take a photo",
+      "starting": "Starting the camera…",
       "permissionDenied": {
-        "title": "Camera access needed",
-        "body": "segnaprezzi uses the camera to photograph price tags. Nothing is uploaded without your review.",
+        "title": "The camera is needed to read price tags",
+        "body": "segnaprezzi only uses the camera to photograph shelf tags. Nothing is uploaded without your confirmation. Re-enable it in your browser settings, or upload a photo.",
         "retry": "Try again",
-        "useLibrary": "Choose from library"
+        "useLibrary": "Upload a photo"
       }
     },
     "storePicker": {
       "label": "Store",
-      "none": "None"
+      "title": "Where are you?",
+      "none": "None",
+      "search": "Search stores",
+      "create": "Create “{query}”",
+      "manage": "Manage stores"
     },
     "tray": {
-      "label": "Photos in this shopping trip",
+      "label": "Trip photos",
       "count": "{count, plural, one {# photo} other {# photos}}",
       "review": "Review",
       "retry": "Retry",
-      "delete": "Delete"
+      "delete": "Delete photo",
+      "preview": "Photo preview"
+    },
+    "status": {
+      "queued": "Queued",
+      "uploading": "Uploading",
+      "extracted": "Ready",
+      "failed": "Failed"
     },
     "queue": {
-      "offline": "Saved — will upload when you're back online",
+      "offline": "Saved — uploading as soon as you're back online",
       "uploading": "Uploading",
       "extracted": "Ready to review",
-      "retrying": "Upload hiccup — retrying"
+      "retrying": "Upload problem — retrying"
     },
     "errors": {
-      "extractionFailed": "Couldn't read this photo. Retake it or add the item manually.",
+      "extractionFailed": "Couldn't read the price tag. Try again with more light, or enter it manually.",
       "uploadFailed": "Upload failed. Tap to retry.",
       "invalidPhoto": "This photo can't be processed"
     },
     "resume": {
-      "title": "You have an unfinished spesa",
-      "body": "Resume it, or discard it: photos already uploaded will be deleted.",
+      "title": "You have an unfinished trip",
+      "body": "Resume it or let it go: photos already uploaded will be deleted.",
       "resume": "Resume",
       "discard": "Discard"
     },
     "stale": {
       "title": "Still shopping?",
-      "body": "This shopping trip has been open for more than a day."
+      "body": "This trip has been open for more than a day."
     },
-    "discardSession": "Discard this shopping trip"
+    "discardSession": "Discard this trip"
   },
   "review": {
-    "title": "Review entries",
-    "needsReview": "Check this one",
+    "title": "Review the trip",
+    "caption": "{count, plural, one {# photo} other {# photos}} · {date}",
+    "captionWithStore": "{store} · {date}",
+    "flagged": "Needs a look ({count})",
+    "showAll": "All",
+    "needsReview": "Needs a look",
     "priceMismatch": "Price and unit price don't add up",
-    "lowConfidence": "Hard to read — check the numbers",
+    "lowConfidence": "Hard-to-read photo — check the numbers",
+    "extractionFailed": "Couldn't read it",
+    "extractionFailedBody": "Fill in the fields by hand; the photo stays attached.",
+    "photoAlt": "Price tag photo",
+    "photoPreview": "Price tag preview",
     "matchPicker": "Product",
-    "newProduct": "New product",
-    "confirmBatch": "Confirm shopping trip",
-    "confirmError": "Fix the flagged entries before confirming",
-    "waitingForUploads": "Some photos have not been processed yet",
-    "empty": "Nothing to review",
+    "matchTitle": "Which product is this?",
+    "matchChosen": "Chosen product",
+    "matchNew": "New: {name}",
+    "matchPick": "Pick the product",
+    "matchSearch": "Search your catalog",
+    "matchSuggestions": "Suggested",
+    "matchNoResults": "Nothing for “{query}”",
+    "newProduct": "Create new product",
+    "newProductHint": "From what was read off the tag",
+    "discard": "Discard",
+    "discarded": "Photo discarded",
+    "undo": "Undo",
+    "confirmBatch": "Confirm {count, plural, one {# entry} other {# entries}}",
+    "incomplete": "{count, plural, one {# to complete} other {# to complete}}",
+    "runningTotal": "Total",
+    "confirmError": "Check the flagged entries before confirming",
+    "waitingForUploads": "Some photos haven't been processed yet",
+    "saved": "Trip saved",
+    "empty": {
+      "title": "No photos to review",
+      "body": "Photograph the trip's price tags and they land here, ready to confirm.",
+      "cta": "Open the camera"
+    },
     "fields": {
       "productName": "Product",
       "brand": "Brand",
       "category": "Category",
-      "unitKind": "Unit kind",
-      "totalPrice": "Price (€)",
-      "packageSize": "Size",
-      "unitPrice": "Unit price (€)",
-      "isPromo": "On promotion",
-      "promoKind": "Promotion type"
+      "unitKind": "Sold by",
+      "totalPrice": "Price",
+      "packageSize": "Package",
+      "unitPrice": "Unit price",
+      "isPromo": "On offer",
+      "promoKind": "Offer type"
     },
     "promoKinds": {
       "discount": "Discount",
@@ -96,31 +202,46 @@
     }
   },
   "addManual": {
-    "title": "Add price",
+    "title": "Add a price",
     "product": "Product",
+    "productSearch": "Search your catalog",
+    "productSearchPlaceholder": "Name or brand",
+    "productChosen": "Chosen product",
+    "changeProduct": "Change",
+    "createProduct": "Create “{query}”",
     "newProduct": "New product",
+    "noProducts": "Your catalog is empty: create the first product below.",
     "productName": "Product name",
     "brand": "Brand",
+    "category": "Category",
+    "unitKind": "Sold by",
     "store": "Store",
     "noStore": "None (generic purchase)",
-    "date": "Date",
-    "totalPrice": "Price paid (€)",
-    "packageSize": "Size",
+    "manageStores": "Manage stores",
+    "date": "Date and time",
+    "priceTitle": "Price",
+    "detailsTitle": "Details",
+    "totalPrice": "Price paid",
+    "packageSize": "Package",
     "sizeUnit": "Unit",
-    "unitPrice": "Unit price (€)",
-    "crossCheckWarning": "Price and unit price don't add up — please check",
-    "isPromo": "On promotion",
+    "unitPrice": "Unit price",
+    "unitPriceHint": "If the tag says otherwise, type that: the tag wins.",
+    "crossCheckWarning": "Price and unit price don't add up — check",
+    "isPromo": "On offer",
+    "promoKind": "Offer type",
     "promoKinds": {
       "discount": "Discount",
       "loyalty": "Loyalty card",
       "coupon": "Coupon",
       "bundle": "Multi-buy"
     },
-    "submit": "Save entry",
-    "submitError": "Could not save. Check the values and try again."
+    "submit": "Save",
+    "saved": "Added ✓",
+    "submitError": "Not saved. Check the data and try again.",
+    "missingProduct": "Pick or create a product"
   },
   "addFuel": {
-    "title": "Fuel stop",
+    "title": "Fuel",
     "fuel": "Fuel",
     "products": {
       "benzina": "Petrol",
@@ -130,12 +251,15 @@
     },
     "station": "Station",
     "noStation": "None",
-    "date": "Date",
-    "total": "Total (€)",
-    "submit": "Save fuel stop",
-    "submitError": "Could not save. Check the values and try again.",
+    "manageStations": "Manage stations",
+    "date": "Date and time",
+    "total": "Total",
+    "submit": "Save",
+    "saved": "Fill-up saved",
+    "submitError": "Not saved. Check the data and try again.",
+    "twoOfThree": "Type any two values: the third is worked out for you.",
     "errors": {
-      "inconsistent": "These numbers don't match — check one of them"
+      "inconsistent": "The numbers don't add up — re-check one of them"
     },
     "unitPriceByUnit": {
       "volume": "€/L",
@@ -144,57 +268,288 @@
     "quantityByUnit": {
       "volume": "Litres",
       "weight": "Kilos"
-    }
+    },
+    "amounts": "Amounts"
   },
   "products": {
     "title": "Products",
-    "searchPlaceholder": "Search for a product"
+    "searchPlaceholder": "Search products",
+    "searchLabel": "Search by name or brand",
+    "all": "All",
+    "archived": "Archived",
+    "archivedChip": "Archived",
+    "categoryFilters": "Filter by category",
+    "select": "Select",
+    "cancelSelection": "Cancel selection",
+    "selected": "{count, plural, one {# selected} other {# selected}}",
+    "merge": "Merge ({count})",
+    "mergeTitle": "Merge products",
+    "mergeSurvivor": "Which one stays?",
+    "mergeBody": "The other products' entries will move to {survivor}. The index will be recomputed. This can't be undone.",
+    "mergeConfirm": "Merge",
+    "merged": "Products merged",
+    "mergeError": "Couldn't merge the products. Try again.",
+    "noPrice": "No price yet",
+    "empty": {
+      "title": "No products yet",
+      "body": "Products come from your photos: every confirmed tag creates or updates one.",
+      "cta": "Photograph a price tag"
+    },
+    "noResults": "Nothing for “{query}”",
+    "noResultsHint": "Try fewer letters, or drop the category filter.",
+    "error": {
+      "title": "Couldn't load your catalog",
+      "body": "Try again in a moment."
+    }
   },
-  "productDetail": {},
+  "productDetail": {
+    "notFound": "Product not found",
+    "edit": "Edit",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archivedNotice": "Archived: hidden from suggestions, entries are kept.",
+    "archived": "Product archived",
+    "restored": "Product restored",
+    "editTitle": "Edit product",
+    "saved": "Product updated",
+    "saveError": "Not saved. Try again.",
+    "name": "Name",
+    "brand": "Brand",
+    "category": "Category",
+    "chartTitle": "Unit price",
+    "chartSeries": "Monthly average price",
+    "chartSummary": "{name}: unit price from {from} to {to} over {months, plural, one {# month} other {# months}}",
+    "range12": "12 months",
+    "rangeAll": "All",
+    "rangeLabel": "Range",
+    "stats": {
+      "min": "Min",
+      "max": "Max",
+      "mean": "Average",
+      "last": "Latest"
+    },
+    "storesTitle": "Where it's cheapest",
+    "best": "Best",
+    "entriesTitle": "Entries",
+    "promo": "Promo",
+    "noStore": "No store",
+    "source": {
+      "photo": "From photo",
+      "manual": "By hand",
+      "fuel": "Fill-up"
+    },
+    "entry": {
+      "title": "Entry",
+      "date": "Date and time",
+      "store": "Store",
+      "total": "Price paid",
+      "size": "Package",
+      "unitPrice": "Unit price",
+      "isPromo": "On offer",
+      "promoKind": "Offer type",
+      "photo": "Price tag photo",
+      "delete": "Delete entry",
+      "deleteConfirm": "Delete this entry? The index will be recomputed.",
+      "deleted": "Entry deleted",
+      "saved": "Entry updated"
+    },
+    "empty": {
+      "title": "No entries yet",
+      "body": "This product's price story starts with the first photo.",
+      "cta": "Photograph a price tag"
+    },
+    "error": {
+      "title": "Couldn't load the product",
+      "body": "Try again in a moment."
+    }
+  },
   "history": {
-    "title": "History"
+    "title": "History",
+    "filters": {
+      "label": "Filters",
+      "category": "Category",
+      "store": "Store",
+      "promoOnly": "Promo only",
+      "source": "Source",
+      "clear": "Clear filters",
+      "remove": "Remove the {filter} filter",
+      "anyCategory": "All categories",
+      "anyStore": "All stores",
+      "anySource": "All sources",
+      "pickCategory": "Filter by category",
+      "pickStore": "Filter by store",
+      "pickSource": "Filter by source"
+    },
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "session": "Trip",
+    "sessionTotal": "Trip total",
+    "loadMore": "Load more",
+    "end": "End of history",
+    "empty": {
+      "title": "Your history is empty",
+      "body": "Every price you record lands here, day by day.",
+      "cta": "Photograph a price tag"
+    },
+    "filteredEmpty": {
+      "title": "Nothing with these filters",
+      "body": "Loosen a filter: category, store, promo or source."
+    },
+    "error": {
+      "title": "Couldn't load your history",
+      "body": "Try again in a moment."
+    }
   },
   "stores": {
-    "title": "Stores"
+    "title": "Stores",
+    "add": "Add store",
+    "addTitle": "New store",
+    "editTitle": "Edit store",
+    "name": "Name",
+    "namePlaceholder": "Esselunga Viale Papiniano",
+    "chain": "Chain",
+    "city": "City",
+    "kind": "Type",
+    "kinds": {
+      "supermarket": "Supermarket",
+      "fuel_station": "Fuel station",
+      "other": "Other"
+    },
+    "entryCount": "{count, plural, =0 {no entries} one {# entry} other {# entries}}",
+    "saved": "Store saved",
+    "deleted": "Store deleted",
+    "delete": "Delete store",
+    "deleteConfirm": "Its entries are kept, without a store.",
+    "saveError": "Not saved. Try again.",
+    "empty": {
+      "title": "No stores",
+      "body": "Stores make prices comparable across supermarkets.",
+      "cta": "Add the first one"
+    },
+    "error": {
+      "title": "Couldn't load your stores",
+      "body": "Try again in a moment."
+    }
   },
   "settings": {
     "title": "Settings",
-    "language": "Language",
-    "theme": "Theme"
+    "account": {
+      "title": "Account",
+      "email": "Email",
+      "logout": "Sign out",
+      "deleteAccount": "Delete account",
+      "deleteTitle": "Delete your account?",
+      "deleteBody": "All your data will be erased for good: products, stores, entries, photos and settings. There is no way back. If you want to keep them, export a backup first.",
+      "deletePassword": "Type your password to confirm",
+      "deleteConfirm": "Delete everything",
+      "deleteError": "Couldn't delete the account. Check the password and try again."
+    },
+    "index": {
+      "title": "Index",
+      "recomputeNote": "The index will be recomputed.",
+      "includePromos": "Include promotions",
+      "includePromosHelp": "If a product was on offer, the discounted price enters your index: it's what you actually paid.",
+      "carryForward": "Carry prices forward",
+      "carryForwardHelp": "If you don't buy a product in a month, the last known price is used for at most {months, plural, =0 {zero months} one {# month} other {# months}}. 0 turns it off.",
+      "months": "{count, plural, one {# month} other {# months}}",
+      "disabled": "Off",
+      "decrement": "One month less",
+      "increment": "One month more"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "language": "Language",
+      "theme": "Theme",
+      "themeSystem": "System",
+      "themeLight": "Light",
+      "themeDark": "Dark"
+    },
+    "data": {
+      "title": "Data",
+      "export": "Export your data",
+      "exportHelp": "One JSON file with everything: products, stores, entries, settings.",
+      "exportError": "Export failed. Try again.",
+      "import": "Import a backup",
+      "importHelp": "A segnaprezzi export. Data is merged into yours, never wiped.",
+      "importing": "Importing…",
+      "imported": "Imported: {entries, plural, one {# entry} other {# entries}}, {products, plural, one {# product} other {# products}}, {stores, plural, one {# store} other {# stores}}",
+      "importInvalid": "Invalid file. It must be a segnaprezzi export.",
+      "stores": "Stores",
+      "storesHelp": "Manage supermarkets and fuel stations."
+    },
+    "info": {
+      "title": "About",
+      "version": "Version",
+      "license": "Open source, MIT license",
+      "licenseBody": "The code is public: read it, improve it, run it on your own server.",
+      "repo": "View on GitHub",
+      "credits": "Official index: ISTAT, NIC for the whole nation. Tag reading: Claude Haiku 4.5."
+    },
+    "saved": "Saved",
+    "saveError": "Not saved. Try again."
   },
   "auth": {
-    "login": "Log in",
+    "login": "Sign in",
     "signup": "Sign up",
+    "loginTitle": "Welcome back",
+    "signupTitle": "Create your account",
     "email": "Email",
     "password": "Password",
     "name": "Name",
-    "logout": "Log out",
+    "logout": "Sign out",
     "submit": "Submit",
-    "signupClosed": "Registration is currently closed.",
+    "continue": "Continue",
+    "signupClosed": "Sign-ups are closed on this instance.",
+    "signupClosedBody": "Whoever runs this server has closed new registrations. If you already have an account, sign in.",
     "invalidEmail": "Enter a valid email address",
-    "passwordTooShort": "Password must be at least 8 characters"
+    "passwordTooShort": "The password needs at least 8 characters",
+    "nameRequired": "What's your name?",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "loginError": "Wrong password. Try again or check the email.",
+    "signupError": "Couldn't create the account. The email may already be registered.",
+    "networkError": "This needs a connection. Try again when you're online."
   },
   "errors": {
-    "NOT_FOUND": "Item not found",
-    "VALIDATION_FAILED": "Please check what you entered",
-    "UNAUTHORIZED": "Log in to continue",
-    "EXTRACTION_FAILED": "Could not read the price tag",
-    "INTERNAL": "Something went wrong, please try again",
-    "INVALID_INPUT": "Please check what you entered",
-    "INVALID_DATE": "That date is not valid",
-    "INVALID_PRICE": "That price is not valid",
-    "INVALID_SIZE": "That size is not valid",
-    "INVALID_STORE_KIND": "That store is not a fuel station",
-    "INCONSISTENT_FUEL_PRICES": "These numbers don't match — check one of them",
+    "NOT_FOUND": "Not found",
+    "VALIDATION_FAILED": "Check the data you entered",
+    "UNAUTHORIZED": "Sign in to continue",
+    "EXTRACTION_FAILED": "Couldn't read the price tag",
+    "INTERNAL": "Something went wrong, try again",
+    "INVALID_INPUT": "Check the data you entered",
+    "INVALID_DATE": "The date is not valid",
+    "INVALID_PRICE": "The price is not valid",
+    "INVALID_SIZE": "The quantity is not valid",
+    "INVALID_STORE_KIND": "This store is not a fuel station",
+    "INCONSISTENT_FUEL_PRICES": "The numbers don't add up — re-check one of them",
     "SESSION_NOT_FOUND": "Shopping trip not found",
     "STORE_NOT_FOUND": "Store not found",
     "PRODUCT_NOT_FOUND": "Product not found",
-    "SESSION_CLOSED": "This shopping trip is already closed",
+    "SESSION_CLOSED": "This shopping trip is already finished",
     "PHOTO_TOO_LARGE": "This photo is too large",
     "UNSUPPORTED_PHOTO_TYPE": "Unsupported photo format",
-    "EXTRACTION_UNAVAILABLE": "Service temporarily unavailable, retrying shortly"
+    "EXTRACTION_UNAVAILABLE": "Service temporarily unavailable, retrying shortly",
+    "notFound": {
+      "title": "This page doesn't exist",
+      "body": "The link may be old, or there's a typo in the address.",
+      "cta": "Back to home"
+    },
+    "routeError": {
+      "title": "Something went wrong",
+      "body": "Not your fault. Try again, or go back home.",
+      "retry": "Try again",
+      "cta": "Back to home"
+    }
   },
-  "offline": {},
+  "offline": {
+    "offline": "You're offline — photos stay on your phone",
+    "offlineWithQueue": "You're offline — {count, plural, one {# photo stays} other {# photos stay}} on your phone",
+    "syncing": "Syncing… {count, plural, one {# queued} other {# queued}}",
+    "synced": "All synced",
+    "needsConnection": "Needs a connection"
+  },
   "categories": {
     "food": "Food",
     "beverages": "Beverages",
@@ -212,12 +567,17 @@
   "units": {
     "weight": "Weight",
     "volume": "Volume",
-    "count": "Count",
+    "count": "Pieces",
     "kg": "kg",
     "g": "g",
     "liter": "L",
     "milliliter": "mL",
-    "piece": "pcs"
+    "piece": "pc",
+    "perBase": {
+      "weight": "€/kg",
+      "volume": "€/L",
+      "count": "€/pc"
+    }
   },
   "pwa": {}
 }

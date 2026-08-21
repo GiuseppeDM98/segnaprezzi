@@ -1,87 +1,173 @@
 'use client';
 
 /**
- * The horizontal strip of captured photos under the viewfinder (Spec 03 §3.2).
- *
- * It is the only feedback the user gets that a photo made it out of the
- * camera and how far it has travelled, so every queue status is visible here
- * — including the failures the sync engine cannot resolve on its own.
+ * The horizontal strip of captured photos (Spec 05 §6.3): one thumbnail per
+ * photo with a status chip mapping exactly the four queue statuses —
+ * queued · uploading · extracted · failed. Failed chips retry on tap; a tap
+ * on any thumbnail opens the preview/delete sheet. New thumbnails spring in
+ * from the shutter with the house spring.
  */
+import { AlertCircle, Check, Clock, CloudUpload, Trash2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef } from 'react';
-import { Link } from '@/lib/i18n/navigation';
+import { useEffect, useRef, useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { Chip, type ChipTone } from '@/components/ui/chip';
+import { Sheet } from '@/components/ui/sheet';
+import { cx } from '@/lib/cx';
+import { useAppMotion } from '@/lib/motion';
 import type { PendingPhoto, PendingPhotoStatus } from '@/lib/offline/db';
 
 /** Error codes that mean the photo itself is unusable, not the connection. */
 const INVALID_PHOTO_CODES = new Set(['PHOTO_TOO_LARGE', 'UNSUPPORTED_PHOTO_TYPE', 'INVALID_INPUT']);
 
+const STATUS_TONE: Record<PendingPhotoStatus, ChipTone> = {
+  queued: 'neutral',
+  uploading: 'accent',
+  extracted: 'positive',
+  failed: 'negative',
+};
+
+const STATUS_ICON: Record<PendingPhotoStatus, typeof Check> = {
+  queued: Clock,
+  uploading: CloudUpload,
+  extracted: Check,
+  failed: AlertCircle,
+};
+
 export interface PhotoTrayProps {
   photos: PendingPhoto[];
   onRetry: (photoId: string) => void;
   onDelete: (photoId: string) => void;
+  /** Dark chrome when the tray sits over the viewfinder. */
+  isOnCamera?: boolean;
 }
 
-export function PhotoTray({ photos, onRetry, onDelete }: PhotoTrayProps) {
+export function PhotoTray({ photos, onRetry, onDelete, isOnCamera = false }: PhotoTrayProps) {
   const t = useTranslations('scan');
+  const tCommon = useTranslations('common');
+  const { isReduced, spring, fade } = useAppMotion();
   const thumbnailUrls = useObjectUrls(photos);
-  const hasExtractedPhotos = photos.some((photo) => photo.status === 'extracted');
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const preview = photos.find((photo) => photo.id === previewId) ?? null;
 
   if (photos.length === 0) {
     return null;
   }
 
   return (
-    <section className="flex flex-col gap-3" aria-label={t('tray.label')}>
-      <div className="flex items-center justify-between">
-        <span className="font-medium text-sm" data-testid="tray-count">
-          {t('tray.count', { count: photos.length })}
-        </span>
-        {hasExtractedPhotos && (
-          <Link
-            href="/scan/review"
-            className="rounded-full bg-accent px-4 py-2 font-medium text-accent-contrast text-sm"
-          >
-            {t('tray.review')}
-          </Link>
+    <section className="flex flex-col gap-2" aria-label={t('tray.label')}>
+      <span
+        className={cx(
+          'font-mono text-[12px] uppercase tracking-wide',
+          isOnCamera ? 'text-camera-contrast/80' : 'text-text-muted',
         )}
-      </div>
-
-      <ul className="flex gap-3 overflow-x-auto pb-1">
-        {photos.map((photo) => (
-          <li key={photo.id} className="flex w-28 shrink-0 flex-col gap-1">
-            {/* biome-ignore lint/performance/noImgElement: the source is a local
-                blob: URL for a photo that never reached a server — next/image
-                cannot optimize it and would only add a failing request. */}
-            <img
-              src={thumbnailUrls[photo.id]}
-              alt=""
-              className="h-28 w-28 rounded-xl object-cover"
-            />
-            <span className="text-text-muted text-xs" data-testid={`photo-status-${photo.status}`}>
-              {t(statusMessageKey(photo.status, photo.lastError))}
-            </span>
-            {photo.status === 'failed' && (
-              <div className="flex gap-2 text-xs">
-                <button type="button" onClick={() => onRetry(photo.id)} className="text-accent">
-                  {t('tray.retry')}
-                </button>
+        data-testid="tray-count"
+      >
+        {t('tray.count', { count: photos.length })}
+      </span>
+      <ul className="scrollbar-none -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+        <AnimatePresence initial={false}>
+          {photos.map((photo) => {
+            const Icon = STATUS_ICON[photo.status];
+            return (
+              <motion.li
+                key={photo.id}
+                layout={!isReduced}
+                initial={isReduced ? { opacity: 0 } : { opacity: 0, scale: 0.6, y: 24 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={isReduced ? fade : spring}
+                className="flex w-[88px] shrink-0 flex-col gap-1.5"
+              >
                 <button
                   type="button"
-                  onClick={() => onDelete(photo.id)}
-                  className="text-text-muted"
+                  onClick={() =>
+                    photo.status === 'failed' ? onRetry(photo.id) : setPreviewId(photo.id)
+                  }
+                  aria-label={
+                    photo.status === 'failed'
+                      ? t('tray.retry')
+                      : `${t('tray.preview')} · ${t(`status.${photo.status}`)}`
+                  }
+                  className="relative aspect-square overflow-hidden rounded-control border border-camera-contrast/20 bg-camera"
                 >
-                  {t('tray.delete')}
+                  {/* biome-ignore lint/performance/noImgElement: the source is a local
+                      blob: URL for a photo that never reached a server — next/image
+                      cannot optimize it and would only add a failing request. */}
+                  <img
+                    src={thumbnailUrls[photo.id]}
+                    alt=""
+                    className={cx(
+                      'h-full w-full object-cover',
+                      photo.status === 'uploading' && 'opacity-70',
+                    )}
+                  />
                 </button>
-              </div>
-            )}
-          </li>
-        ))}
+                <Chip
+                  variant="status"
+                  tone={STATUS_TONE[photo.status]}
+                  icon={<Icon />}
+                  data-testid={`photo-status-${photo.status}`}
+                  className="self-start"
+                >
+                  {t(`status.${photo.status}`)}
+                </Chip>
+              </motion.li>
+            );
+          })}
+        </AnimatePresence>
       </ul>
+
+      <Sheet isOpen={preview !== null} onClose={() => setPreviewId(null)} title={t('tray.preview')}>
+        {preview && (
+          <div className="flex flex-col gap-4">
+            {/* biome-ignore lint/performance/noImgElement: local blob: URL, see above */}
+            <img
+              src={thumbnailUrls[preview.id]}
+              alt=""
+              className="max-h-[55dvh] w-full rounded-control bg-camera object-contain"
+            />
+            <p className="font-sans text-[14px] text-text-muted">
+              {t(statusMessageKey(preview.status, preview.lastError))}
+            </p>
+            <div className="flex gap-2">
+              {preview.status === 'failed' && (
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => {
+                    onRetry(preview.id);
+                    setPreviewId(null);
+                  }}
+                >
+                  {t('tray.retry')}
+                </Button>
+              )}
+              <Button
+                variant="danger"
+                icon={<Trash2 className="size-4" />}
+                className="flex-1"
+                onClick={() => {
+                  onDelete(preview.id);
+                  setPreviewId(null);
+                }}
+              >
+                {t('tray.delete')}
+              </Button>
+            </div>
+            <Button variant="ghost" onClick={() => setPreviewId(null)}>
+              {tCommon('close')}
+            </Button>
+          </div>
+        )}
+      </Sheet>
     </section>
   );
 }
 
-/** The `scan.*` message key describing a photo's place in the pipeline (§12). */
+/** The `scan.*` message key describing a photo's place in the pipeline. */
 function statusMessageKey(status: PendingPhotoStatus, lastError: string | undefined): string {
   switch (status) {
     case 'queued':

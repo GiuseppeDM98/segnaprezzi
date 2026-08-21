@@ -45,7 +45,7 @@ export type CreateManualEntryInput = z.infer<typeof createManualEntrySchema>;
 /** Record one hand-entered price observation. */
 export async function createManualEntry(
   input: CreateManualEntryInput,
-): Promise<ActionResult<{ entryId: string }>> {
+): Promise<ActionResult<{ entryId: string; productId: string }>> {
   const parsed = createManualEntrySchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -56,12 +56,12 @@ export async function createManualEntry(
 
   try {
     const user = await requireUser();
-    const { entryId } = await createPriceEntry(db, user.id, {
+    const { entryId, productId } = await createPriceEntry(db, user.id, {
       ...parsed.data,
       source: 'manual',
     });
     revalidatePath('/[locale]', 'layout');
-    return { ok: true, data: { entryId } };
+    return { ok: true, data: { entryId, productId } };
   } catch (error) {
     return { ok: false, error: toLoggedActionError('createManualEntry', error) };
   }

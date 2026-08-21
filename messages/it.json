@@ -1,14 +1,38 @@
 {
   "common": {
     "appName": "segnaprezzi",
+    "tagline": "La tua inflazione, calcolata sui prezzi che paghi davvero.",
     "loading": "Caricamento…",
     "save": "Salva",
     "cancel": "Annulla",
     "confirm": "Conferma",
     "delete": "Elimina",
-    "retry": "Riprova"
+    "retry": "Riprova",
+    "close": "Chiudi",
+    "back": "Indietro",
+    "done": "Fatto",
+    "edit": "Modifica",
+    "search": "Cerca",
+    "clear": "Svuota",
+    "optional": "facoltativo",
+    "computed": "calcolato",
+    "none": "Nessuno",
+    "undo": "Annulla",
+    "needsConnection": "Serve la connessione. Riprova quando sei online.",
+    "notSaved": "Non salvato. Controlla la connessione e riprova.",
+    "trend": {
+      "up": "in aumento",
+      "down": "in calo",
+      "flat": "stabile"
+    },
+    "table": {
+      "month": "Mese",
+      "category": "Categoria",
+      "change": "Variazione"
+    }
   },
   "nav": {
+    "main": "Navigazione principale",
     "home": "Home",
     "products": "Prodotti",
     "scan": "Scansiona",
@@ -17,40 +41,96 @@
   },
   "dashboard": {
     "title": "La tua inflazione",
-    "emptyState": "Fotografa il tuo primo segnaprezzi per iniziare"
+    "heroSinceStart": "Da quando registri",
+    "heroYoy": "Su un anno",
+    "mom": "Mese su mese",
+    "sinceStart": "Da inizio",
+    "yoy": "Su un anno",
+    "indexValue": "Indice",
+    "indexBase": "base 100 = {month}",
+    "updatedAt": "Aggiornato a {month}",
+    "coverage": "Basato su {products, plural, one {# prodotto} other {# prodotti}} in {categories, plural, one {# categoria} other {# categorie}}",
+    "coverageImputed": " · {pct} stimato",
+    "trendTitle": "Andamento",
+    "trendSeries": "Il tuo indice",
+    "istat": "ISTAT",
+    "istatSeries": "ISTAT NIC",
+    "istatToggle": "Confronta con ISTAT",
+    "trendSummary": "Indice personale, ultimi {months} mesi: da {from} a {to}, {change}",
+    "categoriesTitle": "Per categoria",
+    "categoriesSummary": "Variazione per categoria, {count, plural, one {# categoria} other {# categorie}}",
+    "moversTitle": "Chi si è mosso di più",
+    "moversSummary": "I prodotti con la variazione maggiore negli ultimi dodici mesi",
+    "quickAddManual": "Aggiungi a mano",
+    "quickAddFuel": "Carburante",
+    "empty": {
+      "title": "L'inflazione ufficiale non è la tua",
+      "body": "È calcolata su un carrello medio che non è il tuo. Fotografa i segnaprezzi mentre fai la spesa e segnaprezzi calcola la tua inflazione, sui prezzi che paghi davvero.",
+      "cta": "Fotografa il primo segnaprezzi",
+      "secondary": "Oppure inserisci a mano"
+    },
+    "thin": {
+      "title": "Il tuo indice arriva con il secondo mese di rilevazioni",
+      "body": "Per confrontare i prezzi servono almeno due mesi dello stesso prodotto. Intanto ecco cosa c'è già.",
+      "entries": "Rilevazioni",
+      "products": "Prodotti",
+      "spent": "Spesa registrata",
+      "chartPlaceholder": "Qui vedrai l'andamento del tuo indice, mese per mese, con il confronto ISTAT."
+    },
+    "error": {
+      "title": "Non riesco a calcolare l'indice",
+      "body": "Qualcosa è andato storto nel leggere le tue rilevazioni. Riprova tra un momento."
+    }
   },
   "scan": {
     "title": "Spesa in corso",
+    "close": "Chiudi la fotocamera",
+    "chooseStore": "Scegli negozio",
+    "torchOn": "Accendi la torcia",
+    "torchOff": "Spegni la torcia",
+    "review": "Controlla ({count})",
     "camera": {
       "frameHint": "Inquadra il cartellino",
       "shutter": "Scatta",
       "unavailable": "Scatta una foto",
+      "starting": "Avvio la fotocamera…",
       "permissionDenied": {
-        "title": "Serve l'accesso alla fotocamera",
-        "body": "segnaprezzi usa la fotocamera per fotografare i cartellini. Nulla viene caricato senza la tua conferma.",
+        "title": "Serve la fotocamera per leggere i cartellini",
+        "body": "segnaprezzi usa la fotocamera solo per fotografare i segnaprezzi. Nulla viene caricato senza la tua conferma. Puoi riattivarla dalle impostazioni del browser, oppure caricare una foto.",
         "retry": "Riprova",
-        "useLibrary": "Scegli dalla libreria"
+        "useLibrary": "Carica una foto"
       }
     },
     "storePicker": {
       "label": "Punto vendita",
-      "none": "Nessuno"
+      "title": "Dove sei?",
+      "none": "Nessuno",
+      "search": "Cerca un negozio",
+      "create": "Crea «{query}»",
+      "manage": "Gestisci negozi"
     },
     "tray": {
       "label": "Foto della spesa",
       "count": "{count, plural, one {# foto} other {# foto}}",
-      "review": "Rivedi",
+      "review": "Controlla",
       "retry": "Riprova",
-      "delete": "Elimina"
+      "delete": "Elimina foto",
+      "preview": "Anteprima della foto"
+    },
+    "status": {
+      "queued": "In coda",
+      "uploading": "Caricamento",
+      "extracted": "Pronto",
+      "failed": "Errore"
     },
     "queue": {
-      "offline": "Salvata — la carichiamo appena torni online",
+      "offline": "Salvata — la carico appena torni online",
       "uploading": "Caricamento in corso",
-      "extracted": "Pronta da rivedere",
+      "extracted": "Pronta da controllare",
       "retrying": "Problema di caricamento — riprovo"
     },
     "errors": {
-      "extractionFailed": "Non riesco a leggere questa foto. Riscattala o inserisci il prodotto a mano.",
+      "extractionFailed": "Non sono riuscito a leggere il cartellino. Riprova con più luce o inserisci i dati a mano.",
       "uploadFailed": "Caricamento non riuscito. Tocca per riprovare.",
       "invalidPhoto": "Questa foto non può essere elaborata"
     },
@@ -67,24 +147,50 @@
     "discardSession": "Abbandona la spesa"
   },
   "review": {
-    "title": "Rivedi le rilevazioni",
+    "title": "Controlla la spesa",
+    "caption": "{count, plural, one {# foto} other {# foto}} · {date}",
+    "captionWithStore": "{store} · {date}",
+    "flagged": "Da controllare ({count})",
+    "showAll": "Tutte",
     "needsReview": "Da controllare",
     "priceMismatch": "Prezzo e prezzo al kg non tornano",
     "lowConfidence": "Foto difficile da leggere — controlla i numeri",
+    "extractionFailed": "Lettura fallita",
+    "extractionFailedBody": "Compila i campi a mano: la foto resta allegata.",
+    "photoAlt": "Foto del cartellino",
+    "photoPreview": "Anteprima del cartellino",
     "matchPicker": "Prodotto",
-    "newProduct": "Nuovo prodotto",
-    "confirmBatch": "Conferma la spesa",
+    "matchTitle": "A quale prodotto corrisponde?",
+    "matchChosen": "Prodotto scelto",
+    "matchNew": "Nuovo: {name}",
+    "matchPick": "Scegli il prodotto",
+    "matchSearch": "Cerca nel catalogo",
+    "matchSuggestions": "Suggeriti",
+    "matchNoResults": "Niente per «{query}»",
+    "newProduct": "Crea nuovo prodotto",
+    "newProductHint": "Con i dati letti dal cartellino",
+    "discard": "Scarta",
+    "discarded": "Foto scartata",
+    "undo": "Annulla",
+    "confirmBatch": "Conferma {count, plural, one {# rilevazione} other {# rilevazioni}}",
+    "incomplete": "{count, plural, one {# da completare} other {# da completare}}",
+    "runningTotal": "Totale",
     "confirmError": "Controlla le rilevazioni segnalate prima di confermare",
     "waitingForUploads": "Alcune foto non sono ancora state elaborate",
-    "empty": "Nessuna rilevazione da rivedere",
+    "saved": "Spesa salvata",
+    "empty": {
+      "title": "Nessuna foto da controllare",
+      "body": "Scatta i cartellini della spesa e tornano qui, pronti da confermare.",
+      "cta": "Vai alla fotocamera"
+    },
     "fields": {
       "productName": "Prodotto",
       "brand": "Marca",
       "category": "Categoria",
-      "unitKind": "Tipo di unità",
-      "totalPrice": "Prezzo (€)",
-      "packageSize": "Quantità",
-      "unitPrice": "Prezzo unitario (€)",
+      "unitKind": "Si vende a",
+      "totalPrice": "Prezzo",
+      "packageSize": "Confezione",
+      "unitPrice": "Prezzo unitario",
       "isPromo": "In offerta",
       "promoKind": "Tipo di offerta"
     },
@@ -98,29 +204,44 @@
   "addManual": {
     "title": "Aggiungi prezzo",
     "product": "Prodotto",
+    "productSearch": "Cerca nel tuo catalogo",
+    "productSearchPlaceholder": "Nome o marca",
+    "productChosen": "Prodotto scelto",
+    "changeProduct": "Cambia",
+    "createProduct": "Crea «{query}»",
     "newProduct": "Nuovo prodotto",
+    "noProducts": "Il catalogo è vuoto: crea il primo prodotto qui sotto.",
     "productName": "Nome del prodotto",
     "brand": "Marca",
+    "category": "Categoria",
+    "unitKind": "Si vende a",
     "store": "Punto vendita",
     "noStore": "Nessuno (acquisto generico)",
-    "date": "Data",
-    "totalPrice": "Prezzo pagato (€)",
-    "packageSize": "Quantità",
+    "manageStores": "Gestisci negozi",
+    "date": "Data e ora",
+    "priceTitle": "Prezzo",
+    "detailsTitle": "Dettagli",
+    "totalPrice": "Prezzo pagato",
+    "packageSize": "Confezione",
     "sizeUnit": "Unità",
-    "unitPrice": "Prezzo unitario (€)",
+    "unitPrice": "Prezzo unitario",
+    "unitPriceHint": "Se il cartellino dice altro, scrivi quello: vince il cartellino.",
     "crossCheckWarning": "Prezzo e prezzo unitario non tornano — controlla",
     "isPromo": "In offerta",
+    "promoKind": "Tipo di offerta",
     "promoKinds": {
       "discount": "Sconto",
       "loyalty": "Carta fedeltà",
       "coupon": "Coupon",
       "bundle": "Multi-acquisto"
     },
-    "submit": "Salva rilevazione",
-    "submitError": "Non sono riuscito a salvare. Controlla i dati e riprova."
+    "submit": "Salva",
+    "saved": "Aggiunto ✓",
+    "submitError": "Non salvato. Controlla i dati e riprova.",
+    "missingProduct": "Scegli o crea un prodotto"
   },
   "addFuel": {
-    "title": "Rifornimento",
+    "title": "Carburante",
     "fuel": "Carburante",
     "products": {
       "benzina": "Benzina",
@@ -130,10 +251,13 @@
     },
     "station": "Distributore",
     "noStation": "Nessuno",
-    "date": "Data",
-    "total": "Totale (€)",
-    "submit": "Salva rifornimento",
-    "submitError": "Non sono riuscito a salvare. Controlla i dati e riprova.",
+    "manageStations": "Gestisci distributori",
+    "date": "Data e ora",
+    "total": "Totale",
+    "submit": "Salva",
+    "saved": "Rifornimento salvato",
+    "submitError": "Non salvato. Controlla i dati e riprova.",
+    "twoOfThree": "Scrivi due valori: il terzo si calcola da solo.",
     "errors": {
       "inconsistent": "I numeri non tornano — ricontrollane uno"
     },
@@ -144,35 +268,249 @@
     "quantityByUnit": {
       "volume": "Litri",
       "weight": "Chili"
-    }
+    },
+    "amounts": "Importi"
   },
   "products": {
     "title": "Prodotti",
-    "searchPlaceholder": "Cerca un prodotto"
+    "searchPlaceholder": "Cerca un prodotto",
+    "searchLabel": "Cerca per nome o marca",
+    "all": "Tutti",
+    "archived": "Archiviati",
+    "archivedChip": "Archiviato",
+    "categoryFilters": "Filtra per categoria",
+    "select": "Seleziona",
+    "cancelSelection": "Annulla selezione",
+    "selected": "{count, plural, one {# selezionato} other {# selezionati}}",
+    "merge": "Unisci ({count})",
+    "mergeTitle": "Unisci i prodotti",
+    "mergeSurvivor": "Quale resta?",
+    "mergeBody": "Le rilevazioni degli altri prodotti passeranno a {survivor}. L'indice verrà ricalcolato. Non si può annullare.",
+    "mergeConfirm": "Unisci",
+    "merged": "Prodotti uniti",
+    "mergeError": "Non sono riuscito a unire i prodotti. Riprova.",
+    "noPrice": "Nessun prezzo",
+    "empty": {
+      "title": "Nessun prodotto ancora",
+      "body": "I prodotti nascono dalle tue foto: ogni cartellino confermato ne crea o ne aggiorna uno.",
+      "cta": "Fotografa un cartellino"
+    },
+    "noResults": "Niente per «{query}»",
+    "noResultsHint": "Prova con meno lettere, o togli il filtro categoria.",
+    "error": {
+      "title": "Non riesco a caricare il catalogo",
+      "body": "Riprova tra un momento."
+    }
   },
-  "productDetail": {},
+  "productDetail": {
+    "notFound": "Prodotto non trovato",
+    "edit": "Modifica",
+    "archive": "Archivia",
+    "restore": "Ripristina",
+    "archivedNotice": "Archiviato: non compare tra i suggerimenti, le rilevazioni restano.",
+    "archived": "Prodotto archiviato",
+    "restored": "Prodotto ripristinato",
+    "editTitle": "Modifica prodotto",
+    "saved": "Prodotto aggiornato",
+    "saveError": "Non salvato. Riprova.",
+    "name": "Nome",
+    "brand": "Marca",
+    "category": "Categoria",
+    "chartTitle": "Prezzo unitario",
+    "chartSeries": "Prezzo medio mensile",
+    "chartSummary": "{name}: prezzo unitario da {from} a {to} in {months, plural, one {# mese} other {# mesi}}",
+    "range12": "12 mesi",
+    "rangeAll": "Tutto",
+    "rangeLabel": "Periodo",
+    "stats": {
+      "min": "Min",
+      "max": "Max",
+      "mean": "Media",
+      "last": "Ultimo"
+    },
+    "storesTitle": "Dove costa meno",
+    "best": "Migliore",
+    "entriesTitle": "Rilevazioni",
+    "promo": "Promo",
+    "noStore": "Senza negozio",
+    "source": {
+      "photo": "Da foto",
+      "manual": "A mano",
+      "fuel": "Rifornimento"
+    },
+    "entry": {
+      "title": "Rilevazione",
+      "date": "Data e ora",
+      "store": "Punto vendita",
+      "total": "Prezzo pagato",
+      "size": "Confezione",
+      "unitPrice": "Prezzo unitario",
+      "isPromo": "In offerta",
+      "promoKind": "Tipo di offerta",
+      "photo": "Foto del cartellino",
+      "delete": "Elimina rilevazione",
+      "deleteConfirm": "Eliminare questa rilevazione? L'indice verrà ricalcolato.",
+      "deleted": "Rilevazione eliminata",
+      "saved": "Rilevazione aggiornata"
+    },
+    "empty": {
+      "title": "Nessuna rilevazione ancora",
+      "body": "La storia dei prezzi di questo prodotto inizia con la prima foto.",
+      "cta": "Fotografa un cartellino"
+    },
+    "error": {
+      "title": "Non riesco a caricare il prodotto",
+      "body": "Riprova tra un momento."
+    }
+  },
   "history": {
-    "title": "Cronologia"
+    "title": "Cronologia",
+    "filters": {
+      "label": "Filtri",
+      "category": "Categoria",
+      "store": "Negozio",
+      "promoOnly": "Solo promo",
+      "source": "Origine",
+      "clear": "Togli i filtri",
+      "remove": "Togli il filtro {filter}",
+      "anyCategory": "Tutte le categorie",
+      "anyStore": "Tutti i negozi",
+      "anySource": "Tutte le origini",
+      "pickCategory": "Filtra per categoria",
+      "pickStore": "Filtra per negozio",
+      "pickSource": "Filtra per origine"
+    },
+    "today": "Oggi",
+    "yesterday": "Ieri",
+    "session": "Spesa",
+    "sessionTotal": "Totale spesa",
+    "loadMore": "Carica altre",
+    "end": "Fine della cronologia",
+    "empty": {
+      "title": "La tua cronologia è vuota",
+      "body": "Ogni prezzo che registri finisce qui, giorno per giorno.",
+      "cta": "Fotografa un cartellino"
+    },
+    "filteredEmpty": {
+      "title": "Niente con questi filtri",
+      "body": "Allenta un filtro: categoria, negozio, promo o origine."
+    },
+    "error": {
+      "title": "Non riesco a caricare la cronologia",
+      "body": "Riprova tra un momento."
+    }
   },
   "stores": {
-    "title": "Punti vendita"
+    "title": "Negozi",
+    "add": "Aggiungi negozio",
+    "addTitle": "Nuovo negozio",
+    "editTitle": "Modifica negozio",
+    "name": "Nome",
+    "namePlaceholder": "Esselunga Viale Papiniano",
+    "chain": "Catena",
+    "city": "Città",
+    "kind": "Tipo",
+    "kinds": {
+      "supermarket": "Supermercato",
+      "fuel_station": "Distributore",
+      "other": "Altro"
+    },
+    "entryCount": "{count, plural, =0 {nessuna rilevazione} one {# rilevazione} other {# rilevazioni}}",
+    "saved": "Negozio salvato",
+    "deleted": "Negozio eliminato",
+    "delete": "Elimina negozio",
+    "deleteConfirm": "Le rilevazioni restano, ma senza negozio.",
+    "saveError": "Non salvato. Riprova.",
+    "empty": {
+      "title": "Nessun negozio",
+      "body": "I negozi rendono confrontabili i prezzi tra supermercati.",
+      "cta": "Aggiungi il primo"
+    },
+    "error": {
+      "title": "Non riesco a caricare i negozi",
+      "body": "Riprova tra un momento."
+    }
   },
   "settings": {
     "title": "Impostazioni",
-    "language": "Lingua",
-    "theme": "Tema"
+    "account": {
+      "title": "Account",
+      "email": "Email",
+      "logout": "Esci",
+      "deleteAccount": "Elimina account",
+      "deleteTitle": "Eliminare l'account?",
+      "deleteBody": "Verranno cancellati per sempre tutti i tuoi dati: prodotti, negozi, rilevazioni, foto e impostazioni. Non c'è modo di tornare indietro. Se vuoi conservarli, esporta prima un backup.",
+      "deletePassword": "Per confermare, inserisci la password",
+      "deleteConfirm": "Elimina tutto",
+      "deleteError": "Non sono riuscito a eliminare l'account. Controlla la password e riprova."
+    },
+    "index": {
+      "title": "Indice",
+      "recomputeNote": "L'indice verrà ricalcolato.",
+      "includePromos": "Includi le promozioni",
+      "includePromosHelp": "Se un prodotto era in offerta, nel tuo indice entra il prezzo scontato: è quello che hai pagato davvero.",
+      "carryForward": "Riporto prezzi",
+      "carryForwardHelp": "Se in un mese non compri un prodotto, uso l'ultimo prezzo noto per al massimo {months, plural, =0 {zero mesi} one {# mese} other {# mesi}}. 0 per disattivare.",
+      "months": "{count, plural, one {# mese} other {# mesi}}",
+      "disabled": "Disattivato",
+      "decrement": "Un mese in meno",
+      "increment": "Un mese in più"
+    },
+    "preferences": {
+      "title": "Preferenze",
+      "language": "Lingua",
+      "theme": "Tema",
+      "themeSystem": "Sistema",
+      "themeLight": "Chiaro",
+      "themeDark": "Scuro"
+    },
+    "data": {
+      "title": "Dati",
+      "export": "Esporta i tuoi dati",
+      "exportHelp": "Un file JSON con tutto: prodotti, negozi, rilevazioni, impostazioni.",
+      "exportError": "Esportazione non riuscita. Riprova.",
+      "import": "Importa un backup",
+      "importHelp": "Un export di segnaprezzi. I dati vengono uniti ai tuoi, mai sovrascritti in blocco.",
+      "importing": "Importo…",
+      "imported": "Importati: {entries, plural, one {# rilevazione} other {# rilevazioni}}, {products, plural, one {# prodotto} other {# prodotti}}, {stores, plural, one {# negozio} other {# negozi}}",
+      "importInvalid": "File non valido. Serve un export di segnaprezzi.",
+      "stores": "Negozi",
+      "storesHelp": "Gestisci supermercati e distributori."
+    },
+    "info": {
+      "title": "Info",
+      "version": "Versione",
+      "license": "Open source, licenza MIT",
+      "licenseBody": "Il codice è pubblico: puoi leggerlo, migliorarlo e installarlo sul tuo server.",
+      "repo": "Vedi su GitHub",
+      "credits": "Indice ufficiale: ISTAT, NIC per l'intera collettività. Lettura dei cartellini: Claude Haiku 4.5."
+    },
+    "saved": "Salvato",
+    "saveError": "Non salvato. Riprova."
   },
   "auth": {
     "login": "Accedi",
     "signup": "Registrati",
+    "loginTitle": "Bentornato",
+    "signupTitle": "Crea il tuo account",
     "email": "Email",
     "password": "Password",
     "name": "Nome",
     "logout": "Esci",
     "submit": "Invia",
-    "signupClosed": "Le registrazioni sono al momento chiuse.",
+    "continue": "Continua",
+    "signupClosed": "Le registrazioni sono chiuse su questa istanza.",
+    "signupClosedBody": "Chi gestisce questo server ha chiuso le nuove iscrizioni. Se hai già un account, accedi.",
     "invalidEmail": "Inserisci un indirizzo email valido",
-    "passwordTooShort": "La password deve avere almeno 8 caratteri"
+    "passwordTooShort": "La password deve avere almeno 8 caratteri",
+    "nameRequired": "Come ti chiami?",
+    "showPassword": "Mostra la password",
+    "hidePassword": "Nascondi la password",
+    "noAccount": "Non hai un account?",
+    "haveAccount": "Hai già un account?",
+    "loginError": "Password errata. Riprova o controlla l'email.",
+    "signupError": "Non sono riuscito a creare l'account. Forse l'email è già registrata.",
+    "networkError": "Serve la connessione. Riprova quando sei online."
   },
   "errors": {
     "NOT_FOUND": "Elemento non trovato",
@@ -192,9 +530,26 @@
     "SESSION_CLOSED": "Questa spesa è già conclusa",
     "PHOTO_TOO_LARGE": "Questa foto è troppo grande",
     "UNSUPPORTED_PHOTO_TYPE": "Formato foto non supportato",
-    "EXTRACTION_UNAVAILABLE": "Servizio momentaneamente non disponibile, riprovo tra poco"
+    "EXTRACTION_UNAVAILABLE": "Servizio momentaneamente non disponibile, riprovo tra poco",
+    "notFound": {
+      "title": "Questa pagina non esiste",
+      "body": "Forse il link è vecchio, o c'è un refuso nell'indirizzo.",
+      "cta": "Torna alla home"
+    },
+    "routeError": {
+      "title": "Qualcosa è andato storto",
+      "body": "Non è colpa tua. Riprova, o torna alla home.",
+      "retry": "Riprova",
+      "cta": "Torna alla home"
+    }
   },
-  "offline": {},
+  "offline": {
+    "offline": "Sei offline — le foto restano sul telefono",
+    "offlineWithQueue": "Sei offline — {count, plural, one {# foto resta} other {# foto restano}} sul telefono",
+    "syncing": "Sincronizzo… {count, plural, one {# in coda} other {# in coda}}",
+    "synced": "Tutto sincronizzato",
+    "needsConnection": "Serve la connessione"
+  },
   "categories": {
     "food": "Alimentari",
     "beverages": "Bevande",
@@ -217,7 +572,12 @@
     "g": "g",
     "liter": "L",
     "milliliter": "mL",
-    "piece": "pz"
+    "piece": "pz",
+    "perBase": {
+      "weight": "€/kg",
+      "volume": "€/L",
+      "count": "€/pz"
+    }
   },
   "pwa": {}
 }
