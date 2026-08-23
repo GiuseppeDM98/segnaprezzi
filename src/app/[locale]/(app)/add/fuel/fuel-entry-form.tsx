@@ -25,6 +25,7 @@ import { DecimalInput } from '@/components/ui/decimal-input';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { SectionHeading } from '@/components/ui/section-heading';
+import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import { useToast } from '@/components/ui/toast';
 import { cx } from '@/lib/cx';
 import { FUEL_QUICK_PICKS, type FuelQuickPickKey } from '@/lib/domain/fuel-products';
@@ -240,7 +241,7 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
           )}
       </div>
 
-      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-20 border-border border-t border-dashed bg-surface/95 px-4 pt-3 pb-11 backdrop-blur-sm rail:bottom-0 rail:pb-3">
+      <StickyActionBar>
         <div className="mx-auto flex w-full max-w-xl items-center gap-3">
           <Button variant="ghost" onClick={() => router.push('/')}>
             {tCommon('cancel')}
@@ -255,7 +256,7 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
             {t('submit')}
           </Button>
         </div>
-      </div>
+      </StickyActionBar>
 
       <StorePickerSheet
         isOpen={isStationPickerOpen}

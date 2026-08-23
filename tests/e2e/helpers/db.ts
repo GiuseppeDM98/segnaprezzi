@@ -89,6 +89,7 @@ const RECEIPT_FIXTURE_PRODUCT_NAMES = [
   'Pasta fenicottero n.5 500g',
   'Latte ornitorinco 1L',
   'Quokka fresco',
+  'Pesto capibara 190g',
 ];
 
 /**

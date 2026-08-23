@@ -95,6 +95,65 @@ export async function updateProduct(
   return product ?? null;
 }
 
+export interface DeleteProductsResult {
+  /** Price entries destroyed along with the products. */
+  deletedEntriesCount: number;
+  /** Photo URLs of those entries, so the caller can clean up the blobs. */
+  photoUrls: string[];
+}
+
+/**
+ * Delete products outright, together with every price entry that references
+ * them — one transaction, so a failure leaves the catalog untouched.
+ *
+ * This is the destructive counterpart to archiving. The FK on
+ * price_entries.productId is NO ACTION precisely so a stray delete cannot
+ * silently orphan history (see the note at the top of schema/app.ts), which
+ * is why the entries are removed explicitly and first: the check runs at
+ * end-of-statement, and by then nothing references the row. Learned receipt
+ * aliases cascade on their own.
+ *
+ * The caller gets the entries' photo URLs back rather than a count alone,
+ * because blobs live outside this transaction and can only be cleaned up
+ * after it commits.
+ *
+ * @throws NotFoundError when any id is not this user's — deleting "3
+ *   products" must never quietly delete two.
+ */
+export async function deleteProducts(
+  db: Db,
+  userId: string,
+  productIds: string[],
+): Promise<DeleteProductsResult> {
+  return await db.transaction(async (tx) => {
+    const owned = await tx
+      .select({ id: products.id })
+      .from(products)
+      .where(and(eq(products.userId, userId), inArray(products.id, productIds)));
+    const ownedIds = new Set(owned.map((row) => row.id));
+    const missing = productIds.find((id) => !ownedIds.has(id));
+    if (missing) {
+      throw new NotFoundError('product', missing);
+    }
+
+    const deletedEntries = await tx
+      .delete(priceEntries)
+      .where(and(eq(priceEntries.userId, userId), inArray(priceEntries.productId, productIds)))
+      .returning({ photoUrl: priceEntries.photoUrl });
+
+    await tx
+      .delete(products)
+      .where(and(eq(products.userId, userId), inArray(products.id, productIds)));
+
+    return {
+      deletedEntriesCount: deletedEntries.length,
+      photoUrls: deletedEntries
+        .map((entry) => entry.photoUrl)
+        .filter((url): url is string => url !== null),
+    };
+  });
+}
+
 export interface MergeProductsResult {
   movedEntriesCount: number;
 }

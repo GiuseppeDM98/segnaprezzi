@@ -63,8 +63,9 @@ Layer/naming/error-handling rules: `docs/DEVELOPMENT_GUIDELINES.md`.
 - **Tag scanning + AI extraction**: camera → WebP ≤400 KB → Vercel Blob → `claude-haiku-4-5` → review screen → confirm. Nothing hits the DB unconfirmed.
 - **Personal CPI engine**: matched-model relatives, Jevons within category, expenditure-weighted across categories, chained index base=100, carry-forward imputation, coverage stats, top movers; `rebaseIstat` + committed `data/istat-nic.json` (1996-01 → latest, base 2025=100, refreshed by `pnpm istat:update`).
 - **Quick entry**: manual form (`/add/manual`, g/mL converted client-side) and fuel form (`/add/fuel`) with four quick picks — benzina, diesel, GPL, metano. Metano is sold per **kilogram**, so each pick carries its own `unit_kind`; renaming a pick's canonical name after entries exist is a data migration, not a copy edit.
-- **Receipt import**: digital receipt (PDF) or photo → `/api/extract-receipt` → per-line extraction with `claude-haiku-4-5` (PDF as a native `document` block) → alias/fuzzy match to the catalog → review → N entries `source='receipt'`. The file is hashed and dropped, never stored; aliases are learned on confirm so the next receipt from that chain resolves itself.
-- **Dashboard + product histories**: index hero, trend chart with ISTAT overlay, category breakdown, top movers, per-product price history, catalog with merge, timeline, stores, settings — all in the design system recorded in `DESIGN.md`.
+- **Receipt import**: digital receipt (PDF) or photo → `/api/extract-receipt` → per-line extraction with `claude-haiku-4-5` (PDF as a native `document` block) → alias/fuzzy match to the catalog → review → N entries `source='receipt'`. The file is hashed and dropped, never stored; aliases are learned on confirm so the next receipt from that chain resolves itself. Identical printed lines are folded into one observation carrying their combined `quantity`, so a till that repeats an article weighs the same as one that prints "2 x".
+- **Dashboard + product histories**: index hero, trend chart with ISTAT overlay, category breakdown, top movers, per-product price history, catalog with merge and delete, timeline, stores, settings — all in the design system recorded in `DESIGN.md`.
+- **Catalog housekeeping**: archive (keeps history, leaves suggestions), merge duplicates, or **delete** a product outright with every observation it carries — one transaction, behind a confirmation that states how many observations go and that the index is recomputed without them. Deleting entries, products or a whole account also deletes their photos from Blob; `pnpm photos:prune` reports orphans left by older versions.
 - **Offline-first PWA**: Serwist service worker (NetworkFirst pages with a locale-aware `/offline` fallback, NetworkOnly `/api/*`, SWR photo thumbnails, CacheFirst hashed assets), web app manifest + generated icon set, and the sync engine in `src/lib/offline/sync.ts` — 1/2/4/8 s backoff, five attempts, concurrency 2 under a Web Lock, drains on start / `online` / tab focus / enqueue / Background Sync. Install experience and the SW update toast live in `src/components/pwa/`.
 - **Auth + multi-user isolation**: Better Auth, every query scoped by `user_id`; `SIGNUP_ENABLED=false` closes registration.
 - **i18n**: next-intl, `it` + `en`, all routes under `[locale]`.
@@ -77,91 +78,102 @@ Layer/naming/error-handling rules: `docs/DEVELOPMENT_GUIDELINES.md`.
 *(Per-session history lives in `git log`, not here — this section is the
 current state of the codebase, not a journal.)*
 
-**Receipt import: one receipt becomes N observations, and the app learns the
-abbreviations.** `POST /api/extract-receipt` takes one file (PDF, WebP or
-JPEG, ≤ 5 MB, ≤ 10 PDF pages, checked by declared type *and* magic bytes),
-hashes it, sends it to `claude-haiku-4-5` — a PDF as a native `document`
-block, so no PDF library exists in this repo — and hands back one reviewable
-draft per product line. **The file itself is never stored**: what survives is
-`receipts.content_hash` (idempotency) and `receipts.ai_raw_json`, every
-`rawLine` included, which is the audit trail that replaces the document.
-`price_entries.photo_url` stays NULL for receipt entries.
-
-The value of the feature is the *matching*, not the transcription.
-`resolveReceiptLines` (pure) tries, in order: an alias the user taught the
-app on a previous receipt (chain-scoped, then chain-less, then any chain), a
-fuzzy match run **twice** — once on the model's readable expansion and once
-on the printed abbreviation, union deduplicated — and finally a new-product
-draft. `deriveUnitPriceMilli` (pure) turns the printed columns into the
-`(quantity, packageSize, totalPriceCents, unitPriceMilli)` quadruple the
-entry contract wants: a weighed line ("0,812 kg x 1,49") is one package of
-its own weight, a counted line ("2 x 1,09") is `total ÷ quantity` per
-package, and the size comes from the description, else
-`products.default_package_size`, else the user. `confirmReceipt` is one
-transaction: it re-checks the price invariant server-side, inserts the
-entries with `source 'receipt'` + `receipt_id` + `quantity`, learns the
-aliases from the **stored** `rawLine` (never from the request), back-fills
-`default_package_size`, and marks the receipt confirmed — idempotently, so a
-retried confirm returns the existing entry ids.
-
-Schema is at migration **0001**: `receipts`, `product_aliases`,
-`products.default_package_size` (back-filled in the same migration from each
-product's newest observation), `price_entries.quantity` (default 1) and
-`price_entries.receipt_id`. `ENTRY_SOURCES` includes `'receipt'`;
+**Schema is at migration 0001.** `receipts`, `product_aliases`,
+`products.default_package_size` (back-filled from each product's newest
+observation), `price_entries.quantity` (default 1) and
+`price_entries.receipt_id`. `ENTRY_SOURCES` includes `'receipt'`,
 `listEntriesForIndex` maps the real `quantity` column, and the export is at
-`schemaVersion 2` with `receipts` (without `aiRawJson`) and `productAliases`.
+`schemaVersion 2` carrying `receipts` (without `aiRawJson`) and
+`productAliases`. The receipt pipeline itself is described in §3; its
+hard-won details — alias precedence, SQLite's NULL semantics inside the
+unique index, the prompt's worked examples, the synthetic fixture that must
+never be replaced by a real receipt — are in AGENTS.md §4.49–§4.54.
 
-Screens: `/add/receipt` (dropzone + store picker, disabled offline with no
-queue — a PDF never originates in an aisle) and `/add/receipt/review`, which
-loads from the **server** rather than from Dexie, so a reload resumes the
-same import and an alias learned a minute ago in another tab already
-applies. Each line card shows its `rawLine` verbatim, a "Ricorda questa
-riga" toggle, the same-day duplicate hint, and an exclude toggle (icon: a
-plain `X`, not a "more options" glyph — it is a direct one-tap action, not a
-menu); `/products/[id]` lists the learned aliases with a delete.
+**UI pass: the screens now say what they want.** A 390 px audit of every
+screen — screenshots plus a scripted `scrollWidth > clientWidth` check on each
+route — turned up eleven defects, and the review card carried most of them.
+Its three-column money row did not fit a phone, so the unit price clipped its
+own digits and the one label that wrapped pushed its input a line below its
+neighbours; it is now two columns with the unit price full width, which is
+what the (newer) receipt line card already did. The same card lost its
+one-item "more options" sheet in favour of a direct discard, exactly as the
+receipt card had.
 
-A line with no matching catalog candidate becomes a new product (deduped by
-normalized name against the existing catalog); a line where the matcher
-found candidates but none confident enough is blocked as `needs-product`
-rather than silently accepted — an unreviewed duplicate product is worse
-than one extra tap, and a duplicate removes that product from every
-month-over-month index relative it should have contributed to. Aliases are
-keyed `(user_id, alias, store_chain)`, but SQLite treats NULLs as **distinct**
-inside a unique index, so a chain-less alias upsert cannot rely on
-`ON CONFLICT` — the repository reads before it writes, inside the caller's
-transaction.
+The load-bearing fix is the one the owner hit: a card missing its product
+could not be confirmed, and nothing said so. `blockingReasonOf()` now names
+what is missing, the card states it in an amber banner, and the confirm button
+is **deliberately not disabled** — pressing it scrolls to the offending card
+and explains, which is the branch `handleConfirm` had always contained and
+could never reach. A disabled button withholds both the reason and the way
+out; the server-side guarantee is unchanged and the E2E test asserts the thing
+that matters, that pressing confirm with an incomplete card writes nothing.
 
-The extraction prompt (`src/lib/ai/receipt-prompt.ts`) was refined after
-reading a real Coop receipt: a discount line that repeats the receipt's own
-VAT% column (`SCONTO % CLIE 40.00%    4,00%    -1,92`) was being extracted
-as its own zero-price "product" instead of being folded into the line above
-it — a second worked example now shows that exact shape. The same receipt
-also showed the model guessing "F/F" as "farina di frumento" when it is
-actually Coop's "Fior Fiore" private-label marker — the ambiguous-abbreviation
-rule now carries that as a concrete counter-example. Both are prompt-text
-changes only; nothing in the schema, resolution logic, or database moved. A
-prompt change cannot be regression-tested the way pure code can — the next
-real receipt from this failure family is the actual test.
+Three defects were grammar rather than layout: `band` is the zebra tint, so
+anything using it as a plate *inside* a row (the flat trend pill, the store
+icon tile) appeared on odd rows and vanished on even ones; and a disabled
+button rendered as its own fill at 50% opacity, which drops an accent-filled
+label to about 2:1. `DESIGN.md` records both rules now. Three more were
+mechanical and invisible until measured: the charts' `sr-only` data table
+widened `/products/[id]` by 117 px (a `<table>` ignores `width: 1px`), `Sheet`
+rendered its portal on the client's hydration pass but never on the server,
+and the toast outlet sat on top of every sticky confirm bar — the five
+hand-copied bars are now one `StickyActionBar` publishing
+`--sticky-action-bar-height`. Finally `formatInputDecimal` follows the locale,
+so an Italian no longer reads "1.34 €" in the box and "1,34 €" in the total
+below it. AGENTS.md §4.55–§4.58 carry the gotchas.
 
-Verified: `pnpm lint`/`typecheck`/`build` green; **351** unit/integration
-tests (40 files) covering the alias table, the unit-price derivation table,
-the Rome wall-clock parser, the AI gateway's request shape and failure
-mapping, the resolution precedence, both idempotency branches and the
-transactional confirm; **91** Playwright tests, including an upload → review
-→ fix a `needs-size` line → confirm flow asserted against `/api/export`,
-a re-upload of an already-confirmed receipt correctly rejected before the
-gateway is even called, and the receipt screen in the axe accessibility
-sweep, both themes, both viewports. The fixture PDF (`pnpm receipt:fixture`)
-uses invented product names (fenicottero, ornitorinco, quokka) — a real
-receipt must never enter this repository. "Second import from the same
-chain resolves by itself" is covered by an automated test
-(`import-receipt.test.ts`), not a manual check.
+**Deleting a product, and the photos that were never being deleted.** The
+catalog could archive and merge but never delete, by an explicit decision in
+`schema/app.ts` — "history must never silently vanish". That decision is now
+the *default* rather than the only option: `deleteProducts` removes the
+products and every entry that references them in one transaction, from the
+detail screen's menu, from a row's own trash button, and from the bulk
+selection bar. What makes it safe is the confirmation, which states how many
+observations are about to go and that the personal index will be recomputed
+without them, and names archiving as the way to keep the history. The FK stays
+`NO ACTION`: the entries are deleted explicitly first, and a stray delete is
+still blocked.
 
-Two naming notes worth knowing: the history/product-detail source-icon chip
-key lives under `productDetail.source.*` (not a `history.*` namespace some
-earlier notes expected); merging duplicate products and exporting a user's
-full data live in `db/repositories/products.ts` and `services/export.ts`
-respectively. AGENTS.md §4.49–§4.52 hold further gotchas from this area.
+That work surfaced a bigger hole, found by the owner looking at the Blob
+store: **nothing ever deleted photos except discarding a shopping session**.
+Deleting one observation left its blob, and deleting an *account* emptied
+every table while its photos survived it — a privacy failure, not a storage
+bill, since the database cascade stops at the store's edge. Both paths clean
+up now (`deleteOwnedPhotos` for a known set, `deleteAllUserPhotos` on Better
+Auth's `deleteUser.afterDelete`), and `pnpm photos:prune` reports — or with
+`--delete` removes — what has already leaked. It refuses to run destructively
+when the database it is comparing references no photo at all, which is the
+signature of a local database pointed at the production store. AGENTS.md
+§4.59–§4.61.
+
+**Identical receipt lines are one purchase, not two.** A till prints the same
+article twice as readily as it prints "2 x", and the app already had an
+opinion about the second shape: `price_entries.quantity` exists so that
+"2 x 1,09" is ONE observation bought twice rather than two observations
+double-weighting that month's mean. Honouring it only for the receipts that
+use a multiplier meant the same shopping trip landed in the index twice as
+heavily depending on how the shop chose to print it — so `resolveReceiptLines`
+now ends with `collapseIdenticalLines`, a pure fold that merges lines agreeing
+on printed text, price per package, size, promo and resolved product, summing
+their quantities and unioning their review reasons. Identical is read
+strictly: two "pesto" at different prices are two observations (one was on
+offer) and stay apart. The surviving draft keeps the FIRST line's index, which
+is what `confirmReceipt` uses to reach `extraction.lines[index]` for the raw
+text and the alias — identical by construction — and `receipts.ai_raw_json`
+still holds every printed line, so nothing is lost from the audit trail. The
+card says "2 righe uguali" next to the raw line, because that is where the
+user checks the screen against the paper and would otherwise count one line
+short. The review total was already `price x quantity`, so it does not move.
+
+**Verified:** `pnpm lint` / `typecheck` / `build` green; **363**
+unit/integration tests (40 files) and **95** Playwright tests, the latter
+including the whole capture and receipt flows asserted against `/api/export`,
+a product delete that must leave no orphaned entry behind, two identical
+receipt lines landing as one observation bought twice, and the axe sweep over
+every screen in both themes and both viewports. The 390 px audit that opened
+the session is worth repeating after any UI work: screenshots of every route
+plus a scripted `scrollWidth > clientWidth` check, which is what found a
+117 px horizontal overflow no screenshot suggested.
 
 ---
 

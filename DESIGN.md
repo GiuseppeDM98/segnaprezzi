@@ -219,7 +219,7 @@ A cream-and-ink paper register with five semantic inks, each owning exactly one 
 - **Paper** (`background`, `oklch(97.2% 0.014 88)`): the page. Body background, the ring around the Scan disc, text on the danger button.
 - **Sheet** (`surface`, `oklch(99.2% 0.006 88)`): the printed form laid on the page: cards, inputs, tab bar, sprocket strip, sticky footers (at 95% with backdrop blur).
 - **Sheet Raised** (`surface-raised`): only what lifts off: bottom sheets and toasts.
-- **Green Bar** (`band`, `oklch(94.4% 0.034 140)`): the tinted alternate row of green-bar paper; also every neutral hover (`hover:bg-band`), the flat trend pill, the toggle track when off.
+- **Green Bar** (`band`, `oklch(94.4% 0.034 140)`): the tinted alternate row of green-bar paper; also every neutral hover (`hover:bg-band`) and the toggle track when off. **Never as a plate inside a zebra row** (a badge, an icon tile): it is that row's own tint every other row, so the plate blinks in and out down the list.
 - **Ink** (`text`) and **Ink Muted** (`text-muted`): the two text weights. Muted carries labels, captions, column headers and inactive tabs.
 - **Hairline** (`border`): every rule, double and dashed included, the sprocket holes, the sheet drag handle, the scrollbar thumb.
 - **Chart Compare** / **Chart Grid**: the ISTAT overlay line (a neutral grey, deliberately not a brand color) and the chart gridlines.
@@ -273,7 +273,7 @@ The vertical rhythm is the **48 px row** (`h-12` / `min-h-12`): zebra rows, skel
 
 Rigid margin columns are a kept raise: the desktop rail's 20 px sprocket strip, and the 44 px HH:MM time column with a dashed right rule in History rows.
 
-Sticky bars: list headers stick to the top on `bg-background/95` with backdrop blur and a dashed bottom rule. Bulk-action footers stick above the tab bar (`bottom: calc(3.5rem + safe-area)`) with `pb-11` on mobile so the raised Scan disc never covers them, and drop to `bottom-0 pb-3` at `rail`. The shell pads content by `3.5rem + safe-area + 1rem` under the tab bar; toasts sit at `4.5rem + safe-area` (1.5rem at rail). Safe areas use the `pt-safe` / `pb-safe` utilities; `viewport-fit: cover`.
+Sticky bars: list headers stick to the top on `bg-background/95` with backdrop blur and a dashed bottom rule. Bulk-action footers stick above the tab bar (`bottom: calc(3.5rem + safe-area)`) with `pb-11` on mobile so the raised Scan disc never covers them, and drop to `bottom-0 pb-3` at `rail`. The shell pads content by `3.5rem + safe-area + 1rem` under the tab bar; toasts sit at `4.5rem + safe-area + var(--sticky-action-bar-height, 0px)` (1.5rem + the same variable at rail). That variable is the contract between the two: every such footer is the `StickyActionBar` component, which publishes its measured height on the document element, because a toast anchored to the viewport otherwise lands on the confirm button and swallows the tap. A screen that needs the bar animated in and out uses `STICKY_ACTION_BAR_CLASSES` with `useStickyActionBarHeight()` instead of hand-copying the classes. Safe areas use the `pt-safe` / `pb-safe` utilities; `viewport-fit: cover`.
 
 All tap targets are 44 px (`h-11`, `size-11`, `min-w-11`); 28 px small chips keep a 44 px hit area through a transparent halo.
 
@@ -305,6 +305,7 @@ Stamped controls, not pebbles. Two radii: **control** (6 px) for buttons, inputs
 - **Danger:** ribbon-red fill with paper text.
 - **Hover / Press / Focus:** hover `brightness-95` (filled) or `bg-band` (framed/ghost); pressed `scale: 0.97` via Motion `whileTap` (off under reduced motion); focus is the global 2 px stamp-blue outline at 2 px offset.
 - **Pending:** the app's only spinner, a quarter arc in `currentColor` inside the button, with `aria-busy`; content areas use skeleton zebra rows, never spinners.
+- **Disabled:** a framed `surface` plate with `text-muted` ink and a hairline border, in every variant — never the variant's own fill at reduced opacity, which drops a filled button's label to about 2:1 and hides the words. A disabled control is also not the live thing on the screen, so it hands the accent back.
 - **Icon buttons:** 44/52 px squares in `plain`, `outlined`, `filled` variants with the same states.
 
 ### Chips
@@ -312,7 +313,7 @@ Stamped controls, not pebbles. Two radii: **control** (6 px) for buttons, inputs
 - **Status:** 24 px pill, mono 11 px uppercase, tinted by tone (`neutral`, `accent`, `positive`, `negative`, `warning`, `promo`): soft background with the ink of the same family at 30-40% border. Always carries text.
 
 ### Trend Badge
-Mono 600 pill (28 px / 24 px small) with arrow + signed percentage; `negative-soft/negative` for up, `positive-soft/positive` for down, `band/text-muted` flat; sr-only direction word.
+Mono 600 pill (28 px / 24 px small) with arrow + signed percentage; `negative-soft/negative` for up, `positive-soft/positive` for down; sr-only direction word. **Flat carries no plate** — muted ink on whatever it sits on, keeping its height so the column stays aligned: `band` is also the zebra tint, so a flat pill showed on odd rows and vanished on even ones, and "nothing moved" has no news to colour anyway.
 
 ### Cards / Containers
 - **Corner Style:** 6 px.

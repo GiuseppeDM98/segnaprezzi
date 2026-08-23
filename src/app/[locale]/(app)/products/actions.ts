@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Catalog Server Actions: merge, edit, archive.
+ * Catalog Server Actions: merge, edit, archive, delete.
  * Thin by contract: authenticate, validate with Zod, call the service, map
  * domain errors.
  */
@@ -14,6 +14,8 @@ import { CATEGORY_IDS } from '@/lib/domain/categories';
 import { nanoidSchema } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
 import {
+  type DeleteProductsResult,
+  deleteProducts as deleteProductsService,
   editProduct as editProductService,
   type MergeProductsResult,
   mergeProducts as mergeProductsService,
@@ -91,5 +93,29 @@ export async function setProductArchived(input: {
     return { ok: true, data: null };
   } catch (error) {
     return { ok: false, error: toLoggedActionError('setProductArchived', error) };
+  }
+}
+
+const deleteProductsSchema = z.object({ productIds: z.array(nanoidSchema).min(1).max(50) });
+
+/**
+ * Delete products and every observation they carry. Irreversible, and the
+ * only action in the app that destroys price history — the caller is
+ * responsible for having asked first, with the entry count in hand.
+ */
+export async function deleteProducts(input: {
+  productIds: string[];
+}): Promise<ActionResult<DeleteProductsResult>> {
+  const parsed = deleteProductsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+  }
+  try {
+    const user = await requireUser();
+    const data = await deleteProductsService(db, user.id, parsed.data.productIds);
+    revalidatePath('/[locale]', 'layout');
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: toLoggedActionError('deleteProducts', error) };
   }
 }

@@ -73,23 +73,27 @@ export function CategoryBars({ items, formatValue, ariaSummary, className }: Cat
           );
         })}
       </ol>
-      <table className="sr-only">
-        <caption>{ariaSummary}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{tCommon('table.category')}</th>
-            <th scope="col">{tCommon('table.change')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item.category}>
-              <th scope="row">{tCategories(item.category)}</th>
-              <td>{formatValue(item.ratio)}</td>
+      {/* The clipping wrapper is load-bearing, not decoration — see the note on
+          the same construct in area-chart.tsx. */}
+      <div className="sr-only">
+        <table>
+          <caption>{ariaSummary}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{tCommon('table.category')}</th>
+              <th scope="col">{tCommon('table.change')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.category}>
+                <th scope="row">{tCategories(item.category)}</th>
+                <td>{formatValue(item.ratio)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

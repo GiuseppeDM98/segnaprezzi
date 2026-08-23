@@ -11,7 +11,7 @@
  */
 import { AnimatePresence, motion, type PanInfo } from 'motion/react';
 import { useTranslations } from 'next-intl';
-import { type ReactNode, useEffect, useId, useRef } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { cx } from '@/lib/cx';
@@ -38,12 +38,17 @@ export interface SheetProps {
 
 export function Sheet({ isOpen, onClose, title, description, children, className }: SheetProps) {
   const t = useTranslations('common');
+  const [isMounted, setIsMounted] = useState(false);
   const { isReduced, spring, fade } = useAppMotion();
   const isTablet = useMediaQuery(TABLET_QUERY);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const openerRef = useRef<Element | null>(null);
   const titleId = useId();
   const descriptionId = useId();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Focus management + body scroll lock for the lifetime of an open sheet.
   useEffect(() => {
@@ -104,7 +109,15 @@ export function Sheet({ isOpen, onClose, title, description, children, className
     }
   }
 
-  if (typeof document === 'undefined') {
+  /*
+   * Why a mount flag and not just `typeof document`: the server renders
+   * nothing, but the client's FIRST render — the hydration pass — already has
+   * a document, so a sheet that starts open (the resume-session prompt on
+   * /scan) rendered a whole portal React had no server counterpart for, and
+   * every visit logged a hydration mismatch. The flag makes the first client
+   * render agree with the server's, and the effect opens it a tick later.
+   */
+  if (!isMounted) {
     return null;
   }
 

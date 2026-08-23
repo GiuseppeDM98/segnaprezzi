@@ -40,6 +40,8 @@ import type { ConfirmReceiptActionInput } from './schema';
 interface LineDraft {
   index: number;
   rawLine: string;
+  /** How many identical receipt lines this card stands for; 1 when it is alone. */
+  mergedLineCount: number;
   reviewReasons: ReceiptReview['lines'][number]['reviewReasons'];
   suggestions: MatchOption[];
   product: LineProduct;
@@ -286,6 +288,7 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
                   <ReceiptLineCard
                     data-testid="receipt-line-card"
                     rawLine={draft.rawLine}
+                    mergedLineCount={draft.mergedLineCount}
                     status={liveStatus(draft)}
                     reviewReasons={draft.reviewReasons}
                     fields={draft.fields}
@@ -398,6 +401,7 @@ function toDraft(line: ReceiptReview['lines'][number]): LineDraft {
   return {
     index: line.index,
     rawLine: line.extraction.rawLine,
+    mergedLineCount: line.mergedLineIndexes.length + 1,
     reviewReasons: line.reviewReasons,
     suggestions,
     product,

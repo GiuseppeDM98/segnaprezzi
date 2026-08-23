@@ -11,6 +11,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { nextCookies } from 'better-auth/next-js';
 import { nanoid } from 'nanoid';
 
+import { deleteAllUserPhotos } from '@/lib/blob/photo-storage';
 import { db } from '@/lib/db/client';
 import * as schema from '@/lib/db/schema';
 import { userSettings } from '@/lib/db/schema/app';
@@ -39,6 +40,14 @@ export const auth = betterAuth({
     // table, so one call removes all data.
     deleteUser: {
       enabled: true,
+      // The cascade stops at the database. Shelf photos live in Vercel Blob,
+      // which no foreign key reaches, so without this hook they would outlive
+      // the account that owns them — a privacy failure, not a storage bill.
+      // It runs after the row is gone and swallows its own errors: see the
+      // note on deleteAllUserPhotos.
+      afterDelete: async (user: { id: string }) => {
+        await deleteAllUserPhotos(user.id);
+      },
     },
   },
 

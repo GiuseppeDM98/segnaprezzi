@@ -160,11 +160,18 @@ test('should flag a doubtful extraction and block confirm until it is fixed', as
   await expect(page.getByTestId('needs-review-badge')).toBeVisible();
 
   // A 0.95 suggestion is still preselected, so the only thing standing in the
-  // way is the number the user must look at — clear it and the confirm bar
-  // disables itself and says why: "1 da completare".
+  // way is the number the user must look at — clear it and the card says what
+  // it is missing while the confirm bar counts it: "1 da completare".
   await page.getByTestId('field-total-price').fill('');
-  await expect(page.getByTestId('confirm-batch')).toBeDisabled();
   await expect(page.getByText('1 da completare')).toBeVisible();
+  await expect(page.getByTestId('blocking-reason')).toHaveText(
+    'Completa prezzo, confezione e prezzo unitario',
+  );
+
+  // Pressing confirm anyway must not save: it names the problem and stays put.
+  // The button is deliberately alive so the reason can be reached at all.
+  await page.getByTestId('confirm-batch').click();
+  await expect(page.getByTestId('confirm-error')).toBeVisible();
   await expect(page).toHaveURL(/\/scan\/review/);
 
   const exportResponse = await page.request.get('/api/export');

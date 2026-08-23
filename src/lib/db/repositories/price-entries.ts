@@ -480,6 +480,25 @@ export async function countPriceEntriesByStore(
 }
 
 /**
+ * Number of observations per product, keyed by product id (products with
+ * none are absent, so a missing key reads as zero).
+ *
+ * The catalog needs this to tell the user how much history a delete is about
+ * to destroy, before they confirm it.
+ */
+export async function countPriceEntriesByProduct(
+  db: Db,
+  userId: string,
+): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ productId: priceEntries.productId, total: count() })
+    .from(priceEntries)
+    .where(eq(priceEntries.userId, userId))
+    .groupBy(priceEntries.productId);
+  return new Map(rows.map((row) => [row.productId, Number(row.total)]));
+}
+
+/**
  * Every observation of one product, newest first, with the store name —
  * the product detail screen needs the whole history for its chart, stats
  * and per-store comparison. Deliberately unpaginated: a single product

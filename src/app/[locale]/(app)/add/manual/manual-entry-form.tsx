@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { SectionHeading } from '@/components/ui/section-heading';
 import { Segmented } from '@/components/ui/segmented';
 import { Select } from '@/components/ui/select';
+import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import { useToast } from '@/components/ui/toast';
 import { Toggle } from '@/components/ui/toggle';
 import { cx } from '@/lib/cx';
@@ -525,7 +526,7 @@ export function ManualEntryForm({ context }: ManualEntryFormProps) {
         )}
       </div>
 
-      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-20 border-border border-t border-dashed bg-surface/95 px-4 pt-3 pb-11 backdrop-blur-sm rail:bottom-0 rail:pb-3">
+      <StickyActionBar>
         <div className="mx-auto flex w-full max-w-xl items-center gap-3">
           <Button variant="ghost" onClick={() => router.push('/')}>
             {tCommon('done')}
@@ -540,7 +541,7 @@ export function ManualEntryForm({ context }: ManualEntryFormProps) {
             {t('submit')}
           </Button>
         </div>
-      </div>
+      </StickyActionBar>
 
       <StorePickerSheet
         isOpen={isStorePickerOpen}

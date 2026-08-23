@@ -30,10 +30,17 @@ export function priceDirectionOf(ratio: number): 'up' | 'down' | 'flat' {
   return 'flat';
 }
 
+/*
+ * Why `flat` carries no fill: `band` is also the tint of the alternate
+ * zebra row, so the flat pill was a visible plate on odd rows and invisible on
+ * even ones — the same number appearing to be two different kinds of thing
+ * down one list. Nothing moved is the absence of news, so it gets no plate;
+ * the reserved height keeps the column aligned either way.
+ */
 const DIRECTION_CLASSES = {
   up: 'bg-negative-soft text-negative',
   down: 'bg-positive-soft text-positive',
-  flat: 'bg-band text-text-muted',
+  flat: 'text-text-muted',
 } as const;
 
 export function TrendBadge({ ratio, size = 'md', className }: TrendBadgeProps) {

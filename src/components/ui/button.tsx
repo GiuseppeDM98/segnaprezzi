@@ -27,8 +27,17 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
   lg: 'h-13 px-6 text-base',
 };
 
+/*
+ * Why a real disabled skin instead of `opacity-50`: half-transparent ink on a
+ * filled button reads as a stain, not as "inactive" — the accent fill drops to
+ * ~2:1 against its own label and the words disappear. A disabled control is
+ * also not the one live thing on the screen, so it gives the accent back and
+ * becomes a framed sheet plate, where the muted ink stays legible. Not `band`
+ * either: a large green field reads as an outcome, and green already means a
+ * price came down.
+ */
 const BASE_CLASSES =
-  'inline-flex min-w-11 select-none items-center justify-center gap-2 rounded-control font-sans font-semibold leading-none transition-[filter,background-color] disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex min-w-11 select-none items-center justify-center gap-2 rounded-control font-sans font-semibold leading-none transition-[filter,background-color] disabled:cursor-not-allowed disabled:border disabled:border-border disabled:bg-surface disabled:text-text-muted disabled:no-underline';
 
 interface CommonProps {
   variant?: ButtonVariant;

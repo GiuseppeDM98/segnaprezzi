@@ -12,6 +12,7 @@
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
+import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 
 export interface ReceiptSummaryBarProps {
   readyCount: number;
@@ -36,7 +37,7 @@ export function ReceiptSummaryBar({
   const t = useTranslations('receipt.review');
 
   return (
-    <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-20 border-border border-t border-dashed bg-surface/95 px-4 pt-3 pb-11 backdrop-blur-sm rail:bottom-0 rail:pb-3">
+    <StickyActionBar>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-2">
         {errorMessage && (
           <p data-testid="receipt-confirm-error" className="font-sans text-[13px] text-negative">
@@ -55,7 +56,10 @@ export function ReceiptSummaryBar({
                 excluded: excludedCount,
               })}
             </span>
-            <span className="font-mono font-semibold text-[17px] text-text tabular-nums">
+            <span
+              data-testid="receipt-total"
+              className="font-mono font-semibold text-[17px] text-text tabular-nums"
+            >
               {totalLabel}
             </span>
           </div>
@@ -70,6 +74,6 @@ export function ReceiptSummaryBar({
           </Button>
         </div>
       </div>
-    </div>
+    </StickyActionBar>
   );
 }

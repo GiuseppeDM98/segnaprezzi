@@ -204,3 +204,86 @@ test('should refuse a re-upload of a receipt that was already imported', async (
     payload.entries.filter((entry: { source: string }) => entry.source === 'receipt'),
   ).toHaveLength(3);
 });
+
+/*
+ * A till prints the same article twice as readily as it prints "2 x". Both
+ * are one price paid twice, and the import has to land them the same way —
+ * otherwise the same shopping trip weighs twice as much in the index
+ * depending on how the shop chose to print it.
+ *
+ * Its own receipt id, hash and spy word ("capibara"), so it neither collides
+ * with the serial pair above nor lets its product capture their lines.
+ */
+const DUPLICATE_RECEIPT_ID = 'e2eReceiptDuplicate01';
+const DUPLICATE_PURCHASED_AT = Date.UTC(2026, 7, 20, 16, 42);
+
+const PESTO_LINE = {
+  rawLine: 'PESTO CAPIBARA 190G            2,49',
+  description: 'Pesto capibara 190g',
+  brand: null,
+  category: 'food' as const,
+  quantity: 1,
+  quantityKind: 'pieces' as const,
+  unitPriceCentsOnReceipt: null,
+  lineTotalCents: 249,
+  discountCents: 0,
+  packageSizeHint: 0.19,
+  unitKindHint: 'weight' as const,
+  isPromo: false,
+  promoKind: null,
+  confidence: 0.95,
+};
+
+test('should fold two identical printed lines into one observation bought twice', async ({
+  page,
+}) => {
+  await seedExtractedReceipt(SEED_USER_2.email, {
+    id: DUPLICATE_RECEIPT_ID,
+    contentHash: `duplicate-${DUPLICATE_RECEIPT_ID}`,
+    purchasedAt: DUPLICATE_PURCHASED_AT,
+    receiptTotalCents: 498,
+    extraction: {
+      storeChain: 'Coop',
+      storeName: 'Coop Via Fenicottero 12',
+      purchasedAt: '2026-08-20T18:42:00',
+      receiptTotalCents: 498,
+      confidence: 0.93,
+      lines: [PESTO_LINE, PESTO_LINE],
+    },
+  });
+
+  await page.route('**/api/extract-receipt', (route) =>
+    route.fulfill({ status: 200, json: { receiptId: DUPLICATE_RECEIPT_ID } }),
+  );
+
+  await page.goto('/add/receipt');
+  await expect(page.getByTestId('receipt-dropzone')).toBeVisible();
+  await page.setInputFiles('[data-testid="receipt-file-input"]', FIXTURE_PATH);
+  await page.getByTestId('receipt-submit').click();
+
+  await expect(page).toHaveURL(/\/add\/receipt\/review/);
+
+  // One card, not two — and it says so, so the paper can still be checked
+  // against the screen line by line.
+  await expect(page.getByTestId('receipt-line-card')).toHaveCount(1);
+  await expect(page.getByTestId('receipt-merged-lines')).toHaveText('2 righe uguali');
+
+  // The money is unchanged by the fold: 2,49 x 2.
+  await expect(page.getByTestId('receipt-total')).toContainText('4,98');
+
+  await page.getByTestId('receipt-confirm').click();
+  await expect(page).toHaveURL(/\/history/);
+
+  const payload = await (await page.request.get('/api/export')).json();
+  const entries = payload.entries.filter(
+    (entry: { receiptId: string }) => entry.receiptId === DUPLICATE_RECEIPT_ID,
+  );
+  expect(entries).toHaveLength(1);
+  expect(entries[0]).toMatchObject({
+    quantity: 2,
+    // The price of ONE jar; the quantity carries the rest.
+    totalPriceCents: 249,
+    packageSize: 0.19,
+    unitPriceMilli: 13105,
+  });
+});

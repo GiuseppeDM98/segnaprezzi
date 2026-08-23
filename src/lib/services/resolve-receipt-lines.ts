@@ -101,6 +101,13 @@ export interface ResolvedReceiptLine {
   fields: ResolvedReceiptLineFields;
   status: ReceiptLineStatus;
   reviewReasons: LineReviewReason[];
+  /**
+   * Positions of the identical receipt lines folded into this one; empty for
+   * a line that stood alone. Their quantities are already in `fields`, and
+   * `extraction` still points at the first of them — the raw text, and so the
+   * alias to learn, is by construction the same for all of them.
+   */
+  mergedLineIndexes: number[];
 }
 
 export interface ResolveReceiptLinesInput {
@@ -123,7 +130,7 @@ export function resolveReceiptLines(input: ResolveReceiptLinesInput): ResolvedRe
   const aliasIndex = buildAliasIndex(input.aliases);
   const candidateById = new Map(input.candidates.map((candidate) => [candidate.id, candidate]));
 
-  return input.lines.map((line, index) => {
+  const resolved = input.lines.map((line, index) => {
     const normalizedAlias = normalizeAlias(line.rawLine);
     const match = matchLine(line, normalizedAlias, input, aliasIndex);
     const selectedProductId = pickPreselectedProductId(match);
@@ -172,8 +179,77 @@ export function resolveReceiptLines(input: ResolveReceiptLinesInput): ResolvedRe
       },
       status: resolveStatus(derived.packageSize, match, selectedProduct, reviewReasons),
       reviewReasons,
+      mergedLineIndexes: [],
     };
   });
+
+  return collapseIdenticalLines(resolved);
+}
+
+/**
+ * Fold identical lines into one draft carrying their combined quantity.
+ *
+ * A till prints the same article twice as often as it prints "2 x": both mean
+ * one price, paid twice. The app already has an opinion about that shape —
+ * `price_entries.quantity` exists precisely so "2 x 1,09" is ONE observation
+ * bought twice rather than two observations — and honouring it only for the
+ * receipts that happen to use the multiplier would let the same shopping trip
+ * land in the index twice as heavily depending on how the shop chose to print
+ * it. So this is a correctness fix wearing a UI request's clothes: two
+ * separate rows would double that product's weight in the month's mean.
+ *
+ * Identical is read strictly, and deliberately so — same printed description,
+ * same price for one package, same size, same promo, same resolved product.
+ * Two "pesto" lines at different prices are two different observations (one
+ * was on offer, or a different jar) and stay apart, which is also what a user
+ * checking the receipt against the screen expects to see.
+ *
+ * Review reasons are unioned: if either line wanted a human, the survivor
+ * does too.
+ */
+export function collapseIdenticalLines(lines: ResolvedReceiptLine[]): ResolvedReceiptLine[] {
+  const survivors: ResolvedReceiptLine[] = [];
+  const byIdentity = new Map<string, ResolvedReceiptLine>();
+
+  for (const line of lines) {
+    const identity = identityKeyOf(line);
+    const survivor = byIdentity.get(identity);
+    if (!survivor) {
+      byIdentity.set(identity, line);
+      survivors.push(line);
+      continue;
+    }
+    survivor.fields.quantity += line.fields.quantity;
+    survivor.mergedLineIndexes.push(line.index);
+    for (const reason of line.reviewReasons) {
+      if (!survivor.reviewReasons.includes(reason)) {
+        survivor.reviewReasons.push(reason);
+      }
+    }
+  }
+
+  return survivors;
+}
+
+/**
+ * The fields that must all agree before two lines are the same purchase.
+ *
+ * `normalizedAlias` rather than the product: two lines that merely resolved
+ * to the same catalog product can still be different articles the matcher
+ * generalized (a 500 g and a 1 kg pack both landing on "Pasta"), and folding
+ * those would invent a purchase the customer never made. The printed text
+ * being identical is the evidence that the till itself considered them the
+ * same article.
+ */
+function identityKeyOf(line: ResolvedReceiptLine): string {
+  return [
+    line.normalizedAlias,
+    line.fields.totalPriceCents,
+    line.fields.packageSize ?? 'no-size',
+    line.fields.unitKind,
+    line.fields.isPromo ? (line.fields.promoKind ?? 'promo') : 'full-price',
+    line.selectedProduct?.productId ?? 'unresolved',
+  ].join('|');
 }
 
 /**

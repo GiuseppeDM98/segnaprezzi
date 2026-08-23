@@ -34,10 +34,10 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 ## Features
 
 - [x] **Tag scanning** — photograph shelf price tags; Claude Haiku 4.5 extracts product, total price, and unit price with a review-before-save flow
-- [x] **Receipt import** — one PDF or photo becomes N observations: per-line extraction, automatic matching against your catalog, learned aliases so the next receipt from the same chain needs no work, and the file itself is never kept
+- [x] **Receipt import** — one PDF or photo becomes N observations: per-line extraction, automatic matching against your catalog, learned aliases so the next receipt from the same chain needs no work, identical lines folded into one purchase, and the file itself is never kept
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
 - [x] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and a one-tap ISTAT comparison rebased to your own starting month, on a dashboard that leads with your year-over-year number and its coverage line
-- [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, and duplicate-product merging
+- [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, duplicate-product merging, and deleting a product with its observations when you want it gone for good
 - [x] **History & stores** — every observation day by day with shopping trips grouped under their total, filters by category/store/promo/source, and store management
 - [x] **Promo tracking** — flag discounts, loyalty prices, coupons, and bundles; choose whether promos count toward your index
 - [x] **Offline-first PWA** — installable on your phone, captures photos with zero connectivity, drains the queue by itself when the signal returns, and shows a localized offline page instead of a browser error
@@ -135,7 +135,7 @@ capture screen, the queue, the review screen and both quick-entry forms still
 work; only the extraction call itself fails (and the queue treats it as
 retryable, so the photo waits rather than being lost).
 
-Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright — four projects: `mobile`, `desktop`, `offline-queue` and `pwa`, including the axe accessibility suite; it builds and starts a production server itself, because the service worker exists only there, so `PORT=3001 pnpm test:e2e` is all you need if port 3000 is busy), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm icons` (regenerate the PWA icons from `docs/assets/logo.svg`), `pnpm db:studio` (browse the local DB), `pnpm istat:update` (refresh the bundled ISTAT NIC series in `data/istat-nic.json`).
+Useful extras: `pnpm test` (Vitest), `pnpm test:e2e` (Playwright — four projects: `mobile`, `desktop`, `offline-queue` and `pwa`, including the axe accessibility suite; it builds and starts a production server itself, because the service worker exists only there, so `PORT=3001 pnpm test:e2e` is all you need if port 3000 is busy), `pnpm lint` (Biome), `pnpm build` (production build), `pnpm icons` (regenerate the PWA icons from `docs/assets/logo.svg`), `pnpm db:studio` (browse the local DB), `pnpm istat:update` (refresh the bundled ISTAT NIC series in `data/istat-nic.json`), `pnpm photos:prune` (report — or with `--delete` remove — shelf photos in Blob that no entry references any more; run it with the environment of the deployment you mean, and read the two lines it prints first).
 
 The service worker is disabled under `pnpm dev`. To try the app offline or install it, run `pnpm build && pnpm start` and open http://localhost:3000 — localhost counts as a secure origin.
 

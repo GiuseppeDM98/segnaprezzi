@@ -43,8 +43,9 @@ test('should convert grams to kilos and store integer money from the manual form
   await page.getByTestId('package-size').fill('700');
   await page.getByTestId('size-unit').selectOption('g');
 
-  // 700 g is 0.7 kg, so €1,29 is €1,843/kg — derived live, before submitting.
-  await expect(page.getByTestId('unit-price')).toHaveValue('1.843');
+  // 700 g is 0.7 kg, so €1,29 is €1,843/kg — derived live, before submitting,
+  // and written with the separator the user just typed into the field above.
+  await expect(page.getByTestId('unit-price')).toHaveValue('1,843');
 
   await page.getByTestId('save-entry').click();
   // The form stays put for the next price; the toast confirms the save.
@@ -79,7 +80,7 @@ test('should derive the total from €/L and litres and store it as the fuel ent
   await page.getByTestId('fuel-quantity').fill('38,2');
 
   // €1,799/L x 38,2 L = €68,72 — the third field follows the two just typed.
-  await expect(page.getByTestId('fuel-total')).toHaveValue('68.72');
+  await expect(page.getByTestId('fuel-total')).toHaveValue('68,72');
 
   await page.getByTestId('save-fuel').click();
   await expect(page).toHaveURL('/');
@@ -117,7 +118,7 @@ test('should price methane per kilogram, not per litre', async ({ page }) => {
 
   await page.getByTestId('fuel-unit-price').fill('1,899');
   await page.getByTestId('fuel-quantity').fill('15');
-  await expect(page.getByTestId('fuel-total')).toHaveValue('28.49');
+  await expect(page.getByTestId('fuel-total')).toHaveValue('28,49');
 
   await page.getByTestId('save-fuel').click();
   await expect(page).toHaveURL('/');
