@@ -2,11 +2,11 @@
 
 /**
  * Client half of the product detail: header with the
- * overflow menu (edit / archive), the unit-price chart with promo dots and
+ * overflow menu (edit / archive / delete), the unit-price chart with promo dots and
  * a range toggle, the four stat tiles, the per-store comparison and the
  * entries list with the shared entry sheet.
  */
-import { Archive, ArchiveRestore, MoreHorizontal, PencilLine, X } from 'lucide-react';
+import { Archive, ArchiveRestore, MoreHorizontal, PencilLine, Trash2, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
@@ -18,6 +18,7 @@ import {
   SOURCE_ICONS,
 } from '@/components/entries/entry-sheet';
 import { ScreenHeader } from '@/components/layout/screen-header';
+import { DeleteProductsSheet } from '@/components/products/delete-products-sheet';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -40,7 +41,7 @@ import {
 } from '@/lib/format';
 import { useRouter } from '@/lib/i18n/navigation';
 import type { ProductDetail } from '@/lib/services/product-detail';
-import { editProduct, setProductArchived } from '../actions';
+import { deleteProducts, editProduct, setProductArchived } from '../actions';
 import { deletePriceEntry, deleteProductAlias, editPriceEntry } from './actions';
 
 type ChartRange = '12' | 'all';
@@ -53,6 +54,7 @@ export interface ProductDetailScreenProps {
 export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps) {
   const t = useTranslations('productDetail');
   const tCommon = useTranslations('common');
+  const tProducts = useTranslations('products');
   const tCategories = useTranslations('categories');
   const tUnits = useTranslations('units');
   const locale = useLocale() as AppLocale;
@@ -62,6 +64,8 @@ export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps
   const [range, setRange] = useState<ChartRange>('12');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editDraft, setEditDraft] = useState({
     name: detail.product.name,
     brand: detail.product.brand ?? '',
@@ -88,6 +92,21 @@ export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps
     }
     toast({ kind: 'success', message: product.isArchived ? t('restored') : t('archived') });
     router.refresh();
+  }
+
+  async function handleDelete(): Promise<void> {
+    setIsDeleting(true);
+    const result = await deleteProducts({ productIds: [product.id] });
+    setIsDeleting(false);
+    if (!result.ok) {
+      toast({ kind: 'error', message: tProducts('deleteError') });
+      return;
+    }
+    setIsDeleteOpen(false);
+    toast({ kind: 'success', message: tProducts('deleted', { count: 1 }) });
+    // The product this screen is about no longer exists, so there is nothing
+    // to refresh into — go back to the catalog it was deleted from.
+    router.push('/products');
   }
 
   async function handleSaveProduct(): Promise<void> {
@@ -328,8 +347,26 @@ export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps
             onClick={() => void handleArchiveToggle()}
             testId="menu-archive-product"
           />
+          <MenuRow
+            icon={<Trash2 />}
+            label={tProducts('deleteRow', { name: product.name })}
+            onClick={() => {
+              setIsMenuOpen(false);
+              setIsDeleteOpen(true);
+            }}
+            testId="menu-delete-product"
+            tone="danger"
+          />
         </div>
       </Sheet>
+
+      <DeleteProductsSheet
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        products={[{ id: product.id, name: product.name, entryCount: entries.length }]}
+        isPending={isDeleting}
+        onConfirm={() => void handleDelete()}
+      />
 
       <Sheet isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title={t('editTitle')}>
         <div className="flex flex-col gap-3">

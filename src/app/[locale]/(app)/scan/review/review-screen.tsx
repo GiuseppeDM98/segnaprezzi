@@ -20,13 +20,18 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ExtractionCard, type ExtractionCardMatch } from '@/components/capture/extraction-card';
+import {
+  type BlockingReason,
+  ExtractionCard,
+  type ExtractionCardMatch,
+} from '@/components/capture/extraction-card';
 import { type MatchOption, MatchPicker } from '@/components/capture/match-picker';
 import { ScreenHeader } from '@/components/layout/screen-header';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import { useToast } from '@/components/ui/toast';
 import type { ExtractionResult } from '@/lib/ai/extraction-schema';
 import type { ReviewedExtraction, ReviewReason } from '@/lib/ai/flag-extraction';
@@ -133,6 +138,10 @@ export function ReviewScreen() {
   const updateDraft = useCallback(
     (id: string, patch: (draft: ReviewEntryDraft) => ReviewEntryDraft) => {
       setDrafts((current) => current.map((draft) => (draft.id === id ? patch(draft) : draft)));
+      // Any edit is an answer to the complaint: keeping "complete the
+      // highlighted entry" on screen while the user does exactly that turns an
+      // instruction into a scolding.
+      setErrorCode(null);
     },
     [],
   );
@@ -344,6 +353,7 @@ export function ReviewScreen() {
                     match={toCardMatch(draft.selectedProduct)}
                     isFlagged={draft.needsReview}
                     reviewReasons={draft.reviewReasons}
+                    blockingReason={blockingReasonOf(draft)}
                     isUnitPriceDerived={!draft.isUnitPriceEdited}
                     onChange={(patch) => updateFields(draft.id, patch)}
                     onOpenMatch={() => setMatchFor(draft.id)}
@@ -359,14 +369,17 @@ export function ReviewScreen() {
       </div>
 
       {drafts.length > 0 && (
-        <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-20 border-border border-t border-dashed bg-surface/95 px-4 pt-3 pb-11 backdrop-blur-sm rail:bottom-0 rail:pb-3">
+        <StickyActionBar>
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-2">
             {hasUnfinishedPhotos && (
               <p className="font-sans text-[13px] text-warning">{t('waitingForUploads')}</p>
             )}
             {errorCode && (
               <p data-testid="confirm-error" className="font-sans text-[13px] text-negative">
-                {t('confirmError')}
+                {/* The local INVALID_INPUT is the "you still owe me something"
+                    case, which has a specific instruction; every other code is
+                    a real failure of the save. */}
+                {errorCode === 'INVALID_INPUT' ? t('incompleteError') : t('confirmError')}
               </p>
             )}
             <div className="flex items-center justify-between gap-3">
@@ -383,7 +396,13 @@ export function ReviewScreen() {
               <Button
                 onClick={() => void handleConfirm()}
                 isPending={isSubmitting}
-                disabled={hasUnfinishedPhotos || incompleteCount > 0 || isSuccess}
+                /*
+                 * Not disabled while cards are incomplete, on purpose: a dead
+                 * button was the whole problem — it withheld both the reason
+                 * and the way out. Pressing it now walks the user to the first
+                 * card that is missing something and says what that is.
+                 */
+                disabled={hasUnfinishedPhotos || isSuccess}
                 data-testid="confirm-batch"
                 size="lg"
               >
@@ -391,7 +410,7 @@ export function ReviewScreen() {
               </Button>
             </div>
           </div>
-        </div>
+        </StickyActionBar>
       )}
 
       {activeMatchDraft && (
@@ -591,13 +610,25 @@ function toCardMatch(selected: SelectedProduct | null): ExtractionCardMatch | nu
 
 /** A card is ready when it has a product and no "not legible" zeros left. */
 function isDraftResolved(draft: ReviewEntryDraft): boolean {
-  return (
-    draft.selectedProduct !== null &&
+  return blockingReasonOf(draft) === null;
+}
+
+/**
+ * Name what a card is still missing, in the order the user has to fix it:
+ * the product first (only they can choose it), then the numbers.
+ *
+ * @returns null when the card is ready to be confirmed.
+ */
+function blockingReasonOf(draft: ReviewEntryDraft): BlockingReason | null {
+  if (draft.selectedProduct === null) {
+    return 'product';
+  }
+  const hasEveryValue =
     draft.fields.productName.trim().length > 0 &&
     draft.fields.totalPriceCents > 0 &&
     draft.fields.packageSize > 0 &&
-    draft.fields.unitPriceMilli > 0
-  );
+    draft.fields.unitPriceMilli > 0;
+  return hasEveryValue ? null : 'values';
 }
 
 function toConfirmEntry(draft: ReviewEntryDraft): ConfirmShoppingSessionInput['entries'][number] {

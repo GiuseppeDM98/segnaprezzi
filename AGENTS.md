@@ -661,6 +661,7 @@ these scripts.
 | `icons` | `tsx scripts/generate-icons.ts` | Regenerate PWA icon set from `docs/assets/logo.svg` into `public/`. |
 | `receipt:fixture` | `tsx scripts/make-receipt-fixture.ts` | Regenerate the synthetic receipt PDF the E2E suite uploads. Changing it changes its SHA-256, which the idempotency test derives at runtime — no constant to update. |
 | `istat:update` | `tsx scripts/update-istat.ts` | Refresh `data/istat-nic.json` from ISTAT; commit the diff. |
+| `photos:prune` | `tsx --env-file-if-exists=.env.local scripts/prune-photos.ts` | Report (or `--delete`) entry photos in Blob that no entry references. Dry run by default; run it with the target deployment's env — see §4.61. |
 
 `tsx` is a devDependency — scripts run TypeScript directly, no build step.
 Always invoke through `pnpm` (`pnpm db:migrate`, `pnpm test`), never through
@@ -1206,6 +1207,88 @@ counter-example. Lesson: when a real-world document surfaces a prompt gap,
 add a worked example matching its *exact* shape, not a generic rule
 addition — the model follows concrete examples far more reliably than an
 abstract instruction it can still rationalize past.
+
+**4.55 A `<table class="sr-only">` is not hidden from layout, and can widen
+the whole document.** `sr-only` sets `width: 1px` with `overflow: hidden`, but
+a `<table>` is sized by its own content and simply ignores that width — and
+`sr-only` also sets `white-space: nowrap`, so the accessible caption becomes
+one unbreakable line. The chart data tables therefore stretched
+`/products/[id]` to 507 px inside a 390 px viewport: the page scrolled
+sideways, and every `fixed inset-x-0` element (tab bar, toast outlet) stretched
+with it. Fix: wrap the table in a `<div class="sr-only">` and leave the table
+itself unstyled — a div is a block box that honours the width and clips. The
+dashboard did not show it only because its caption is shorter, which means the
+bug was present and merely under threshold. Measure this, don't eyeball it:
+`document.documentElement.scrollWidth > clientWidth` on every route finds it
+in one pass.
+
+**4.56 A portal that renders on the client's first pass is a hydration
+mismatch, and `typeof document === 'undefined'` does not prevent it.** The
+server renders nothing, but the client's hydration render already has a
+document — so `Sheet`, opened at mount (the resume-session prompt on `/scan`),
+produced a whole portal with no server counterpart and logged a mismatch on
+every visit. The guard has to be a mounted flag set in an effect, not a
+document check; the sheet then opens one tick later, which is invisible next to
+its own spring.
+
+**4.57 A sticky action bar and the toast outlet are anchored to the same
+bottom edge, and the toast wins.** The toast sits at `4.5rem + safe-area` and a
+sticky footer at `3.5rem + safe-area` plus its own height, so the toast landed
+on the confirm button — and because the toast card is `pointer-events-auto`, it
+also ate the tap. CSS custom properties only inherit downwards and the toast is
+a sibling of the whole app, so the bar publishes its measured height onto
+`document.documentElement` as `--sticky-action-bar-height` and the outlet adds
+it to its own offset. Use `StickyActionBar` (or `STICKY_ACTION_BAR_CLASSES` +
+`useStickyActionBarHeight()` when the bar must be a `motion.div`) — never a
+sixth hand-copy of the class string.
+
+**4.58 A message that is true in two places at once breaks a `getByText`
+locator.** Naming the blocking reason on the review card meant "1 da
+completare" appeared both in the card's banner and in the confirm bar, and the
+existing E2E assertion failed Playwright's strict mode. The fix was editorial
+rather than technical — the count belongs to the bar, the card only states its
+own status ("Da completare") — but the class of failure is the same one as
+§4.25: prefer a `data-testid` over user-visible text whenever the string is not
+structurally unique.
+
+**4.59 Blobs do not participate in the database's cascades, and nothing will
+remind you.** `price_entries` cascades from `users`, so deleting an account
+emptied every table — while the shelf photos sat in Vercel Blob forever, which
+is a privacy failure rather than a storage bill. Deleting a single observation
+had the same hole. Any new path that destroys entries owes the store an
+explicit cleanup: `deleteOwnedPhotos(userId, urls)` for a known set (it filters
+to the user's own prefix and swallows its failures) or `deleteAllUserPhotos`
+for a whole account, wired to Better Auth's `deleteUser.afterDelete(user,
+request)` hook. Order matters: drop the row first and the blob after, because
+an orphan blob is recoverable and a row whose photo is gone is not.
+`pnpm photos:prune` reports what has already leaked.
+
+**4.60 Spy words must be disjoint across E2E suites that share a seed user.**
+The receipt suite fuzzy-matches its lines against the *whole* catalog of the
+second seed user, so a product named "Fenicottero in scatola E2E", created by
+another spec running in parallel, captured a receipt line that was supposed to
+find nothing — and that suite's assertion failed in a file nobody had touched.
+Invented names keep fixtures away from real data (`WORKFLOW.md` obligation 1);
+they also have to keep fixtures away from *each other*. The delete suite
+therefore owns "vombato" and "axolotl", disjoint from the receipt suite's
+"fenicottero"/"ornitorinco"/"quokka".
+
+**4.61 A prune tool that compares one database against one blob store must
+refuse a mismatched pair.** `scripts/prune-photos.ts` calls a blob an orphan
+when no `price_entries.photo_url` references it — so pointing it at
+`file:local.db` while `BLOB_READ_WRITE_TOKEN` still names production makes
+every real photo look unreferenced, and `--delete` would take all of them. It
+prints the database it is comparing, and refuses to delete when the database
+references no photo at all (`--force` overrides). Any future operator script
+that diffs two systems needs the same shape of guard: name both sides, and
+treat "one side is suspiciously empty" as an error, not as a big cleanup.
+
+**4.62 Two naming facts that cost a grep each.** The source-icon chip key on
+history and product detail is `productDetail.source.*` — not the `history.*`
+namespace its position on screen suggests. And the two operations people look
+for under "products" are split: merging duplicates lives in
+`db/repositories/products.ts`, exporting a user's full data in
+`services/export.ts`.
 
 ---
 

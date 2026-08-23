@@ -345,3 +345,96 @@ describe('resolveReceiptLines', () => {
     expect(resolved[1].normalizedAlias).toBe('latte 1l');
   });
 });
+
+describe('collapsing identical lines', () => {
+  test('should fold two identical lines into one draft with their combined quantity', () => {
+    const printedTwice = line({
+      rawLine: 'PESTO COOP  2,49',
+      description: 'Pesto Coop',
+      lineTotalCents: 249,
+    });
+
+    const resolved = resolve({ lines: [printedTwice, printedTwice] });
+
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0].fields.quantity).toBe(2);
+    // The price stays the price of ONE jar: quantity carries the rest.
+    expect(resolved[0].fields.totalPriceCents).toBe(249);
+    expect(resolved[0].mergedLineIndexes).toEqual([1]);
+  });
+
+  test('should keep the same product at two different prices apart', () => {
+    const fullPrice = line({
+      rawLine: 'PESTO COOP  2,49',
+      description: 'Pesto Coop',
+      lineTotalCents: 249,
+    });
+    const onOffer = line({
+      rawLine: 'PESTO COOP  1,99',
+      description: 'Pesto Coop',
+      lineTotalCents: 199,
+    });
+
+    const resolved = resolve({ lines: [fullPrice, onOffer] });
+
+    expect(resolved).toHaveLength(2);
+    expect(resolved.map((entry) => entry.fields.quantity)).toEqual([1, 1]);
+  });
+
+  test('should not fold two lines that print different text', () => {
+    const resolved = resolve({
+      lines: [line(), line({ rawLine: 'LATTE 1L  1,29', description: 'Latte 1L' })],
+    });
+
+    expect(resolved).toHaveLength(2);
+  });
+
+  test('should add up quantities that were already multipliers', () => {
+    const twoPacks = line({
+      rawLine: 'PESTO COOP  2 x 2,49',
+      description: 'Pesto Coop',
+      quantity: 2,
+      unitPriceCentsOnReceipt: 249,
+      lineTotalCents: 498,
+    });
+
+    const resolved = resolve({ lines: [twoPacks, twoPacks] });
+
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0].fields.quantity).toBe(4);
+    expect(resolved[0].fields.totalPriceCents).toBe(249);
+  });
+
+  test('should keep a review reason raised on either of the folded lines', () => {
+    const printedTwice = line({
+      rawLine: 'PESTO COOP  2,49',
+      description: 'Pesto Coop',
+      lineTotalCents: 249,
+    });
+
+    const resolved = resolve({
+      lines: [printedTwice, printedTwice],
+      lineFlags: [{ reasons: [] }, { reasons: ['low-confidence'] }],
+    });
+
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0].reviewReasons).toContain('low-confidence');
+  });
+
+  test('should keep the receipt total unchanged by the fold', () => {
+    const printedTwice = line({
+      rawLine: 'PESTO COOP  2,49',
+      description: 'Pesto Coop',
+      lineTotalCents: 249,
+    });
+
+    const resolved = resolve({ lines: [printedTwice, printedTwice] });
+
+    // What the review screen sums: price of one package x quantity.
+    const total = resolved.reduce(
+      (sum, entry) => sum + entry.fields.totalPriceCents * entry.fields.quantity,
+      0,
+    );
+    expect(total).toBe(498);
+  });
+});

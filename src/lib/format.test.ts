@@ -160,9 +160,19 @@ describe('parseDecimalInput', () => {
 });
 
 describe('formatInputDecimal', () => {
-  test('should render a plain dot decimal without trailing zeros', () => {
-    expect(formatInputDecimal(1.843)).toBe('1.843');
-    expect(formatInputDecimal(68.7)).toBe('68.7');
-    expect(formatInputDecimal(2)).toBe('2');
+  test('should render a plain decimal without grouping or trailing zeros', () => {
+    expect(formatInputDecimal(1.843, 'en')).toBe('1.843');
+    expect(formatInputDecimal(68.7, 'en')).toBe('68.7');
+    expect(formatInputDecimal(2, 'en')).toBe('2');
+  });
+
+  test('should use the comma an Italian keyboard types', () => {
+    expect(formatInputDecimal(1.843, 'it')).toBe('1,843');
+    expect(formatInputDecimal(2, 'it')).toBe('2');
+  });
+
+  test('should round-trip through parseDecimalInput in either locale', () => {
+    expect(parseDecimalInput(formatInputDecimal(1.34, 'it'))).toBe(1.34);
+    expect(parseDecimalInput(formatInputDecimal(1.34, 'en'))).toBe(1.34);
   });
 });

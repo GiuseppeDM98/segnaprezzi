@@ -139,7 +139,9 @@ export function StoresScreen({ stores }: StoresScreenProps) {
                   data-testid="store-row"
                   className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-accent-soft"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-band text-text-muted">
+                  {/* No plate behind the glyph: `band` is the zebra tint, so the
+                      square showed on paper rows and vanished on green ones. */}
+                  <span className="flex size-9 shrink-0 items-center justify-center text-text-muted">
                     <Icon aria-hidden="true" className="size-4" />
                     <span className="sr-only">{t(`kinds.${store.kind}`)}</span>
                   </span>

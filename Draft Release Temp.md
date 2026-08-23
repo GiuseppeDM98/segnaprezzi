@@ -44,11 +44,23 @@
 - Uploading the same receipt twice picks up where you left off instead of paying to read it again — and refuses outright once it has been imported
 - Product pages now list the receipt lines they have learned, so a mapping that went wrong can be forgotten with one tap
 
+- Added deleting a product: from its own screen, from a row in the catalog, or several at once from the selection bar. The confirmation tells you how many price observations will go with it and that your index will be recalculated without them — archiving is still there when you want to keep the history
+- Receipts that print the same article on two lines now propose it once, with the quantity added up, exactly as they already did for a line printed as "2 x"
+
 ## 🐛 Bug Fixes
 
 - Fixed the receipt review screen's "exclude" control, which showed a generic "more options" icon that didn't communicate what it did
 - Fixed receipt import misreading a discount line as its own product when the line repeats the receipt's tax-rate column next to the discount amount
 - Fixed receipt import guessing at ambiguous product abbreviations instead of keeping them as printed when unsure what they mean
+
+- Fixed the review screen refusing to confirm a photo without saying why. The card now names what is missing ("choose which product this is"), and the confirm button takes you to it instead of sitting there greyed out
+- Fixed the confirm bar being covered by the sync toast, which could swallow the tap on the button underneath it
+- Fixed the shelf-tag review card cutting off the unit price and the "Volume" option on a phone-sized screen
+- Fixed the product page scrolling sideways
+- Fixed disabled buttons being unreadable — pale text on a pale orange fill
+- Fixed amounts inside input fields using a dot while the totals beside them used a comma; Italian now sees a comma in both, and both separators are still accepted when typing
+- Fixed the price-change badge appearing on some rows of a list and vanishing on others, and the same for the shop icon on the stores list
+- Fixed a shelf photo that fails to load leaving a blank black square instead of the "no photo" icon
 
 ## 🔧 Improvements
 
@@ -64,6 +76,9 @@
 - All motion uses one spring and respects "reduce motion" in your system settings
 - The demo data now spans fourteen months and two supermarkets, so a fresh install shows a real year-over-year number
 
+- Discarding a photo from the review screen is now one tap on a bin icon rather than a menu with a single entry, and the undo stays in the toast
+- A product with no price to show is quieter: no badge where there is no news to report
+
 ## 🔒 Security
 
 - Your data is now private to your account — every store, product, and price you add is visible only to you, never to other users on the same instance
@@ -73,6 +88,10 @@
 - Deleting your account asks for your password and wipes everything in one go
 
 - Receipt files are never stored. A receipt carries the shop, the date and time, often a loyalty number and the last digits of your card — so it is read, turned into prices, and dropped; only the transcribed lines are kept, as the record you can check the numbers against
+
+- Deleting your account now deletes your shelf photos too. Until now the database was wiped while the photos stayed in storage
+- Deleting a single price observation now deletes its photo as well
+- Added a maintenance command that finds and removes photos left behind by earlier versions
 
 ## 📚 Documentation
 

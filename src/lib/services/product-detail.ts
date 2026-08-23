@@ -4,6 +4,7 @@
  * months marked), the min/max/mean/last tiles, the per-store comparison and
  * the full entry list. Plain JSON out — it feeds Client Components.
  */
+import { deleteOwnedPhotos } from '@/lib/blob/photo-storage';
 import type { Db } from '@/lib/db/client';
 import {
   deletePriceEntry as deletePriceEntryRow,
@@ -253,11 +254,23 @@ export async function editPriceEntry(
   }
 }
 
-/** Delete one observation. @throws NotFoundError when it is not the user's. */
+/**
+ * Delete one observation, and the shelf photo that belongs to it.
+ *
+ * The blob is dropped after the row, best effort: a photo is stored at
+ * `users/{userId}/photos/{entryId}.webp` and nothing else can reference it,
+ * so once the row is gone the file is pure cost. Doing it in the other order
+ * would let a failed delete leave a row whose photo no longer exists.
+ *
+ * @throws NotFoundError when it is not the user's.
+ */
 export async function removePriceEntry(db: Db, userId: string, entryId: string): Promise<void> {
   const existing = await getPriceEntryById(db, userId, entryId);
   if (!existing) {
     throw new NotFoundError('price entry', entryId);
   }
   await deletePriceEntryRow(db, userId, entryId);
+  if (existing.photoUrl) {
+    await deleteOwnedPhotos(userId, [existing.photoUrl]);
+  }
 }

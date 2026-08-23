@@ -10,7 +10,7 @@
  * exists.
  */
 
-import { buildUserPhotoPrefix, deleteEntryPhotos } from '@/lib/blob/photo-storage';
+import { deleteOwnedPhotos } from '@/lib/blob/photo-storage';
 import type { Db, DbTransaction } from '@/lib/db/client';
 import {
   createShoppingSession,
@@ -125,37 +125,4 @@ export async function discardShoppingSession(
 
   await deleteOwnedPhotos(userId, input.blobUrls);
   return { sessionId: input.sessionId };
-}
-
-/**
- * Delete blobs the client says belong to this session, best effort.
- *
- * Two safeguards: URLs are filtered to the caller's own photo prefix (a
- * client must never be able to name someone else's blob), and failures are
- * logged and swallowed — an orphan blob is a cost nuisance, not a
- * correctness problem, and must not fail the user's discard.
- */
-async function deleteOwnedPhotos(userId: string, blobUrls: string[]): Promise<void> {
-  const prefix = buildUserPhotoPrefix(userId);
-  const ownedUrls = blobUrls.filter((url) => {
-    try {
-      return new URL(url).pathname.replace(/^\//, '').startsWith(prefix);
-    } catch {
-      return false;
-    }
-  });
-
-  if (ownedUrls.length === 0) {
-    return;
-  }
-
-  try {
-    await deleteEntryPhotos(ownedUrls);
-  } catch (error) {
-    console.error('Failed to delete discarded session photos', {
-      userId,
-      photoCount: ownedUrls.length,
-      cause: error,
-    });
-  }
 }

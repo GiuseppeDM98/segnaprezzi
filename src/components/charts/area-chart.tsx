@@ -274,27 +274,33 @@ export function AreaChart({
         )}
       </svg>
 
-      <table className="sr-only">
-        <caption>{ariaSummary}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{t('table.month')}</th>
-            <th scope="col">{seriesLabel}</th>
-            {hasCompare && compareLabel && <th scope="col">{compareLabel}</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {series.map((point, index) => (
-            <tr key={point.month}>
-              <th scope="row">{formatMonth(point.month, locale)}</th>
-              <td>{formatValue(point.value)}</td>
-              {hasCompare && compareLabel && (
-                <td>{comparePoints[index] === null ? '—' : formatValue(comparePoints[index])}</td>
-              )}
+      {/* Why the wrapper: `sr-only` sets width:1px, but a <table> is sized by
+          its own content and ignores it, so the nowrap caption widened the
+          document and /products/[id] scrolled sideways by 117 px. The clipping
+          div is a block that honours the width and hides the overflow. */}
+      <div className="sr-only">
+        <table>
+          <caption>{ariaSummary}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{t('table.month')}</th>
+              <th scope="col">{seriesLabel}</th>
+              {hasCompare && compareLabel && <th scope="col">{compareLabel}</th>}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {series.map((point, index) => (
+              <tr key={point.month}>
+                <th scope="row">{formatMonth(point.month, locale)}</th>
+                <td>{formatValue(point.value)}</td>
+                {hasCompare && compareLabel && (
+                  <td>{comparePoints[index] === null ? '—' : formatValue(comparePoints[index])}</td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

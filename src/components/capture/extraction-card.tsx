@@ -6,7 +6,7 @@
  * block on the sheet: a hairline frame, the flag as a warning-tinted header
  * row (never a thick colored border), the money fields in the print face.
  */
-import { ImageOff, MoreHorizontal, Trash2, TriangleAlert } from 'lucide-react';
+import { ImageOff, Trash2, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
@@ -27,6 +27,9 @@ import { PROMO_KINDS, type PromoKind } from '@/lib/domain/entries';
 import { centsToEuros, milliToEuros, toCents, toMilli } from '@/lib/domain/money';
 import { UNIT_KINDS, type UnitKind } from '@/lib/domain/units';
 
+/** What a card is still missing before the batch can be confirmed. */
+export type BlockingReason = 'product' | 'values';
+
 export interface ExtractionCardMatch {
   kind: 'existing' | 'new';
   /** Display name of the chosen product (existing) or of the new one. */
@@ -40,6 +43,12 @@ export interface ExtractionCardProps {
   match: ExtractionCardMatch | null;
   isFlagged: boolean;
   reviewReasons: ReviewReason[];
+  /**
+   * Why this card cannot be confirmed yet, or null when it can. Distinct from
+   * `isFlagged`, which is the model's own doubt: a card the model was sure
+   * about can still be missing the one thing only the user can supply.
+   */
+  blockingReason: BlockingReason | null;
   /** True when the extraction itself failed and every field started empty. */
   isExtractionFailed?: boolean;
   isUnitPriceDerived: boolean;
@@ -55,6 +64,7 @@ export function ExtractionCard({
   match,
   isFlagged,
   reviewReasons,
+  blockingReason,
   isExtractionFailed = false,
   isUnitPriceDerived,
   onChange,
@@ -67,7 +77,10 @@ export function ExtractionCard({
   const tCategories = useTranslations('categories');
   const tUnits = useTranslations('units');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  // A blob URL can expire or 404 long after the card was built; without this
+  // the thumbnail is a silent black square instead of the "no photo" glyph.
+  const [hasThumbnailFailed, setHasThumbnailFailed] = useState(false);
+  const hasThumbnail = blobUrl !== '' && !hasThumbnailFailed;
 
   const unitSymbol = tUnits(`perBase.${fields.unitKind}`);
   const sizeSymbol = tUnits(
@@ -79,10 +92,10 @@ export function ExtractionCard({
       data-testid={rest['data-testid']}
       className={cx(
         'flex flex-col overflow-hidden rounded-control border bg-surface',
-        isFlagged ? 'border-warning/50' : 'border-border',
+        isFlagged || blockingReason ? 'border-warning/50' : 'border-border',
       )}
     >
-      {(isFlagged || isExtractionFailed) && (
+      {(isFlagged || isExtractionFailed || blockingReason) && (
         <div
           className="flex items-start gap-2 bg-warning-soft px-3 py-2 font-sans text-[13px] text-text"
           data-testid="needs-review-badge"
@@ -90,8 +103,19 @@ export function ExtractionCard({
           <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
           <div className="flex flex-col">
             <span className="font-semibold">
-              {isExtractionFailed ? t('extractionFailed') : t('needsReview')}
+              {isExtractionFailed
+                ? t('extractionFailed')
+                : blockingReason
+                  ? t('toComplete')
+                  : t('needsReview')}
             </span>
+            {/* The blocking reason comes first: it is the one line that says
+                what the user has to do before the batch can be confirmed. */}
+            {blockingReason && (
+              <span data-testid="blocking-reason" className="text-text-muted">
+                {t(blockingReason === 'product' ? 'missingProduct' : 'missingValues')}
+              </span>
+            )}
             {isExtractionFailed ? (
               <span className="text-text-muted">{t('extractionFailedBody')}</span>
             ) : (
@@ -112,9 +136,14 @@ export function ExtractionCard({
           aria-label={t('photoPreview')}
           className="relative size-20 shrink-0 overflow-hidden rounded-control bg-camera"
         >
-          {blobUrl ? (
+          {hasThumbnail ? (
             // biome-ignore lint/performance/noImgElement: a Vercel Blob URL outside next/image's remote patterns
-            <img src={blobUrl} alt="" className="h-full w-full object-cover" />
+            <img
+              src={blobUrl}
+              alt=""
+              onError={() => setHasThumbnailFailed(true)}
+              className="h-full w-full object-cover"
+            />
           ) : (
             <ImageOff
               aria-hidden="true"
@@ -146,15 +175,25 @@ export function ExtractionCard({
           </Field>
         </div>
 
+        {/* Why not a menu: discarding was this sheet's only entry, so the glyph
+            promised options it did not have and cost two taps for one action.
+            The toast offers the undo, which is what a confirmation would buy. */}
         <IconButton
-          icon={<MoreHorizontal />}
-          label={tCommon('edit')}
-          onClick={() => setIsMenuOpen(true)}
+          icon={<Trash2 />}
+          label={t('discard')}
+          onClick={onDiscard}
           className="-mt-1 -mr-1"
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 px-3">
+      {/*
+       * One field per row on the phone, two from `tablet:`. Three columns in
+       * 390 px gave each control ~116 px: "Volume" became "Volu…", the unit
+       * price clipped its own digits, and the one label that wrapped pushed
+       * its input a line below its neighbours. The receipt line card already
+       * pairs these fields two by two — this follows it.
+       */}
+      <div className="grid gap-3 px-3 tablet:grid-cols-2">
         <Field label={t('fields.category')} className="gap-1">
           {(controlProps) => (
             <Select
@@ -181,7 +220,7 @@ export function ExtractionCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 px-3 pt-3">
+      <div className="grid grid-cols-2 gap-3 px-3 pt-3">
         <Field label={t('fields.totalPrice')} isRequired className="gap-1">
           {(controlProps) => (
             <DecimalInput
@@ -207,7 +246,7 @@ export function ExtractionCard({
         <Field
           label={t('fields.unitPrice')}
           isRequired
-          className="gap-1"
+          className="col-span-2 gap-1"
           trailing={
             isUnitPriceDerived && fields.unitPriceMilli > 0 ? (
               <span className="font-mono text-[11px] text-text-muted">{tCommon('computed')}</span>
@@ -260,7 +299,9 @@ export function ExtractionCard({
         data-testid="match-row"
         className={cx(
           'mx-3 mt-3 mb-3 flex min-h-12 items-center justify-between gap-3 rounded-control border px-3 text-left transition-colors hover:bg-band',
-          match ? 'border-border' : 'border-accent bg-accent-soft',
+          // No product picked yet is the definition of "needs a human look",
+          // which is amber. The accent marks the one live thing, not a gap.
+          match ? 'border-border' : 'border-warning/50 bg-warning-soft',
         )}
       >
         <span className="flex min-w-0 flex-col">
@@ -293,20 +334,6 @@ export function ExtractionCard({
         ) : (
           <p className="text-text-muted">{t('extractionFailedBody')}</p>
         )}
-      </Sheet>
-
-      <Sheet isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)}>
-        <button
-          type="button"
-          onClick={() => {
-            setIsMenuOpen(false);
-            onDiscard();
-          }}
-          className="flex min-h-12 w-full items-center gap-3 rounded-control px-3 font-sans font-medium text-[15px] text-negative hover:bg-negative-soft"
-        >
-          <Trash2 aria-hidden="true" className="size-5" />
-          {t('discard')}
-        </button>
       </Sheet>
     </article>
   );

@@ -5,10 +5,16 @@
  * returned is plain JSON (Dates become epoch ms) because it crosses into
  * Client Components.
  */
+
+import { deleteOwnedPhotos } from '@/lib/blob/photo-storage';
 import type { Db } from '@/lib/db/client';
-import { listLatestEntriesPerProduct } from '@/lib/db/repositories/price-entries';
+import {
+  countPriceEntriesByProduct,
+  listLatestEntriesPerProduct,
+} from '@/lib/db/repositories/price-entries';
 import { deleteProductAlias } from '@/lib/db/repositories/product-aliases';
 import {
+  deleteProducts as deleteProductRows,
   getProductById,
   listProducts,
   mergeProducts as mergeProductPair,
@@ -29,6 +35,8 @@ export interface CatalogProduct {
   last: { unitPriceMilli: number; recordedAt: number } | null;
   /** The observation before the newest one — the trend badge's baseline. */
   previousUnitPriceMilli: number | null;
+  /** How much history a delete would destroy; 0 for a product never observed. */
+  entryCount: number;
 }
 
 export interface CatalogOptions {
@@ -49,10 +57,11 @@ export async function listCatalog(
   userId: string,
   options: CatalogOptions = {},
 ): Promise<Catalog> {
-  const [products, allProducts, latest] = await Promise.all([
+  const [products, allProducts, latest, entryCounts] = await Promise.all([
     listProducts(db, userId, options),
     options.category || options.search ? listProducts(db, userId, {}) : null,
     listLatestEntriesPerProduct(db, userId, 2),
+    countPriceEntriesByProduct(db, userId),
   ]);
 
   const latestByProduct = new Map<
@@ -87,6 +96,7 @@ export async function listCatalog(
           ? { unitPriceMilli: slot.last.unitPriceMilli, recordedAt: slot.last.recordedAt.getTime() }
           : null,
         previousUnitPriceMilli: slot?.previous?.unitPriceMilli ?? null,
+        entryCount: entryCounts.get(product.id) ?? 0,
       };
     }),
     categoriesWithData,
@@ -149,6 +159,44 @@ export async function editProduct(
   if (!updated) {
     throw new ProductNotFoundError(productId);
   }
+}
+
+export interface DeleteProductsResult {
+  deletedProductsCount: number;
+  deletedEntriesCount: number;
+}
+
+/**
+ * Delete products and every observation they carry.
+ *
+ * This is the one operation in the app that destroys price history on
+ * purpose, so two things are deliberate. The database work is a single
+ * transaction — deleting "3 products" either removes all three with their
+ * entries or none of them. And the photos are dropped only *after* it
+ * commits: blobs cannot participate in a transaction, so cleaning them up
+ * first would leave a user who hit a rollback with a catalog whose
+ * thumbnails are gone. An orphan blob is recoverable; a missing photo of an
+ * entry that still exists is not.
+ *
+ * The personal index is not touched here. It is derived from the entries on
+ * every read, so removing them is the recomputation.
+ *
+ * @throws ProductNotFoundError when any id is not the user's
+ */
+export async function deleteProducts(
+  db: Db,
+  userId: string,
+  productIds: string[],
+): Promise<DeleteProductsResult> {
+  if (productIds.length === 0) {
+    return { deletedProductsCount: 0, deletedEntriesCount: 0 };
+  }
+  const result = await deleteProductRows(db, userId, productIds);
+  await deleteOwnedPhotos(userId, result.photoUrls);
+  return {
+    deletedProductsCount: productIds.length,
+    deletedEntriesCount: result.deletedEntriesCount,
+  };
 }
 
 /** Archive or restore a product; archived products leave suggestions, never history. */

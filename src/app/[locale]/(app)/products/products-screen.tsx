@@ -5,17 +5,26 @@
  * archived toggle, compact zebra rows with the last unit price and a trend
  * badge, and the merge flow (selection mode → survivor sheet → confirm).
  */
-import { Check, GitMerge, Search } from 'lucide-react';
+import { Check, GitMerge, Search, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 
 import { TrendBadge } from '@/components/charts/trend-badge';
+import {
+  type DeletableProduct,
+  DeleteProductsSheet,
+} from '@/components/products/delete-products-sheet';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { EmptyState } from '@/components/ui/empty-state';
+import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
+import {
+  STICKY_ACTION_BAR_CLASSES,
+  useStickyActionBarHeight,
+} from '@/components/ui/sticky-action-bar';
 import { useToast } from '@/components/ui/toast';
 import { cx } from '@/lib/cx';
 import type { CategoryId } from '@/lib/domain/categories';
@@ -23,7 +32,7 @@ import { type AppLocale, formatRelativeDate, formatUnitPrice } from '@/lib/forma
 import { Link, useRouter } from '@/lib/i18n/navigation';
 import { useAppMotion } from '@/lib/motion';
 import type { Catalog, CatalogProduct } from '@/lib/services/catalog';
-import { mergeProducts } from './actions';
+import { deleteProducts, mergeProducts } from './actions';
 
 export interface ProductsScreenProps {
   catalog: Catalog;
@@ -41,10 +50,20 @@ export function ProductsScreen({ catalog }: ProductsScreenProps) {
   const [category, setCategory] = useState<CategoryId | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
+  const bulkBarRef = useStickyActionBarHeight<HTMLDivElement>();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isMergeOpen, setIsMergeOpen] = useState(false);
   const [survivorId, setSurvivorId] = useState<string | null>(null);
   const [isMerging, setIsMerging] = useState(false);
+  /*
+   * The products the delete sheet is currently asking about. It holds them
+   * rather than a set of ids because a row delete and a bulk delete are the
+   * same confirmation, and because the sheet must keep naming the products
+   * while the request is in flight — after which they are gone from the
+   * catalog and no lookup would find them again.
+   */
+  const [pendingDeletion, setPendingDeletion] = useState<DeletableProduct[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
   const now = useMemo(() => Date.now(), []);
 
   const normalizedQuery = query.trim().toLowerCase();
@@ -103,6 +122,20 @@ export function ProductsScreen({ catalog }: ProductsScreenProps) {
     setIsMergeOpen(false);
     exitSelection();
     toast({ kind: 'success', message: t('merged') });
+    router.refresh();
+  }
+
+  async function handleDelete(): Promise<void> {
+    setIsDeleting(true);
+    const result = await deleteProducts({ productIds: pendingDeletion.map((item) => item.id) });
+    setIsDeleting(false);
+    if (!result.ok) {
+      toast({ kind: 'error', message: t('deleteError') });
+      return;
+    }
+    toast({ kind: 'success', message: t('deleted', { count: pendingDeletion.length }) });
+    setPendingDeletion([]);
+    exitSelection();
     router.refresh();
   }
 
@@ -204,6 +237,11 @@ export function ProductsScreen({ catalog }: ProductsScreenProps) {
               isSelecting={isSelecting}
               isSelected={selectedIds.has(product.id)}
               onToggle={() => toggleSelected(product.id)}
+              onDelete={() =>
+                setPendingDeletion([
+                  { id: product.id, name: product.name, entryCount: product.entryCount },
+                ])
+              }
             />
           ))}
         </ul>
@@ -216,26 +254,54 @@ export function ProductsScreen({ catalog }: ProductsScreenProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={isReduced ? { opacity: 0 } : { opacity: 0, y: 24 }}
             transition={isReduced ? fade : spring}
-            className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-20 border-border border-t border-dashed bg-surface/95 px-4 pt-3 pb-11 backdrop-blur-sm rail:bottom-0 rail:pb-3"
+            ref={bulkBarRef}
+            className={STICKY_ACTION_BAR_CLASSES}
           >
             <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
               <span className="font-mono text-[13px] text-text-muted tabular-nums">
                 {t('selected', { count: selectedIds.size })}
               </span>
-              <Button
-                disabled={selectedIds.size < 2}
-                onClick={() => {
-                  setSurvivorId(selected[0]?.id ?? null);
-                  setIsMergeOpen(true);
-                }}
-                data-testid="open-merge"
-              >
-                {t('merge', { count: selectedIds.size })}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={selectedIds.size === 0}
+                  icon={<Trash2 className="size-4" />}
+                  onClick={() =>
+                    setPendingDeletion(
+                      selected.map((product) => ({
+                        id: product.id,
+                        name: product.name,
+                        entryCount: product.entryCount,
+                      })),
+                    )
+                  }
+                  data-testid="open-bulk-delete"
+                >
+                  {t('delete', { count: selectedIds.size })}
+                </Button>
+                <Button
+                  disabled={selectedIds.size < 2}
+                  onClick={() => {
+                    setSurvivorId(selected[0]?.id ?? null);
+                    setIsMergeOpen(true);
+                  }}
+                  data-testid="open-merge"
+                >
+                  {t('merge', { count: selectedIds.size })}
+                </Button>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DeleteProductsSheet
+        isOpen={pendingDeletion.length > 0}
+        onClose={() => setPendingDeletion([])}
+        products={pendingDeletion}
+        isPending={isDeleting}
+        onConfirm={() => void handleDelete()}
+      />
 
       <Sheet
         isOpen={isMergeOpen}
@@ -305,6 +371,7 @@ function ProductRow({
   isSelecting,
   isSelected,
   onToggle,
+  onDelete,
 }: {
   product: CatalogProduct;
   locale: AppLocale;
@@ -312,6 +379,7 @@ function ProductRow({
   isSelecting: boolean;
   isSelected: boolean;
   onToggle: () => void;
+  onDelete: () => void;
 }) {
   const t = useTranslations('products');
   const tCategories = useTranslations('categories');
@@ -375,15 +443,27 @@ function ProductRow({
     'flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-accent-soft';
 
   return (
-    <li data-testid="product-row">
+    <li data-testid="product-row" className="flex items-center">
       {isSelecting ? (
         <button type="button" onClick={onToggle} aria-pressed={isSelected} className={rowClasses}>
           {content}
         </button>
       ) : (
-        <Link href={`/products/${product.id}`} className={rowClasses}>
-          {content}
-        </Link>
+        <>
+          {/* The delete button sits OUTSIDE the link on purpose: a button
+              nested in an anchor is invalid markup and unreachable by
+              keyboard in the order a reader expects. */}
+          <Link href={`/products/${product.id}`} className={cx(rowClasses, 'min-w-0 flex-1')}>
+            {content}
+          </Link>
+          <IconButton
+            icon={<Trash2 />}
+            label={t('deleteRow', { name: product.name })}
+            onClick={onDelete}
+            className="mr-2 shrink-0"
+            data-testid="delete-product-row"
+          />
+        </>
       )}
     </li>
   );

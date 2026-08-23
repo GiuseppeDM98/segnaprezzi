@@ -14,7 +14,7 @@
  * whoever holds it can view the photo. Acceptable for v1 (shelf tags, not
  * personal images); switching to signed private URLs is a v1.1 roadmap item.
  */
-import { del, put } from '@vercel/blob';
+import { del, list, put } from '@vercel/blob';
 
 /** The Blob pathname prefix owning every photo of one user. */
 export function buildUserPhotoPrefix(userId: string): string {
@@ -52,4 +52,69 @@ export async function uploadEntryPhoto(input: {
 /** Best-effort bulk delete — callers must pre-filter URLs to the user's prefix. */
 export async function deleteEntryPhotos(urls: string[]): Promise<void> {
   await del(urls);
+}
+
+/**
+ * Delete the photos among `urls` that belong to this user, best effort.
+ *
+ * Two safeguards: URLs are filtered to the caller's own photo prefix (a
+ * client must never be able to name someone else's blob, and a stored URL
+ * must never reach `del` unchecked either), and failures are logged and
+ * swallowed — an orphan blob is a cost nuisance, not a correctness problem,
+ * and must not fail the delete the user asked for.
+ */
+export async function deleteOwnedPhotos(userId: string, urls: string[]): Promise<void> {
+  const prefix = buildUserPhotoPrefix(userId);
+  const ownedUrls = urls.filter((url) => {
+    try {
+      return new URL(url).pathname.replace(/^\//, '').startsWith(prefix);
+    } catch {
+      return false;
+    }
+  });
+
+  if (ownedUrls.length === 0) {
+    return;
+  }
+
+  try {
+    await deleteEntryPhotos(ownedUrls);
+  } catch (error) {
+    console.error('Failed to delete photos', {
+      userId,
+      photoCount: ownedUrls.length,
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Delete every photo stored under a user's prefix.
+ *
+ * Used when the account itself is deleted: the database cascades from
+ * `users` to every app table, but blobs live outside it and would otherwise
+ * survive the account forever. That is a privacy problem, not just a cost
+ * one — "delete my account" has to mean the photos too.
+ *
+ * Listing is paginated because the store has no "delete by prefix"; a user
+ * with a year of shopping has hundreds of blobs. Errors are logged and
+ * swallowed: the account deletion itself has already happened by the time
+ * this runs, and failing here would only turn a completed deletion into an
+ * error the user cannot act on. A leftover blob can be pruned later; a
+ * half-deleted account cannot be un-deleted.
+ */
+export async function deleteAllUserPhotos(userId: string): Promise<void> {
+  const prefix = buildUserPhotoPrefix(userId);
+  try {
+    let cursor: string | undefined;
+    do {
+      const page = await list({ prefix, cursor, limit: 1000 });
+      if (page.blobs.length > 0) {
+        await del(page.blobs.map((blob) => blob.url));
+      }
+      cursor = page.hasMore ? page.cursor : undefined;
+    } while (cursor);
+  } catch (error) {
+    console.error('Failed to delete photos of a deleted account', { userId, cause: error });
+  }
 }

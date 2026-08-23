@@ -237,9 +237,16 @@ export function parseDecimalInput(raw: string): number | null {
 
 /**
  * Render a number the way an editable decimal input should show it: plain
- * digits with a dot, no grouping, no currency ("1.843"). Inputs are the one
- * place a raw dot is right — they are parsed back by parseDecimalInput.
+ * digits, no grouping, no currency, and the decimal separator of the active
+ * locale ("1,843" in it, "1.843" in en).
+ *
+ * Why the locale reaches this far: the review screen showed the same amount
+ * twice, as "1.34 €" inside the box and "1,34 €" in the total a few
+ * pixels below — and to an Italian reader a dot is a thousands separator.
+ * Round-tripping is unaffected: parseDecimalInput accepts either separator,
+ * whatever the locale, because people type what their keyboard offers.
  */
-export function formatInputDecimal(value: number, maxDecimals = 3): string {
-  return Number(value.toFixed(maxDecimals)).toString();
+export function formatInputDecimal(value: number, locale: AppLocale, maxDecimals = 3): string {
+  const plain = Number(value.toFixed(maxDecimals)).toString();
+  return locale === 'it' ? plain.replace('.', ',') : plain;
 }

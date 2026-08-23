@@ -53,7 +53,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       {!isImmersive && <TabBar isHidden={isBarHidden} />}
       <OfflineBanner />
       <SwUpdateToast />
-      <ToastOutlet className="bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] rail:bottom-6" />
+      {/* The lift clears whatever sticky action bar is currently on screen —
+          without it the toast sat on the confirm button and ate the tap. */}
+      <ToastOutlet className="bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+var(--sticky-action-bar-height,0px))] rail:bottom-[calc(1.5rem+var(--sticky-action-bar-height,0px))]" />
     </ToastProvider>
   );
 }

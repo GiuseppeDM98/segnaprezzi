@@ -7,9 +7,10 @@
  * the source of truth while focused, and the numeric prop re-syncs it only
  * when the field is not being edited (e.g. an auto-computed value landed).
  */
+import { useLocale } from 'next-intl';
 import { useEffect, useState } from 'react';
 
-import { formatInputDecimal, parseDecimalInput } from '@/lib/format';
+import { type AppLocale, formatInputDecimal, parseDecimalInput } from '@/lib/format';
 import { Input, type InputProps } from './input';
 
 export interface DecimalInputProps extends Omit<InputProps, 'value' | 'onChange' | 'type'> {
@@ -28,7 +29,10 @@ export function DecimalInput({
   onBlur,
   ...inputProps
 }: DecimalInputProps) {
-  const [text, setText] = useState(value === null ? '' : formatInputDecimal(value, maxDecimals));
+  const locale = useLocale() as AppLocale;
+  const [text, setText] = useState(
+    value === null ? '' : formatInputDecimal(value, locale, maxDecimals),
+  );
   const [isFocused, setIsFocused] = useState(false);
 
   // Re-sync from the prop only while not editing, so a derived value shows
@@ -37,8 +41,8 @@ export function DecimalInput({
     if (isFocused) {
       return;
     }
-    setText(value === null ? '' : formatInputDecimal(value, maxDecimals));
-  }, [value, isFocused, maxDecimals]);
+    setText(value === null ? '' : formatInputDecimal(value, locale, maxDecimals));
+  }, [value, isFocused, maxDecimals, locale]);
 
   return (
     <Input

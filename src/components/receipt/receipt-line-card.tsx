@@ -88,6 +88,11 @@ export interface ReceiptLineCardSameDay {
 
 export interface ReceiptLineCardProps {
   rawLine: string;
+  /**
+   * How many identical printed lines this card stands for. > 1 means the
+   * import folded them into one observation bought that many times.
+   */
+  mergedLineCount?: number;
   status: ReceiptLineStatus;
   reviewReasons: LineReviewReason[];
   fields: ReceiptLineCardFields;
@@ -107,6 +112,7 @@ export interface ReceiptLineCardProps {
 
 export function ReceiptLineCard({
   rawLine,
+  mergedLineCount = 1,
   status,
   reviewReasons,
   fields,
@@ -333,14 +339,24 @@ export function ReceiptLineCard({
         </p>
       )}
 
-      <p className="mt-3 border-border border-t border-dashed px-3 py-2">
-        <span className="font-mono text-[11px] text-text-muted uppercase tracking-wide">
-          {t('rawLine')}
+      <div className="mt-3 border-border border-t border-dashed px-3 py-2">
+        {/* Said next to the printed text, because that is where the user is
+            comparing the screen against the paper and would otherwise count
+            one line too few. */}
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-[11px] text-text-muted uppercase tracking-wide">
+            {t('rawLine')}
+          </span>
+          {mergedLineCount > 1 && (
+            <Chip variant="status" tone="neutral" data-testid="receipt-merged-lines">
+              {t('mergedLines', { count: mergedLineCount })}
+            </Chip>
+          )}
         </span>
         <span className="mt-0.5 block truncate font-mono text-[13px] text-text-muted">
           {rawLine}
         </span>
-      </p>
+      </div>
     </article>
   );
 }
