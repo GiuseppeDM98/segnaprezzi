@@ -271,6 +271,14 @@ Mobile-first, measured at 390 px. Three named breakpoints replace Tailwind's def
 
 The vertical rhythm is the **48 px row** (`h-12` / `min-h-12`): zebra rows, skeleton rows, thin-data facts. The sprocket margin punches one hole per 48 px to stay in register with the rows. Taller rows (56 px, `min-h-14`) carry two-line product names with a trend pill; the dashboard summary uses 40 px rows inside its definition list. Lists bleed to the gutter edge (`-mx-1`/`-mx-2`) so the band runs full width; row padding is 12 px. Sections are stacked with 32 px gaps (`gap-8`), inner blocks 12-16 px.
 
+Blocks of buttons change shape rather than width across breakpoints. The
+dashboard's quick actions are a 2+1 grid of full-width buttons on a phone —
+three thumb targets, no wasted gutter — and a wrapped row of content-sized
+buttons from `tablet` up. Stretching the phone grid instead left a 448 px
+island in the left half of the column, with one button spanning two cells for
+no reason and every label marooned in the middle of its plate: a button is as
+wide as the words it carries unless it is a thumb target.
+
 Rigid margin columns are a kept raise: the desktop rail's 20 px sprocket strip, and the 44 px HH:MM time column with a dashed right rule in History rows.
 
 Sticky bars: list headers stick to the top on `bg-background/95` with backdrop blur and a dashed bottom rule. Bulk-action footers stick above the tab bar (`bottom: calc(3.5rem + safe-area)`) with `pb-11` on mobile so the raised Scan disc never covers them, and drop to `bottom-0 pb-3` at `rail`. The shell pads content by `3.5rem + safe-area + 1rem` under the tab bar; toasts sit at `4.5rem + safe-area + var(--sticky-action-bar-height, 0px)` (1.5rem + the same variable at rail). That variable is the contract between the two: every such footer is the `StickyActionBar` component, which publishes its measured height on the document element, because a toast anchored to the viewport otherwise lands on the confirm button and swallows the tap. A screen that needs the bar animated in and out uses `STICKY_ACTION_BAR_CLASSES` with `useStickyActionBarHeight()` instead of hand-copying the classes. Safe areas use the `pt-safe` / `pb-safe` utilities; `viewport-fit: cover`.

@@ -6,8 +6,13 @@
  * Same anatomy as the capture review's confirm bar: counters
  * on the left in the print face, the one primary action on the right, and
  * `pb-11` on mobile so the raised Scan disc never covers it (DESIGN.md).
- * Confirm is disabled while any INCLUDED line still lacks a size or a
- * product — an excluded line is a decision, not an obstacle.
+ *
+ * Confirm is deliberately NOT disabled while a line is unfinished: pressing
+ * it scrolls to that line and says what it needs, whereas a greyed-out
+ * button withholds both the reason and the way out. It only goes disabled
+ * when there is nothing at all to save — every line excluded — because then
+ * there is no card to send anyone to. An excluded line is a decision, not an
+ * obstacle.
  */
 import { useTranslations } from 'next-intl';
 
@@ -66,7 +71,7 @@ export function ReceiptSummaryBar({
           <Button
             onClick={onConfirm}
             isPending={isSubmitting}
-            disabled={blockedCount > 0 || readyCount === 0}
+            disabled={readyCount + blockedCount === 0}
             data-testid="receipt-confirm"
             size="lg"
           >

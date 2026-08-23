@@ -310,7 +310,7 @@
       "storeCreated": "Il punto vendita sarà creato alla conferma",
       "receiptTotal": "Totale scontrino",
       "linesTotal": "Totale righe",
-      "totalMismatch": "Il totale delle righe non torna con lo scontrino: controlla le righe evidenziate",
+      "totalMismatch": "Il totale delle righe non torna con lo scontrino. Di solito è una riga che non è un prodotto (sconto sulla spesa, sacchetto, cauzione): controlla le righe evidenziate e la differenza qui sopra.",
       "noTotal": "Lo scontrino non riporta un totale leggibile",
       "noDate": "Data non leggibile: controlla e correggi",
       "lowConfidence": "Lettura incerta: controlla tutte le righe",
@@ -347,13 +347,21 @@
         "totalPrice": "Prezzo",
         "unitPrice": "Prezzo unitario",
         "isPromo": "In offerta",
-        "promoKind": "Tipo di offerta"
+        "promoKind": "Tipo di offerta",
+        "lineTotal": "Totale riga"
       },
       "empty": {
         "title": "Nessuna riga da controllare",
         "body": "Lo scontrino non conteneva righe prodotto leggibili.",
         "cta": "Carica un altro scontrino"
-      }
+      },
+      "toComplete": "Da completare",
+      "blockingPrice": "Inserisci prezzo e prezzo unitario",
+      "blockingUnitPrice": "Prezzo unitario, prezzo e formato non tornano fra loro",
+      "recalculateUnitPrice": "Ricalcola il prezzo unitario",
+      "totalDifference": "Differenza",
+      "lineTotalFactors": "{quantity} × {price}",
+      "totalMismatchExtraPackages": "La differenza corrisponde esattamente a {count, plural, one {# confezione} other {# confezioni}} di «{product}»: controlla le confezioni di quella riga."
     }
   },
   "products": {

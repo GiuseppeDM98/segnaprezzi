@@ -137,10 +137,22 @@ test('should read a receipt, fix the flagged line and confirm it into the databa
   // only it: the other two resolved themselves.
   const blockedCard = page.locator('[data-testid="receipt-line-card"][data-status="needs-size"]');
   await expect(blockedCard).toHaveCount(1);
-  await expect(page.getByTestId('receipt-confirm')).toBeDisabled();
+
+  /*
+   * Confirm is not disabled — it names the line instead. What matters is the
+   * guarantee, not the button state: pressing it with an unfinished line
+   * scrolls to that line, says what it needs, and writes nothing.
+   */
+  await page.getByTestId('receipt-confirm').click();
+  await expect(blockedCard.getByTestId('receipt-blocking-reason')).toBeVisible();
+  await expect(page).toHaveURL(/\/add\/receipt\/review/);
+  const beforeFix = await (await page.request.get('/api/export')).json();
+  expect(
+    beforeFix.entries.filter((entry: { source: string }) => entry.source === 'receipt'),
+  ).toHaveLength(0);
 
   await blockedCard.getByTestId('receipt-field-size').fill('0,4');
-  await expect(page.getByTestId('receipt-confirm')).toBeEnabled();
+  await expect(page.getByTestId('receipt-blocking-reason')).toHaveCount(0);
 
   await page.getByTestId('receipt-confirm').click();
   await expect(page).toHaveURL(/\/history/);
@@ -268,8 +280,11 @@ test('should fold two identical printed lines into one observation bought twice'
   await expect(page.getByTestId('receipt-line-card')).toHaveCount(1);
   await expect(page.getByTestId('receipt-merged-lines')).toHaveText('2 righe uguali');
 
-  // The money is unchanged by the fold: 2,49 x 2.
+  // The money is unchanged by the fold: 2,49 x 2 — said on the card too, so
+  // the line can be checked against the total printed on the paper.
   await expect(page.getByTestId('receipt-total')).toContainText('4,98');
+  await expect(page.getByTestId('receipt-line-total')).toContainText('2 × 2,49');
+  await expect(page.getByTestId('receipt-line-total')).toContainText('4,98');
 
   await page.getByTestId('receipt-confirm').click();
   await expect(page).toHaveURL(/\/history/);
@@ -286,4 +301,86 @@ test('should fold two identical printed lines into one observation bought twice'
     packageSize: 0.19,
     unitPriceMilli: 13105,
   });
+});
+
+/*
+ * The failure this suite exists to catch after the fact: a till printed six
+ * identical lines and the model handed back seven. Every line is plausible
+ * on its own, so nothing per-line can see it — only the printed total can,
+ * and only if the screen reconciles against the lines AS EDITED.
+ *
+ * Its own spy word ("narvalo"), disjoint from the other receipts here
+ * (AGENTS.md §4.60).
+ */
+const OVERCOUNT_RECEIPT_ID = 'e2eReceiptOvercount01';
+const OVERCOUNT_PURCHASED_AT = Date.UTC(2026, 7, 21, 16, 42);
+
+const NARVALO_LINE = {
+  // Deliberately unlike every other product this user owns: a line the fuzzy
+  // matcher half-recognises blocks on `needs-product`, which is a different
+  // test than this one (AGENTS.md §4.60).
+  rawLine: 'CREMA NARVALO 250G             1,64',
+  description: 'Crema narvalo 250g',
+  brand: null,
+  category: 'food' as const,
+  quantity: 1,
+  quantityKind: 'pieces' as const,
+  unitPriceCentsOnReceipt: null,
+  lineTotalCents: 164,
+  discountCents: 0,
+  packageSizeHint: 0.25,
+  unitKindHint: 'weight' as const,
+  isPromo: false,
+  promoKind: null,
+  confidence: 0.95,
+};
+
+test('should point at the line whose extra package explains the total gap', async ({ page }) => {
+  await seedExtractedReceipt(SEED_USER_2.email, {
+    id: OVERCOUNT_RECEIPT_ID,
+    contentHash: `overcount-${OVERCOUNT_RECEIPT_ID}`,
+    purchasedAt: OVERCOUNT_PURCHASED_AT,
+    // Three lines extracted, two jars actually paid for.
+    receiptTotalCents: 328,
+    extraction: {
+      storeChain: 'Coop',
+      storeName: 'Coop Via Fenicottero 12',
+      purchasedAt: '2026-08-21T18:42:00',
+      receiptTotalCents: 328,
+      confidence: 0.93,
+      lines: [NARVALO_LINE, NARVALO_LINE, NARVALO_LINE],
+    },
+  });
+
+  await page.route('**/api/extract-receipt', (route) =>
+    route.fulfill({ status: 200, json: { receiptId: OVERCOUNT_RECEIPT_ID } }),
+  );
+
+  await page.goto('/add/receipt');
+  await expect(page.getByTestId('receipt-dropzone')).toBeVisible();
+  await page.setInputFiles('[data-testid="receipt-file-input"]', FIXTURE_PATH);
+  await page.getByTestId('receipt-submit').click();
+
+  await expect(page).toHaveURL(/\/add\/receipt\/review/);
+
+  // The gap is named, in euros and in packages of the line that carries it.
+  await expect(page.getByTestId('receipt-total-difference')).toContainText('1,64');
+  await expect(page.getByTestId('receipt-extra-packages')).toContainText('1 confezione');
+  await expect(page.getByTestId('receipt-extra-packages')).toContainText('Crema narvalo');
+
+  // One tap on the stepper closes it — which is the whole point of
+  // reconciling against the lines as edited rather than as extracted.
+  await page.getByRole('button', { name: 'Confezioni −1' }).click();
+  await expect(page.getByTestId('receipt-header-warning')).toHaveCount(0);
+  await expect(page.getByTestId('receipt-lines-total')).toContainText('3,28');
+
+  await page.getByTestId('receipt-confirm').click();
+  await expect(page).toHaveURL(/\/history/);
+
+  const payload = await (await page.request.get('/api/export')).json();
+  const entries = payload.entries.filter(
+    (entry: { receiptId: string }) => entry.receiptId === OVERCOUNT_RECEIPT_ID,
+  );
+  expect(entries).toHaveLength(1);
+  expect(entries[0]).toMatchObject({ quantity: 2, totalPriceCents: 164 });
 });

@@ -4,9 +4,12 @@
  * Design: everything the model needs to be *decisive* is stated as a rule,
  * not left to judgement — what counts as a product line, what a discount
  * line attaches to, how Italian comma decimals become integer cents, and
- * what a package-size hint may and may not be invented from. The worked
- * example at the end is a compact Coop-style layout with all three line
- * shapes (plain, multiplied, weighed) plus two lines that must be skipped.
+ * what a package-size hint may and may not be invented from. The three
+ * worked examples at the end each match the exact shape of a real receipt
+ * that went wrong: a compact Coop layout with all three line shapes, a
+ * discount line repeating the VAT% column, and a repeated article with an
+ * annotation between its lines (AGENTS.md §4.54 — the model follows a
+ * concrete example far more reliably than an abstract rule).
  */
 
 // WARNING: the category list in this prompt must stay in sync with
@@ -37,6 +40,24 @@ WHAT IS A PRODUCT LINE
   -1,92 is the amount. A discount line never gets its own lineTotalCents.
 - Deposit/return lines ("CAUZIONE", "VUOTO A RENDERE", negative returns):
   skip; do not attach to a product.
+- An annotation printed UNDER a product line and indented, with no price of
+  its own — "X prezzo tutelato", "PREZZO BLOCCATO", "PREZZO SOCI", a loyalty
+  note — belongs to that product line. It is never a line of its own, and it
+  never changes how many product lines there are.
+
+REPEATED IDENTICAL LINES — COUNT THEM, DO NOT ESTIMATE
+- A till prints the same article once per unit as readily as it prints
+  "2 x". Six identical "M-T PESTO GEN.COOP 1,64" lines mean six lines in the
+  output: emit one entry per printed line, no more and no fewer.
+- Count them one by one, especially when an annotation line sits between
+  them. Emitting one line too many is the single most expensive mistake you
+  can make on a receipt: it invents a purchase that never happened.
+- Check yourself before answering: if Σ lineTotalCents over all your lines
+  EXCEEDS receiptTotalCents, look first for a trip-level discount or coupon
+  printed after the subtotal, which legitimately explains the gap. If there
+  is none, you have emitted a line too many — go back to the repeated block
+  and recount it. Σ below the total is normal (fees and deposits are not
+  product lines); never delete a line you can see printed.
 
 MONEY IS ALWAYS INTEGERS IN EURO CENTS
 - Italian receipts use comma decimals: "1,29" → 129; "4,38" → 438.
@@ -123,6 +144,21 @@ Output lines:
      unitPriceCentsOnReceipt 149, lineTotalCents 121, discountCents 0,
      packageSizeHint 0.812, unitKindHint "weight", isPromo false, food.
   (IMPOSTA SACCHETTO and TOTALE are skipped.) receiptTotalCents 431.
+
+WORKED EXAMPLE 3 (a repeated article with an annotation between the lines)
+Input lines:
+  M-T PESTO GEN.COOP              10,00%      1,64
+    X prezzo tutelato
+  M-T PESTO GEN.COOP              10,00%      1,64
+    X prezzo tutelato
+  M-T PESTO GEN.COOP              10,00%      1,64
+    X prezzo tutelato
+  TOTALE COMPLESSIVO                          4,92
+Output: exactly THREE identical lines, description "Pesto genovese Coop",
+brand "Coop", quantity 1 pieces, lineTotalCents 164, discountCents 0,
+packageSizeHint null, isPromo false, food. Not four: the three "X prezzo
+tutelato" annotations carry no price and are not products, and 3 x 164 is
+the printed total, which is the check that settles it. receiptTotalCents 492.
 
 WORKED EXAMPLE 2 (a discount line carrying the receipt's own VAT% column)
 Input lines:

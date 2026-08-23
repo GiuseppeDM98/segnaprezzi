@@ -13,6 +13,18 @@ export type ReceiptFileKind = (typeof RECEIPT_FILE_KINDS)[number];
 export const RECEIPT_MEDIA_TYPES = ['application/pdf', 'image/webp', 'image/jpeg'] as const;
 export type ReceiptMediaType = (typeof RECEIPT_MEDIA_TYPES)[number];
 
+/**
+ * Slack between the printed receipt total and the sum of its lines: five
+ * cents, because a line discount rounds.
+ *
+ * In the pure domain rather than beside the extraction flags because the
+ * review screen reconciles the same two numbers LIVE, against the lines as
+ * the user has edited them — and a screen that used a different tolerance
+ * than the flag would keep a warning up on a receipt it also called
+ * balanced.
+ */
+export const RECEIPT_TOTAL_TOLERANCE_CENTS = 5;
+
 /** Which file kind a media type belongs to. */
 export const RECEIPT_FILE_KIND_BY_MEDIA_TYPE: Record<ReceiptMediaType, ReceiptFileKind> = {
   'application/pdf': 'pdf',

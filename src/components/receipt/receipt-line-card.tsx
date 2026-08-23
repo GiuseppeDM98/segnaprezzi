@@ -33,6 +33,24 @@ import type { UnitKind } from '@/lib/domain/units';
 /** Highest quantity a single receipt line plausibly carries. */
 const MAX_QUANTITY = 99;
 
+/**
+ * What this line is still missing before the receipt can be confirmed.
+ *
+ * Distinct from `status`, which is the model's doubt: a line the model read
+ * perfectly can still carry three money numbers that contradict each other
+ * after a hand edit, and only this says so.
+ */
+export type ReceiptLineBlockingReason = 'product' | 'size' | 'price' | 'unit-price';
+
+// The first two reuse the sentences the status banner already had: the same
+// instruction twice, worded differently, is how §4.58 happened.
+const BLOCKING_REASON_KEY: Record<ReceiptLineBlockingReason, string> = {
+  product: 'needsProduct',
+  size: 'needsSize',
+  price: 'blockingPrice',
+  'unit-price': 'blockingUnitPrice',
+};
+
 /** Which status chip tone each state gets — one meaning per color (DESIGN.md). */
 const STATUS_TONE: Record<ReceiptLineStatus, 'neutral' | 'warning' | 'positive'> = {
   ready: 'positive',
@@ -94,6 +112,8 @@ export interface ReceiptLineCardProps {
    */
   mergedLineCount?: number;
   status: ReceiptLineStatus;
+  /** Named when the line cannot be confirmed as it stands; null when it can. */
+  blockingReason: ReceiptLineBlockingReason | null;
   reviewReasons: LineReviewReason[];
   fields: ReceiptLineCardFields;
   product: ReceiptLineCardProduct | null;
@@ -103,7 +123,12 @@ export interface ReceiptLineCardProps {
   /** Pre-formatted unit symbols ("€/kg", "kg") from the units namespace. */
   unitSymbol: string;
   sizeSymbol: string;
+  /** Pre-formatted price of one package and of the whole line (price x quantity). */
+  packagePriceLabel: string;
+  lineTotalLabel: string;
   onChange: (patch: Partial<ReceiptLineCardFields>) => void;
+  /** Re-derive the unit price from the price and the size the card now shows. */
+  onRecalculateUnitPrice: () => void;
   onOpenMatch: () => void;
   onToggleExcluded: () => void;
   onToggleLearnAlias: (learnAlias: boolean) => void;
@@ -114,6 +139,7 @@ export function ReceiptLineCard({
   rawLine,
   mergedLineCount = 1,
   status,
+  blockingReason,
   reviewReasons,
   fields,
   product,
@@ -122,7 +148,10 @@ export function ReceiptLineCard({
   learnAlias,
   unitSymbol,
   sizeSymbol,
+  packagePriceLabel,
+  lineTotalLabel,
   onChange,
+  onRecalculateUnitPrice,
   onOpenMatch,
   onToggleExcluded,
   onToggleLearnAlias,
@@ -152,7 +181,7 @@ export function ReceiptLineCard({
     );
   }
 
-  const isFlagged = status !== 'ready';
+  const isFlagged = status !== 'ready' || blockingReason !== null;
   const sizeHintKey = SIZE_SOURCE_KEY[fields.sizeSource];
 
   return (
@@ -170,11 +199,26 @@ export function ReceiptLineCard({
           data-testid="receipt-line-flag"
         >
           <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
-          <div className="flex flex-col">
-            <span className="font-semibold">{tStatus(STATUS_KEY[status])}</span>
-            {status === 'needs-size' && <span className="text-text-muted">{t('needsSize')}</span>}
-            {status === 'needs-product' && (
-              <span className="text-text-muted">{t('needsProduct')}</span>
+          <div className="flex flex-col items-start">
+            <span className="font-semibold">
+              {blockingReason ? t('toComplete') : tStatus(STATUS_KEY[status])}
+            </span>
+            {/* The blocking reason comes first: it is the one line that says
+                what has to change before the receipt can be confirmed. */}
+            {blockingReason && (
+              <span data-testid="receipt-blocking-reason" className="text-text-muted">
+                {t(BLOCKING_REASON_KEY[blockingReason])}
+              </span>
+            )}
+            {blockingReason === 'unit-price' && (
+              <button
+                type="button"
+                onClick={onRecalculateUnitPrice}
+                data-testid="receipt-recalculate-unit-price"
+                className="min-h-11 font-sans text-[13px] text-accent-ink underline decoration-border underline-offset-4"
+              >
+                {t('recalculateUnitPrice')}
+              </button>
             )}
             {reviewReasons.map((reason) => (
               <span key={reason} className="text-text-muted">
@@ -293,6 +337,27 @@ export function ReceiptLineCard({
             onChange={(quantity) => onChange({ quantity })}
           />
         </div>
+      </div>
+
+      {/* The number printed on the paper: the card edits the price of ONE
+          package, and a line bought ten times is checked against its own
+          total, not against a tenth of it. */}
+      <div
+        data-testid="receipt-line-total"
+        className="mt-3 flex items-baseline justify-between gap-3 border-border border-t border-dashed px-3 pt-2 font-mono text-[13px] tabular-nums"
+      >
+        <span className="font-sans text-text-muted">{t('fields.lineTotal')}</span>
+        <span className="flex items-baseline gap-2">
+          {fields.quantity > 1 && (
+            <span className="text-[11px] text-text-muted">
+              {t('lineTotalFactors', {
+                quantity: fields.quantity,
+                price: packagePriceLabel,
+              })}
+            </span>
+          )}
+          <span className="font-semibold text-text">{lineTotalLabel}</span>
+        </span>
       </div>
 
       <div className="flex flex-col gap-2 px-3 pt-3">

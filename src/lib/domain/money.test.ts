@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest';
 
-import { calculateFuelQuantity, calculateFuelTotalCents, calculateUnitPriceMilli } from './money';
+import {
+  calculateFuelQuantity,
+  calculateFuelTotalCents,
+  calculateUnitPriceMilli,
+  isUnitPriceConsistent,
+} from './money';
 
 /*
  * These tests cover the fuel half of the money helpers. The rounding is the
@@ -46,5 +51,37 @@ describe('calculateUnitPriceMilli', () => {
 
   test('should keep three decimals of precision on a fuel-sized quantity', () => {
     expect(calculateUnitPriceMilli(9160, 50.9)).toBe(1800);
+  });
+});
+
+describe('isUnitPriceConsistent', () => {
+  test('should accept a triple derived from its own price and size', () => {
+    expect(isUnitPriceConsistent(249, 0.5, calculateUnitPriceMilli(249, 0.5))).toBe(true);
+  });
+
+  test('should accept the cent of rounding a weighed line prints', () => {
+    // 0,812 kg at the printed 1,49 EUR/kg is 1,20988 EUR, printed as 1,21.
+    expect(isUnitPriceConsistent(121, 0.812, 1490)).toBe(true);
+  });
+
+  test('should reject a unit price that predates the line discount', () => {
+    // 0,5 kg at 2,00 EUR/kg is 1,00 EUR, but 0,80 was paid: two prices.
+    expect(isUnitPriceConsistent(80, 0.5, 2000)).toBe(false);
+  });
+
+  test('should reject a hand-typed unit price that no longer matches its size', () => {
+    expect(isUnitPriceConsistent(165, 1, 1500)).toBe(false);
+  });
+
+  test('should accept the only integer unit price a 270-piece pack can have', () => {
+    // 3,09 EUR for 9x30 tissues is 0,01144 EUR each: 11 milli is the closest
+    // an integer gets, and 11 x 270 = 2,97 EUR. The gap is the storage
+    // format's, not a disagreement, and refusing it refused the receipt.
+    expect(isUnitPriceConsistent(309, 270, calculateUnitPriceMilli(309, 270))).toBe(true);
+  });
+
+  test('should still reject a real disagreement on a large pack', () => {
+    // Half the price of the same box: far more than rounding can explain.
+    expect(isUnitPriceConsistent(309, 270, 6)).toBe(false);
   });
 });

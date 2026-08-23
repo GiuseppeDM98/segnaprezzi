@@ -24,18 +24,13 @@ import { updateDefaultPackageSizes } from '@/lib/db/repositories/products';
 import { getReceiptById, updateReceipt } from '@/lib/db/repositories/receipts';
 import { createStore, getStoreById } from '@/lib/db/repositories/stores';
 import type { PromoKind } from '@/lib/domain/entries';
+import { isUnitPriceConsistent } from '@/lib/domain/money';
 import { normalizeAlias } from '@/lib/domain/receipt-lines';
 import type { ProductPick } from '@/lib/domain/schemas';
 import type { StoreKind } from '@/lib/domain/stores';
 import { InvalidPriceError, ReceiptNotFoundError, StoreNotFoundError } from '@/lib/errors';
 import { resolveProductPicks } from './create-price-entry';
 import { parseReceiptExtraction } from './import-receipt';
-
-/**
- * Slack on `unitPriceMilli × packageSize = totalPriceCents × 10`: one cent,
- * which is exactly the rounding the derivation itself can introduce.
- */
-const INVARIANT_TOLERANCE_MILLI = 10;
 
 export interface ConfirmReceiptLineInput {
   /** Position on the receipt — indexes into the stored extraction. */
@@ -185,11 +180,9 @@ export async function confirmReceipt(
  * its own total — and the index reads the unit price.
  */
 function assertPriceInvariant(line: ConfirmReceiptLineInput): void {
-  const derivedMilli = line.unitPriceMilli * line.packageSize;
-  const totalMilli = line.totalPriceCents * 10;
-  if (Math.abs(derivedMilli - totalMilli) > INVARIANT_TOLERANCE_MILLI) {
+  if (!isUnitPriceConsistent(line.totalPriceCents, line.packageSize, line.unitPriceMilli)) {
     throw new InvalidPriceError(
-      `Line ${line.index}: unitPriceMilli x packageSize (${derivedMilli}) does not match totalPriceCents (${totalMilli})`,
+      `Line ${line.index}: unitPriceMilli x packageSize (${line.unitPriceMilli * line.packageSize}) does not match totalPriceCents (${line.totalPriceCents * 10})`,
     );
   }
 }

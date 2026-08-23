@@ -62,6 +62,11 @@
 - Fixed the price-change badge appearing on some rows of a list and vanishing on others, and the same for the shop icon on the stores list
 - Fixed a shelf photo that fails to load leaving a blank black square instead of the "no photo" icon
 
+- Fixed a receipt refusing to save with "The price is not valid" and no clue which line it meant. A pack sold in many pieces (9×30 tissues) has a price per piece too small to store exactly, and the app was rejecting its own arithmetic — the check now allows for that, and any line that really is inconsistent says so on the card itself
+- Fixed the receipt review refusing to confirm without pointing anywhere: each card now names what it is still missing, the confirm button is no longer greyed out, and pressing it scrolls to the line that needs you
+- Fixed the price per kg of a weighed item bought on offer: receipts print the price per kg from before the discount, and the app now records what you actually paid per kg
+- Fixed the quick actions on the home screen looking stranded on a laptop or desktop window — they now sit on one line, each button as wide as its label. The phone layout is unchanged
+
 ## 🔧 Improvements
 
 - The offline pill no longer polls: it reacts the instant a photo's status changes, including when the upload happened in the background with the app closed
@@ -78,6 +83,10 @@
 
 - Discarding a photo from the review screen is now one tap on a bin icon rather than a menu with a single entry, and the undo stays in the toast
 - A product with no price to show is quieter: no badge where there is no news to report
+
+- Each receipt line now shows its own total (price × packages), which is the number actually printed on the paper — a line bought ten times no longer shows only the price of one
+- The receipt review now reconciles against the printed total as you edit: it shows the difference in euros, and when that difference is exactly one or more packages of a single line, it names that line. Supermarket receipts that print the same article many times can be miscounted when read, and this is what catches it — one tap on that line's package count and the totals agree
+- Receipt reading is clearer about lines that are not products: an annotation printed under an article ("X prezzo tutelato") belongs to it, and a discount on the whole shop explains a total that is lower than the lines
 
 ## 🔒 Security
 
