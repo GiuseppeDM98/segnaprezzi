@@ -7,11 +7,9 @@
  * unreadable coupon line; the user is the authority and the flags exist to
  * point their eyes at the right rows, not to refuse the file.
  */
-import { parseReceiptPurchasedAt } from '@/lib/domain/receipts';
+import { parseReceiptPurchasedAt, RECEIPT_TOTAL_TOLERANCE_CENTS } from '@/lib/domain/receipts';
 import type { ReceiptExtraction, ReceiptLine } from './receipt-schema';
 
-/** Rounding slack between Σ lines and the printed total: discounts round. */
-export const RECEIPT_TOTAL_TOLERANCE_CENTS = 5;
 export const MIN_LINE_CONFIDENCE = 0.6;
 export const MIN_RECEIPT_CONFIDENCE = 0.5;
 

@@ -34,7 +34,7 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 ## Features
 
 - [x] **Tag scanning** — photograph shelf price tags; Claude Haiku 4.5 extracts product, total price, and unit price with a review-before-save flow
-- [x] **Receipt import** — one PDF or photo becomes N observations: per-line extraction, automatic matching against your catalog, learned aliases so the next receipt from the same chain needs no work, identical lines folded into one purchase, and the file itself is never kept
+- [x] **Receipt import** — one PDF or photo becomes N observations: per-line extraction, automatic matching against your catalog, learned aliases so the next receipt from the same chain needs no work, identical lines folded into one purchase, a review that reconciles against the printed total (and names the line responsible when it does not add up), and the file itself is never kept
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
 - [x] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and a one-tap ISTAT comparison rebased to your own starting month, on a dashboard that leads with your year-over-year number and its coverage line
 - [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, duplicate-product merging, and deleting a product with its observations when you want it gone for good

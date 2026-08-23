@@ -1271,7 +1271,11 @@ find nothing — and that suite's assertion failed in a file nobody had touched.
 Invented names keep fixtures away from real data (`WORKFLOW.md` obligation 1);
 they also have to keep fixtures away from *each other*. The delete suite
 therefore owns "vombato" and "axolotl", disjoint from the receipt suite's
-"fenicottero"/"ornitorinco"/"quokka".
+"fenicottero"/"ornitorinco"/"quokka". **The same applies inside one file**:
+a later receipt test's "Pesto narvalo 190g" was captured by an earlier test's
+"Pesto capibara 190g" — disjoint spy words are not enough when the rest of
+the name matches, so vary the noun too ("Crema narvalo 250g"). The symptom is
+a card stuck on `needs-product`, which reads like a bug in the matcher.
 
 **4.61 A prune tool that compares one database against one blob store must
 refuse a mismatched pair.** `scripts/prune-photos.ts` calls a blob an orphan
@@ -1289,6 +1293,76 @@ namespace its position on screen suggests. And the two operations people look
 for under "products" are split: merging duplicates lives in
 `db/repositories/products.ts`, exporting a user's full data in
 `services/export.ts`.
+
+**4.63 The unit-price invariant's tolerance must SCALE with the package
+size, or the app refuses its own arithmetic.** `unit_price_milli` is an
+integer, so rounding it costs up to half a milli-euro per base unit: half a
+cent on a 1 kg pack, but **13,5 cents on a 270-piece box of tissues**
+("FAZZ.COOP 9X30PZ", 3,09 € → 0,01144 € each → storable only as 11 milli,
+which multiplies back to 2,97 €). Against a fixed one-cent slack that is a
+violation, so `confirmReceipt` threw `INVALID_PRICE` — for the whole receipt,
+over a number the app itself had derived and nobody had touched. This is the
+real cause of the "Il prezzo non è valido" report; the discount case in §4.64
+is a second, independent way to produce the same rejection.
+`isUnitPriceConsistent` therefore allows `max(10, packageSize / 2)` milli.
+Any real disagreement is worth far more than that. The lesson generalizes:
+when a stored value is quantized, a tolerance on a quantity DERIVED from it
+has to carry the quantization, not a constant somebody once found reasonable.
+
+**4.64 A printed €/kg is the price BEFORE that line's discount, and the
+entry contract cannot hold both.** `deriveUnitPriceMilli` preferred the
+weighed line's printed unit price over the derived one — right in general (a
+50 g item rounded to the cent is 2 % off, so re-deriving invents a price) but
+wrong for a weighed product on offer: the scale prints "2,00 €/kg" next to a
+total that worked out to 1,60 €/kg, and `confirmReceipt` then refused the
+WHOLE receipt with `INVALID_PRICE`. The user saw "Il prezzo non è valido"
+under a bar that said "5 pronte · 0 da sistemare", with nothing naming the
+line. Two fixes, both of which the next comparable case wants: the printed
+value is now only *preferred* — it is used when it multiplies out to the
+paid total, and the derived one otherwise, because rounding to the cent
+never breaks the invariant and a discount always does — and the invariant
+itself moved into `domain/money.ts` (`isUnitPriceConsistent`,
+`UNIT_PRICE_TOLERANCE_MILLI`) so the derivation, the review screen and the
+confirm service all ask exactly one question. Rule of thumb: a server-side
+assertion the client cannot evaluate is a rejection nobody can act on —
+either share the predicate or do not assert it.
+
+**4.65 Σ printed lines never equals the receipt total, and that is the
+import working correctly — except when it is an invented purchase.** The extraction deliberately skips everything
+that is not a product (the bag levy, deposits, "vuoto a rendere", coupons
+and trip-level discounts printed after the subtotal), so the header's
+"Totale righe" is *supposed* to sit above or below the printed total — the
+5-cent `RECEIPT_TOTAL_TOLERANCE_CENTS` (in `domain/receipts.ts`, because the
+review screen re-asks the same question live) only decides when to say so. Reading
+the difference as "the model misread a line" costs a session; the review
+header therefore shows the signed gap next to the two totals, and the
+mismatch copy names the usual culprits. The two totals on the review screen
+answer different questions and must not be merged: the header's is the
+*transcription* (Σ of what was printed, static, comparable with the paper),
+the confirm bar's is *what will be saved* (price × quantity over the
+included lines, live under every edit and exclusion) — and the header's
+reconciliation now uses the LIVE number, because a difference that cannot
+move tells the user nothing they can act on.
+
+**4.66 Haiku miscounts a long run of identical receipt lines, and no
+per-line check can see it.** A real Coop self-scan receipt printed six
+"M-T PESTO GEN.COOP 1,64" lines (each followed by an indented "X prezzo
+tutelato" annotation); the model returned **seven** — 1,64 € of shopping
+that never happened. Every line is individually plausible, the confidences
+were 0.9, and the fold into one card with `quantity` hides the miscount
+behind a stepper. Two prompt attempts did NOT fix it (a counting rule, an
+annotation rule, and a worked example in the exact shape — all three kept,
+they are true and cheap, but verified insufficient on this document). What
+does work is deterministic: the printed total. `suggestExtraPackages`
+(pure, in `domain/receipt-lines.ts`) reports when the gap is an exact
+multiple of one line's package price and no second line explains it, and the
+review names that line — one tap on its stepper closes the gap. Two rules
+worth carrying: a self-check bullet telling the model "Σ must not exceed the
+total" is **dangerous** without the trip-level-discount carve-out (a receipt
+with a spesa-level discount legitimately has Σ > total, and the instruction
+would make the model delete a real line); and when the model cannot be made
+reliable, look for an invariant in the document itself rather than adding a
+fourth paragraph to the prompt.
 
 ---
 

@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest';
 
-import { type DeriveUnitPriceInput, deriveUnitPriceMilli, normalizeAlias } from './receipt-lines';
+import { isUnitPriceConsistent } from './money';
+import {
+  type DeriveUnitPriceInput,
+  deriveUnitPriceMilli,
+  normalizeAlias,
+  suggestExtraPackages,
+} from './receipt-lines';
 
 describe('normalizeAlias', () => {
   test.each([
@@ -109,6 +115,45 @@ describe('deriveUnitPriceMilli', () => {
     expect(derived.hasPrintedUnitPriceMismatch).toBe(true);
   });
 
+  test('should ignore a printed unit price that contradicts what was paid', () => {
+    // A weighed product on offer: the scale prints the price per kilo BEFORE
+    // the discount, so storing it would contradict the line total and get the
+    // whole receipt refused on confirm.
+    const derived = deriveUnitPriceMilli(
+      input({
+        lineTotalCents: 80,
+        quantity: 0.5,
+        quantityKind: 'kg',
+        unitPriceCentsOnReceipt: 200,
+      }),
+    );
+
+    expect(derived).toMatchObject({
+      packageSize: 0.5,
+      totalPriceCents: 80,
+      // 0,80 EUR for half a kilo, not the 2,00 EUR/kg on the paper.
+      unitPriceMilli: 1600,
+      hasPrintedUnitPriceMismatch: true,
+    });
+    expect(isUnitPriceConsistent(80, 0.5, derived.unitPriceMilli as number)).toBe(true);
+  });
+
+  test('should keep the printed unit price of a very light weighed item', () => {
+    // 0,05 kg at 19,90 EUR/kg is 0,995 EUR, printed as 1,00: re-deriving from
+    // the rounded total would claim 20,00 EUR/kg. Rounding never breaks the
+    // invariant, so the printed value stays.
+    const derived = deriveUnitPriceMilli(
+      input({
+        lineTotalCents: 100,
+        quantity: 0.05,
+        quantityKind: 'kg',
+        unitPriceCentsOnReceipt: 1990,
+      }),
+    );
+
+    expect(derived.unitPriceMilli).toBe(19900);
+  });
+
   test('should fall back to the catalog size when the receipt states none', () => {
     const derived = deriveUnitPriceMilli(input({ catalogPackageSize: 0.5 }));
 
@@ -163,5 +208,49 @@ describe('deriveUnitPriceMilli', () => {
         derived.totalPriceCents * 10,
     );
     expect(gap).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('suggestExtraPackages', () => {
+  // The real receipt this was written for: six printed "PESTO 1,64" lines
+  // came back as seven, and the printed total was the only witness.
+  const lines = [
+    { key: 0, packagePriceCents: 300, quantity: 1 },
+    { key: 1, packagePriceCents: 165, quantity: 10 },
+    { key: 2, packagePriceCents: 164, quantity: 7 },
+    { key: 3, packagePriceCents: 215, quantity: 1 },
+    { key: 4, packagePriceCents: 309, quantity: 1 },
+  ];
+
+  test('should name the line whose package price accounts for the gap', () => {
+    expect(suggestExtraPackages(-164, lines)).toEqual({ key: 2, packages: 1 });
+  });
+
+  test('should count several packages of the same line', () => {
+    expect(suggestExtraPackages(-330, lines)).toEqual({ key: 1, packages: 2 });
+  });
+
+  test('should stay silent when two lines explain the same gap', () => {
+    expect(
+      suggestExtraPackages(-200, [
+        { key: 0, packagePriceCents: 200, quantity: 2 },
+        { key: 1, packagePriceCents: 100, quantity: 2 },
+      ]),
+    ).toBeNull();
+  });
+
+  test('should stay silent when the gap is not a whole number of packages', () => {
+    expect(suggestExtraPackages(-3, lines)).toBeNull();
+  });
+
+  test('should not propose removing more packages than the line has', () => {
+    expect(
+      suggestExtraPackages(-600, [{ key: 0, packagePriceCents: 300, quantity: 1 }]),
+    ).toBeNull();
+  });
+
+  test('should say nothing when the lines total LESS than the receipt', () => {
+    // The normal case: a bag levy or a deposit the import is right to skip.
+    expect(suggestExtraPackages(3, lines)).toBeNull();
   });
 });

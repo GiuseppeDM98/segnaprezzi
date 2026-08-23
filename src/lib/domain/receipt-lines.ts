@@ -10,7 +10,7 @@
  * price_entries contract wants, and reports WHERE the size came from so the
  * review screen can ask the user when it came from nowhere.
  */
-import { calculateUnitPriceMilli } from './money';
+import { calculateUnitPriceMilli, isUnitPriceConsistent } from './money';
 import type { UnitKind } from './units';
 
 /** How the receipt printed a line's quantity ("QUANTITY"). */
@@ -161,7 +161,8 @@ export function deriveUnitPriceMilli(input: DeriveUnitPriceInput): DerivedLineFi
   const derivedMilli = calculateUnitPriceMilli(totalPriceCents, packageSize);
 
   // A weighed line prints the €/kg the scale actually used; it beats a value
-  // re-derived from two already-rounded numbers. Counted lines print the
+  // re-derived from two already-rounded numbers, and by more the lighter the
+  // item (50 g rounded to the cent is 2 % off). Counted lines print the
   // per-package price instead, which is not a unit price at all.
   const printedMilli =
     isWeighed && input.unitPriceCentsOnReceipt !== null && input.unitPriceCentsOnReceipt > 0
@@ -171,12 +172,26 @@ export function deriveUnitPriceMilli(input: DeriveUnitPriceInput): DerivedLineFi
     printedMilli !== null &&
     Math.abs(printedMilli - derivedMilli) > PRINTED_UNIT_PRICE_TOLERANCE * derivedMilli;
 
+  /*
+   * Why the printed €/kg is only *preferred*, never imposed: it is the price
+   * before the line's own discount, so a weighed product on offer prints
+   * "9,90 €/kg" next to a total that was actually 6,00 €/kg — a triple the
+   * entry contract cannot store and `confirmReceipt` rejects for the whole
+   * receipt. Rounding to the cent never breaks the invariant (it is worth at
+   * most half a cent), so failing it means the two numbers describe two
+   * different prices, and the one the index wants is the one actually paid.
+   */
+  const unitPriceMilli =
+    printedMilli !== null && isUnitPriceConsistent(totalPriceCents, packageSize, printedMilli)
+      ? printedMilli
+      : derivedMilli;
+
   return {
     quantity,
     packageSize,
     sizeSource,
     totalPriceCents,
-    unitPriceMilli: printedMilli ?? derivedMilli,
+    unitPriceMilli,
     hasPrintedUnitPriceMismatch,
   };
 }
@@ -201,4 +216,72 @@ function resolvePackageSize(
     return { packageSize: 1, sizeSource: 'assumed-one' };
   }
   return { packageSize: null, sizeSource: 'missing' };
+}
+
+/** One reviewed line, as far as the total reconciliation is concerned. */
+export interface MismatchCandidateLine {
+  /** Whatever identifies the line to the caller; never rendered here. */
+  key: number;
+  /** Price of ONE package, in euro cents. */
+  packagePriceCents: number;
+  /** Packages this line stands for. */
+  quantity: number;
+}
+
+export interface ExtraPackagesHint {
+  key: number;
+  /** How many packages of that line the gap is worth. */
+  packages: number;
+}
+
+/**
+ * Name the line whose packages exactly account for a receipt that adds up to
+ * MORE than the till charged.
+ *
+ * Teacher: a till prints one line per unit, and a model reading ten
+ * identical "M-T PESTO GEN.COOP 1,64" lines can hand back eleven — an
+ * invented purchase that no per-line check can see, because every line is
+ * individually plausible. What gives it away is the printed total: the gap
+ * is then an exact multiple of one line's package price. Both halves of that
+ * sentence matter, so this only speaks when it is certain: the gap must
+ * divide exactly, the packages must actually be there to remove, and no
+ * second line may explain the same gap. Anything less stays silent rather
+ * than sending the user to the wrong row.
+ *
+ * The opposite sign is deliberately not handled: lines totalling LESS than
+ * the receipt is the normal case (bag levies, deposits and trip-level
+ * discounts are not product lines), and guessing a missing purchase from it
+ * would invent data.
+ *
+ * @param differenceCents - receiptTotal − Σ (package price × quantity); only
+ *   a negative value can be explained here
+ * @param lines - The included lines, as the user has them now
+ * @returns The line to check and how many packages the gap is worth, or null
+ */
+export function suggestExtraPackages(
+  differenceCents: number,
+  lines: MismatchCandidateLine[],
+): ExtraPackagesHint | null {
+  const excessCents = -differenceCents;
+  if (excessCents <= 0) {
+    return null;
+  }
+
+  let hit: ExtraPackagesHint | null = null;
+  for (const line of lines) {
+    if (line.packagePriceCents <= 0 || excessCents % line.packagePriceCents !== 0) {
+      continue;
+    }
+    const packages = excessCents / line.packagePriceCents;
+    if (packages > line.quantity) {
+      continue;
+    }
+    // A second explanation is no explanation: two products at the same price
+    // would send the user to a coin flip.
+    if (hit) {
+      return null;
+    }
+    hit = { key: line.key, packages };
+  }
+  return hit;
 }

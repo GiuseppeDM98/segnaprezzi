@@ -282,10 +282,21 @@ function MoversSection({ data }: { data: ReadyData }) {
   );
 }
 
+/*
+ * Why the layout changes shape at tablet rather than just widening: on a
+ * phone these are three thumb targets and the 2+1 grid is the right block —
+ * full-width buttons, no wasted gutter. On a wide page the same grid became
+ * a 448 px island floating in the left half of a 1024 px column, with the
+ * receipt button spanning two cells for no reason anyone could name and
+ * every label marooned in the middle of a stretched plate. A wrapped row of
+ * content-sized buttons has neither problem: they sit on one line, each as
+ * wide as the words it carries, aligned to the same left edge as everything
+ * above them.
+ */
 function QuickActions() {
   const t = useTranslations('dashboard');
   return (
-    <section className="grid grid-cols-2 gap-3 tablet:max-w-md">
+    <section className="grid grid-cols-2 gap-3 tablet:flex tablet:flex-wrap">
       <Button href="/add/manual" variant="secondary" icon={<PencilLine className="size-4" />}>
         {t('quickAddManual')}
       </Button>
@@ -296,6 +307,7 @@ function QuickActions() {
         href="/add/receipt"
         variant="secondary"
         icon={<ReceiptText className="size-4" />}
+        // `col-span-2` is inert once the section is a flex row at tablet.
         className="col-span-2"
       >
         {t('quickAddReceipt')}

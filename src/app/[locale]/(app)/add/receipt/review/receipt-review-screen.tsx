@@ -13,11 +13,12 @@
  * price by hand — at that point they know something the arithmetic does not.
  */
 import { useLocale, useTranslations } from 'next-intl';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { type MatchOption, MatchPicker } from '@/components/capture/match-picker';
 import { ScreenHeader } from '@/components/layout/screen-header';
 import {
+  type ReceiptLineBlockingReason,
   ReceiptLineCard,
   type ReceiptLineCardFields,
 } from '@/components/receipt/receipt-line-card';
@@ -27,8 +28,9 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import type { CategoryId } from '@/lib/domain/categories';
-import { calculateUnitPriceMilli } from '@/lib/domain/money';
-import type { ReceiptLineStatus } from '@/lib/domain/receipt-lines';
+import { calculateUnitPriceMilli, isUnitPriceConsistent } from '@/lib/domain/money';
+import { type ReceiptLineStatus, suggestExtraPackages } from '@/lib/domain/receipt-lines';
+import { RECEIPT_TOTAL_TOLERANCE_CENTS } from '@/lib/domain/receipts';
 import type { UnitKind } from '@/lib/domain/units';
 import { type AppLocale, formatDate, formatMoney } from '@/lib/format';
 import { useRouter } from '@/lib/i18n/navigation';
@@ -89,6 +91,8 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
   const [errorCode, setErrorCode] = useState<string | null>(null);
 
   const searchHits = useMemo(() => new Map<string, MatchOption>(), []);
+  // Keyed by line index so a failed confirm can scroll to the card it means.
+  const cardRefs = useRef<Record<number, HTMLLIElement | null>>({});
 
   function updateDraft(index: number, patch: (draft: LineDraft) => LineDraft): void {
     setDrafts((current) => current.map((draft) => (draft.index === index ? patch(draft) : draft)));
@@ -151,6 +155,32 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
     });
   }
 
+  /**
+   * Take the unit price back from the user and re-derive it.
+   *
+   * The way out of the one blocking reason nobody can fix by arithmetic in
+   * their head: a hand-typed unit price that no longer matches the price and
+   * the size next to it.
+   */
+  function recalculateUnitPrice(index: number): void {
+    updateDraft(index, (draft) => {
+      if (draft.fields.packageSize === null || draft.fields.packageSize <= 0) {
+        return draft;
+      }
+      return {
+        ...draft,
+        isUnitPriceEdited: false,
+        fields: {
+          ...draft.fields,
+          unitPriceMilli: calculateUnitPriceMilli(
+            draft.fields.totalPriceCents,
+            draft.fields.packageSize,
+          ),
+        },
+      };
+    });
+  }
+
   async function handleSearch(query: string): Promise<MatchOption[]> {
     const result = await searchProducts({ query });
     if (!result.ok) {
@@ -168,6 +198,20 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
   }
 
   async function handleConfirm(): Promise<void> {
+    /*
+     * Why the button is not disabled instead (DESIGN.md, and the same call
+     * the capture review made): a disabled confirm withholds both the reason
+     * and the way out. Pressing it scrolls to the first card that cannot be
+     * saved and says what it is missing; the server-side guarantee is
+     * unchanged.
+     */
+    const blocked = includedDrafts.find((draft) => blockingReasonOf(draft) !== null);
+    if (blocked) {
+      cardRefs.current[blocked.index]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setErrorCode('INVALID_INPUT');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorCode(null);
     const result = await confirmReceipt({
@@ -198,7 +242,7 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
   }
 
   const includedDrafts = drafts.filter((draft) => !draft.isExcluded);
-  const blockedCount = includedDrafts.filter((draft) => !isDraftConfirmable(draft)).length;
+  const blockedCount = includedDrafts.filter((draft) => blockingReasonOf(draft) !== null).length;
   const readyCount = includedDrafts.length - blockedCount;
   const excludedCount = drafts.length - includedDrafts.length;
   const includedTotalCents = includedDrafts.reduce(
@@ -206,6 +250,39 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
     0,
   );
   const activeMatchDraft = drafts.find((draft) => draft.index === matchFor) ?? null;
+  /*
+   * The reconciliation the user is actually doing, against the paper in
+   * their hand — so it is computed from the lines AS EDITED, not from the
+   * extraction as it arrived. That is what lets a correction close the gap:
+   * the model read one "PESTO 1,64" line too many, and dropping the
+   * confezioni stepper from 7 to 6 has to take the difference to zero, or
+   * the number is telling the user nothing they can act on.
+   *
+   * Signed: negative means the till charged less than the lines add up to.
+   */
+  const totalDifferenceCents =
+    review.header.receiptTotalCents === null
+      ? null
+      : review.header.receiptTotalCents - includedTotalCents;
+  const hasTotalMismatch =
+    totalDifferenceCents !== null && Math.abs(totalDifferenceCents) > RECEIPT_TOTAL_TOLERANCE_CENTS;
+  // The server's own total-mismatch flag is a snapshot of the extraction; the
+  // live one above replaces it, and the rest of the header's reasons stand.
+  const headerReasons = review.header.reasons.filter((reason) => reason !== 'total-mismatch');
+  const extraPackages =
+    totalDifferenceCents === null
+      ? null
+      : suggestExtraPackages(
+          totalDifferenceCents,
+          includedDrafts.map((draft) => ({
+            key: draft.index,
+            packagePriceCents: draft.fields.totalPriceCents,
+            quantity: draft.fields.quantity,
+          })),
+        );
+  const extraPackagesDraft = extraPackages
+    ? (drafts.find((draft) => draft.index === extraPackages.key) ?? null)
+    : null;
   const storeName = stores.find((store) => store.id === review.header.storeId)?.name ?? null;
 
   return (
@@ -247,8 +324,8 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="font-sans text-text-muted">{t('linesTotal')}</dt>
-              <dd className="font-semibold text-text">
-                {formatMoney(review.header.linesTotalCents, locale)}
+              <dd data-testid="receipt-lines-total" className="font-semibold text-text">
+                {formatMoney(includedTotalCents, locale)}
               </dd>
             </div>
             {review.header.receiptTotalCents !== null && (
@@ -259,9 +336,42 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
                 </dd>
               </div>
             )}
+            {/* Named rather than left as an exercise: the gap is almost always
+                a line the import is right to skip (a trip-level discount, the
+                bag levy, a deposit), and seeing the amount is what tells the
+                user which. */}
+            {totalDifferenceCents !== null && totalDifferenceCents !== 0 && (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="font-sans text-text-muted">{t('totalDifference')}</dt>
+                <dd data-testid="receipt-total-difference" className="text-text-muted">
+                  {totalDifferenceCents > 0 ? '+' : ''}
+                  {formatMoney(totalDifferenceCents, locale)}
+                </dd>
+              </div>
+            )}
           </dl>
 
-          {review.header.reasons.map((reason) => (
+          {hasTotalMismatch && (
+            <p
+              data-testid="receipt-header-warning"
+              className="rounded-control bg-warning-soft px-3 py-2 font-sans text-[13px] text-text"
+            >
+              {t('totalMismatch')}
+              {/* When the gap is exactly N packages of one line, say which:
+                  it is the difference between "i conti non tornano" and one
+                  tap on that line's stepper. */}
+              {extraPackagesDraft && (
+                <span data-testid="receipt-extra-packages" className="mt-1 block font-semibold">
+                  {t('totalMismatchExtraPackages', {
+                    count: extraPackages?.packages ?? 0,
+                    product: extraPackagesDraft.product.label,
+                  })}
+                </span>
+              )}
+            </p>
+          )}
+
+          {headerReasons.map((reason) => (
             <p
               key={reason}
               data-testid="receipt-header-warning"
@@ -284,12 +394,18 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
             {drafts.map((draft) => {
               const sameDay = review.sameDayByLineIndex[draft.index];
               return (
-                <li key={draft.index}>
+                <li
+                  key={draft.index}
+                  ref={(node) => {
+                    cardRefs.current[draft.index] = node;
+                  }}
+                >
                   <ReceiptLineCard
                     data-testid="receipt-line-card"
                     rawLine={draft.rawLine}
                     mergedLineCount={draft.mergedLineCount}
                     status={liveStatus(draft)}
+                    blockingReason={draft.isExcluded ? null : blockingReasonOf(draft)}
                     reviewReasons={draft.reviewReasons}
                     fields={draft.fields}
                     product={draft.product}
@@ -305,7 +421,13 @@ export function ReceiptReviewScreen({ review, stores }: ReceiptReviewScreenProps
                     learnAlias={draft.learnAlias}
                     unitSymbol={tUnits(`perBase.${draft.fields.unitKind}`)}
                     sizeSymbol={tUnits(SIZE_SYMBOL_KEY[draft.fields.unitKind])}
+                    packagePriceLabel={formatMoney(draft.fields.totalPriceCents, locale)}
+                    lineTotalLabel={formatMoney(
+                      draft.fields.totalPriceCents * draft.fields.quantity,
+                      locale,
+                    )}
                     onChange={(patch) => updateFields(draft.index, patch)}
+                    onRecalculateUnitPrice={() => recalculateUnitPrice(draft.index)}
                     onOpenMatch={() => setMatchFor(draft.index)}
                     onToggleExcluded={() =>
                       updateDraft(draft.index, (current) => ({
@@ -443,17 +565,43 @@ function liveStatus(draft: LineDraft): ReceiptLineStatus {
   return 'ready';
 }
 
-/** A line may be confirmed once every value the entry contract needs is real. */
-function isDraftConfirmable(draft: LineDraft): boolean {
-  return (
-    !draft.needsProductDecision &&
-    draft.fields.packageSize !== null &&
-    draft.fields.packageSize > 0 &&
-    draft.fields.totalPriceCents > 0 &&
-    draft.fields.unitPriceMilli !== null &&
-    draft.fields.unitPriceMilli > 0 &&
-    draft.product.label.trim().length > 0
-  );
+/**
+ * Name what a line is still missing, in the order the user has to fix it:
+ * the product first (only they can choose it), then the size the unit price
+ * hangs off, then the money.
+ *
+ * The last check is the one the server used to make alone: a total, a size
+ * and a unit price that contradict each other are refused by
+ * `confirmReceipt` for the WHOLE receipt, and before this the screen had no
+ * idea — it counted the line as ready and the user read "il prezzo non è
+ * valido" under a confirm button with nothing else to go on.
+ *
+ * @returns null when the line can be confirmed as it stands
+ */
+function blockingReasonOf(draft: LineDraft): ReceiptLineBlockingReason | null {
+  if (draft.needsProductDecision || draft.product.label.trim().length === 0) {
+    return 'product';
+  }
+  if (draft.fields.packageSize === null || draft.fields.packageSize <= 0) {
+    return 'size';
+  }
+  if (
+    draft.fields.totalPriceCents <= 0 ||
+    draft.fields.unitPriceMilli === null ||
+    draft.fields.unitPriceMilli <= 0
+  ) {
+    return 'price';
+  }
+  if (
+    !isUnitPriceConsistent(
+      draft.fields.totalPriceCents,
+      draft.fields.packageSize,
+      draft.fields.unitPriceMilli,
+    )
+  ) {
+    return 'unit-price';
+  }
+  return null;
 }
 
 function toConfirmLine(draft: LineDraft): ConfirmReceiptActionInput['lines'][number] {
@@ -470,8 +618,8 @@ function toConfirmLine(draft: LineDraft): ConfirmReceiptActionInput['lines'][num
             unitKind: draft.fields.unitKind,
           },
     quantity: draft.fields.quantity,
-    // isDraftConfirmable() has already guaranteed these are set before the
-    // confirm button becomes clickable.
+    // blockingReasonOf() has already guaranteed these are set: handleConfirm
+    // stops at the first line that fails it.
     packageSize: draft.fields.packageSize as number,
     totalPriceCents: draft.fields.totalPriceCents,
     unitPriceMilli: draft.fields.unitPriceMilli as number,

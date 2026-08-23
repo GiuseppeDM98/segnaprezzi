@@ -310,7 +310,7 @@
       "storeCreated": "The store will be created on confirm",
       "receiptTotal": "Receipt total",
       "linesTotal": "Lines total",
-      "totalMismatch": "The lines do not add up to the receipt total: check the highlighted lines",
+      "totalMismatch": "The lines do not add up to the receipt total. It is usually a line that is not a product (a trip-level discount, the bag levy, a deposit): check the flagged lines and the difference above.",
       "noTotal": "The receipt shows no legible total",
       "noDate": "Date not legible: check and correct it",
       "lowConfidence": "Uncertain reading: check every line",
@@ -347,13 +347,21 @@
         "totalPrice": "Price",
         "unitPrice": "Unit price",
         "isPromo": "On promotion",
-        "promoKind": "Promotion kind"
+        "promoKind": "Promotion kind",
+        "lineTotal": "Line total"
       },
       "empty": {
         "title": "No line to check",
         "body": "The receipt contained no legible product line.",
         "cta": "Upload another receipt"
-      }
+      },
+      "toComplete": "To complete",
+      "blockingPrice": "Fill in the price and the unit price",
+      "blockingUnitPrice": "Unit price, price and package size do not agree",
+      "recalculateUnitPrice": "Recalculate the unit price",
+      "totalDifference": "Difference",
+      "lineTotalFactors": "{quantity} × {price}",
+      "totalMismatchExtraPackages": "The difference is exactly {count, plural, one {# package} other {# packages}} of “{product}”: check that line’s package count."
     }
   },
   "products": {
