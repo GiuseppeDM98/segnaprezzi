@@ -2,7 +2,7 @@
   "source": "ISTAT SDMX REST (esploradati.istat.it), dataflow IT1,167_745,1.0, key M.IT..4.00",
   "indexName": "NIC all items",
   "base": "2025=100 (earlier bases 1995, 2010, 2015 chain-linked on their reference-year averages)",
-  "updatedAt": "2026-08-21T09:45:36.459Z",
+  "updatedAt": "2026-10-20T10:57:22.355Z",
   "months": {
     "1996-01": 55.6498,
     "1996-02": 55.867,
@@ -370,6 +370,8 @@
     "2026-04": 102.7,
     "2026-05": 103.1,
     "2026-06": 103.1,
-    "2026-07": 103.4
+    "2026-07": 103.4,
+    "2026-08": 103.9,
+    "2026-09": 104.6
   }
 }
