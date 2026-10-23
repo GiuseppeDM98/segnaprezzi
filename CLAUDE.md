@@ -23,7 +23,7 @@ only if majors differ.
 
 | Package | Version | Role |
 |---|---|---|
-| next | 16.3.x | App Router, Server Actions |
+| next | 16.4.x | App Router, Server Actions |
 | react / react-dom | 19.2.x | UI |
 | typescript | 7.0.x | as scaffolded by create-next-app |
 | tailwindcss | 4.3.x | Styling |
