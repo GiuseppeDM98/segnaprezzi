@@ -102,6 +102,8 @@
 - Deleting a single price observation now deletes its photo as well
 - Added a maintenance command that finds and removes photos left behind by earlier versions
 
+- Updated Next.js to 16.4.2, which fixes critical remote code execution advisories in image optimization (GHSA-2464-fhr4-w9xw) and in cached functions (GHSA-673q-mjm6-r5xr), plus a denial of service in Server Actions (GHSA-p3m5-59mp-jv5r). Self-hosted instances should update
+
 ## 📚 Documentation
 
 - Added `DESIGN.md`, the recorded design system (tokens, type, layout, motion, do's and don'ts) that every UI change must follow, and `PRODUCT.md` with the product truth behind it
