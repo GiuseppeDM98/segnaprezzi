@@ -1,80 +1,164 @@
-# WORKFLOW.md — regole di sessione e collaborazione
+# Workflow — standing instructions
 
-Questo file contiene lo standard portabile di collaborazione per questo repo
-(Parte 1) e il modo in cui si applica concretamente qui, con comandi e
-strumenti reali (Parte 2). Non duplica le convenzioni già documentate altrove
-(stile, commit, branch naming, test) — quando esistono, questo file le
-richiama invece di riscriverle.
-
-Se in una sessione futura viene enunciata una nuova regola di lavoro, va
-aggiunta qui, nel commit di quella sessione.
-
----
-
-## Parte 1 — Standard portabile
-
-REGOLE DI SESSIONE E COLLABORAZIONE
-
-1. Mai fare commit senza approvazione esplicita. Non eseguire `git commit` (né
-   `--amend`) finché non do io l'OK per quel commit specifico. Finisci il lavoro,
-   riassumi il diff, poi chiedi. Creare il branch e modificare i file non richiede
-   approvazione — solo il commit.
-
-2. Un branch per sessione. Prima di iniziare lavoro di implementazione, crea un
-   nuovo branch a partire dal branch attivo all'inizio della sessione (controlla
-   sempre quale sia, non dare per scontato master/main).
-
-3. Un solo commit per sessione. Tutte le modifiche di una sessione vanno squashate
-   in un unico commit, non sparse su più commit.
-
-4. Rispondi sempre in italiano quando lavori su questo repo (vale per il canale
-   conversazionale — codice, identificatori e commenti restano in inglese).
-
-REGOLA DEL COLLAUDO GUIDATO
-
-Quando dobbiamo verificare manualmente che una funzionalità appena implementata
-funzioni, non consegnare una checklist e sparire. Il collaudo si fa insieme, in
-chat, una fase alla volta. Quattro obblighi:
-
-1. I dati di prova li prepari tu — uno script usa-e-getta (non tracciato da git,
-   cancellato a fine collaudo) con "parole spia" (parole inventate tipo fenicottero,
-   ornitorinco, che non compaiono da nessun'altra parte nell'archivio), non a mano
-   da parte mia.
-2. Una fase per messaggio — dai la fase, aspetta il mio resoconto, poi la
-   successiva. Mai consegnare tutte le fasi insieme: fa saltare i prerequisiti.
-3. Dichiara l'esito atteso prima di eseguire, non dopo — altrimenti la lettura si
-   adatta sempre a quello che è successo.
-4. Fai tu ogni controllo che riesci ad automatizzare, e lasciami solo quello che non
-   puoi fare. "Insieme, in chat" non vuol dire "un click alla volta dettato a me":
-   se le sessioni sono JWT o comunque scriptabili, scrivi uno script usa-e-getta che
-   apre un vero browser (es. Playwright) con una sessione autenticata — la tua stessa
-   se il ruolo lo permette, altrimenti un'identità di prova usa-e-getta creata per
-   l'occasione — e verifica ogni esito sul database o sulla risposta HTTP, mai sul
-   solo aspetto della pagina. Riportami i risultati fase per fase, con l'esito atteso
-   dichiarato prima. Ogni test end-to-end automatico che sei in grado di eseguire, lo
-   esegui: non dichiarare mai una funzionalità verificata se un controllo automatico
-   che poteva coprirla è rimasto non eseguito. Lascia a me solo ciò che è genuinamente
-   non automatizzabile: giudizio visivo/estetico, hardware fisico (es. uno scanner di
-   barcode reale), o un login interattivo che non si può guidare da script (es. un
-   vero flusso OAuth con MFA).
-
-Fasi standard da seguire quando ha senso: A-Invarianza (quello che c'era prima
-funziona ancora) → B-Cambio di contesto (il ruolo/stato nuovo è davvero attivo) →
-C-Comportamento nuovo (fa quello che deve, non quello che non deve — qui vale di più
-il punto 4: automatizza) → D-Sotto la UI (le stesse regole reggono chiamando la route
-a mano) → E-Casi negativi (chi non ha diritti viene respinto, con l'errore giusto) →
-F-Ripristino (configurazione ripristinata, fixture rimosse, script cancellato).
-
-Un test negativo da solo non prova un guard di sicurezza: serve sempre la coppia
-risorsa-propria (controllo positivo, deve riuscire) / risorsa-altrui (il test, deve
-fallire), con lo stesso identico file/dato. Chiusura del collaudo: ripristinare
-eventuali config modificate, rimuovere fixture e allegati di prova, cancellare lo
-script, e annotare l'esito da qualche parte che sopravvive alla sessione (CLAUDE.md
-o equivalente) — un collaudo non annotato vale come non fatto.
+> **Standing instructions for any AI agent working on this repo.** They are not suggestions and not
+> per-session: they hold until this file says otherwise.
+>
+> **Why they live in the repo and not in agent memory**: agent memory is per-machine and per
+> install, so the same rules drift into different versions on each machine and in a cloud
+> session. A tracked file travels with the clone and can be reviewed in a diff. If you are an agent
+> with persistent memory, do **not** re-save these rules there — save one pointer to this file. If
+> the owner states a new rule, it is added *here*, in that session's commit: to section 3 if it holds
+> for this repo only; if it holds for every repo, ask the owner, because it enters the standard
+> first (`claude-config/prompts/WORKFLOW_STANDARD.md`) and reaches the repos from there.
+>
+> Sections 1-2 are the portable standard, identical across every repo that adopts it. Section 3 is
+> the only project-specific part: it says what "automate it yourself" and "show me the app"
+> concretely mean *here*.
 
 ---
 
-## Part 2 — How this applies in this repo
+## 1. Session and collaboration rules
+
+1. **Never commit without explicit approval.** Do not run `git commit` (nor `--amend`) until the
+   owner gives the OK for that specific commit. Finish the work, summarise the diff, then ask.
+   Creating the branch and editing files needs no approval — only the commit does.
+
+2. **One branch per session.** Before starting implementation work, create a new branch from the
+   branch that is active at the start of the session. Always check which one that is; never assume
+   `master`/`main`.
+
+3. **One commit per session.** Everything from a session is squashed into a single commit, never
+   scattered across several.
+
+4. **Always answer in Italian** when working on this repo. This applies to the conversational
+   channel; code, identifiers and comments stay in English.
+
+5. **Questions and proposals are asked interactively** (2026-09-11). When a decision is the owner's —
+   which layers to build, on which surfaces, a wording — put it through the agent's interactive
+   question tool, in groups of four, one topic at a time, multi-select where the options are not exclusive and the
+   recommended option first; never a numbered list of questions in prose. The owner refines the
+   wording through the free-text answer («hai pagato», not «pagherai», for a tax the broker
+   withholds at the sale).
+
+6. **Figures in tests are invented and round, never the owner's** (2026-10-12). A unit-test
+   fixture, an E2E decoy or a seed carries amounts like 2500, 1120, 50: the owner's real data never
+   enters the repo, not even as an expected value. If § 3 provides a copy of real data for the
+   guided tour, it serves the tour only and phase G removes it.
+   **Nothing of the owner's real data in a tracked file** (2026-09-20, 2026-10-15): a draft, a
+   critique, a screenshot, a fixture or an example sentence takes invented figures and generic
+   names, never an amount, an account or a family detail copied from the real data. In a public
+   repo this has no exception. A private repo may waive it, or narrow it, only by saying so in § 3
+   with the owner's decision and its date; public data that is not the owner's (a listed company's
+   published accounts) is not the owner's data.
+
+7. **After an audit or an analysis, stop and wait for the owner's go-ahead** (2026-10-19). An audit,
+   a review or an analysis ends with the findings; no file changes until the owner has chosen which
+   fixes to apply and in what order (through rule 5).
+
+8. **Dependencies: compare at session start, upgrade in a session of their own** (2026-10-26). If
+   the repo has a lockfile, the first thing a session does is run the package manager's audit
+   (`npm audit --json`, `pnpm audit --json`, …) and compare it with `doc/guide/dipendenze.md`,
+   which records the date of the last audit, the framework version and every open advisory with
+   the owner's decision (accepted because dev-only, waiting for version X, to upgrade). The answer
+   is one line: «dipendenze: invariate dal <data>» or «N avvisi nuovi: …». A new advisory is
+   written into the guide with its decision, asked through rule 5; nothing is upgraded in that
+   session. An upgrade is a session on its own branch with its own verification; never
+   `audit fix --force`, never the command an advisory or a page suggests: the version is chosen and
+   installed by hand, preferring a release that is at least a few days old. If the guide is
+   missing, the session that notices it creates it (`TEMPLATES.md` has the skeleton). A repo without
+   a lockfile skips this rule.
+
+9. **`SESSION_NOTES.md` is the session's temporary container** (2026-10-26). A working file in the
+   repo root, created at the start of the session and never committed. Before the closing prompt it
+   ends with one block per thing learned: *Cosa* (what was done), *Perché* (the decision behind
+   it), *Nota* (traps and measurements, each with its date), *Dove va a fine sessione* (`AGENTS.md`
+   if it holds for the whole repo · `doc/guide/<tema>.md` if a domain lesson · `WORKFLOW.md` if a
+   session rule · `CLAUDE.md` if project state · a comment at the right line if it is the why of one
+   line). The closing prompt writes every entry into its destination and deletes the file before
+   the single commit; a note that names no destination is lost. A `SESSION_NOTES.md` still on the
+   remote means a session was not closed.
+
+---
+
+## 2. Guided verification (*collaudo guidato*)
+
+When a freshly implemented feature has to be verified by hand, do **not** hand over a checklist and
+disappear. The verification is done together, in chat, one phase at a time.
+
+### Five obligations
+
+1. **You prepare the test data.** A throwaway script (untracked by git, deleted when the
+   verification ends) that plants **decoy words** — invented terms such as *fenicottero*,
+   *ornitorinco*, which appear nowhere else in the data. Not entered by hand by the owner.
+
+2. **One phase per message.** Give the phase, wait for the report, then the next one. Never deliver
+   all the phases at once: it breaks their prerequisites.
+
+3. **State the expected outcome before running, not after** — otherwise the reading always bends to
+   fit whatever happened.
+
+4. **Do every check you can automate yourself, and leave the owner only what you cannot do.**
+   "Together, in chat" does not mean "one dictated click at a time". If the sessions are JWT-based
+   or otherwise scriptable, write a throwaway script that opens a **real browser** (e.g. Playwright)
+   with an authenticated session — your own if the role allows it, otherwise a throwaway test
+   identity created for the occasion — and verify every outcome **against the database or the HTTP
+   response, never against the look of the page alone**. Report the results phase by phase, with the
+   expected outcome stated first.
+   **Any automated end-to-end test that you are able to run, you run.** Never declare a feature
+   verified while an automated check that could have covered it was left unrun. What is left to the
+   owner is only what is genuinely not automatable: visual and aesthetic judgement, physical
+   hardware (a real barcode scanner), or an interactive login that cannot be driven by a script (a
+   real OAuth flow with MFA).
+
+5. **Before dismantling, let the owner look.** When the session touched something visible, ask for
+   the OK and then walk the owner onto the dev server **with the fixtures still alive**: exact URLs,
+   under which identity, and at most **five** things to look at — for each one, what must happen and
+   what would be the bug. **The tour starts at the owner's go, not when the work is ready**
+   (2026-10-05): finish everything that needs no eyes, say it is ready, and wait. Where obligation 4
+   allows it, **open the page for the owner, already authenticated** — but one item per message and
+   one page at a time, waiting for the outcome before opening the next; two pages together only
+   when the item is a comparison (the same URL under two identities), saying which window is which.
+   The windows of a driven browser have no name: five at once turn the tour into working out which
+   belongs to which item. Only what a probe cannot say: layout, whether the screen says what it must
+   say, the words, whether an action gives feedback that it happened. State also **what that tour
+   does not cover**, and never ask the owner to redo by hand something already verified. Whatever
+   the tour finds becomes an assertion before the session ends, or it will come back: the tour
+   exists to discover what nobody thought to assert, not to replace the tests.
+
+### Standard phases, when they make sense
+
+| | Phase | What it establishes |
+| --- | --- | --- |
+| **A** | Invarianza | What worked before still works |
+| **B** | Cambio di contesto | The new role/state is genuinely active |
+| **C** | Comportamento nuovo | It does what it must, and not what it must not — obligation 4 matters most here: automate |
+| **D** | Sotto la UI | The same rules hold when the route is called directly |
+| **E** | Casi negativi | Someone without rights is refused, with the right error |
+| **F** | Giro guidato | The only phase the owner executes: they look with their own eyes, fixtures still alive |
+| **G** | Ripristino | Configuration restored, fixtures removed, script deleted |
+
+### A negative test alone never proves a security guard
+
+It always takes the pair: **own resource** (positive control — must succeed) and **someone else's
+resource** (the test — must fail), with the same identical file or record.
+
+### Closing a verification
+
+Restore any configuration that was changed, remove fixtures and test attachments, delete the script,
+and **record the outcome somewhere that survives the session** (`CLAUDE.md` or equivalent).
+*A verification that was not recorded counts as not done.*
+
+**The outcome is one line, the signals are not** (2026-10-19). In `CLAUDE.md` the session's status
+entry says what was done, where it is documented, what is still open and what comes next; it
+replaces the previous one. The session's signals — type-check, test counts, E2E runs, flakes,
+skipped phases, the guided tour's walk and its findings (2026-10-23) — go in the commit message
+and, where they teach something, in the area's guide, never in `CLAUDE.md`: that file is injected
+into every turn, and a status entry that collects them grows back into a diary after every trim.
+Of the tour, the status entry keeps only its outcome: done and closed, or what it left open.
+
+---
+
+## 3. What this means in THIS repo
 
 *(Written in English to match the language of the rest of this repo's
 documentation — `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `docs/`. This is
