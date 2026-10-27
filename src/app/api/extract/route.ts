@@ -17,6 +17,13 @@ import { STORE_KINDS } from '@/lib/domain/stores';
 import { extractPhotoEntry } from '@/lib/services/extract-photo-entry';
 import { errorResponse, toErrorResponse } from '../route-errors';
 
+/**
+ * The gateway waits up to 60 s for the model (PRICE_TAG_TIMEOUT_MS), and a
+ * cold start comes on top; the function must outlive both. Fluid compute on
+ * the Vercel project allows this.
+ */
+export const maxDuration = 90;
+
 const BYTES_PER_MB = 1024 * 1024;
 
 /** Hard cap on the upload; compression (§4) should keep photos far below it. */

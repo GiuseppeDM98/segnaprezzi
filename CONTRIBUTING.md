@@ -92,7 +92,6 @@ For E2E work, install the Playwright browsers once: `pnpm exec playwright instal
 | `pnpm db:seed` | Load demo data into the local DB |
 | `pnpm db:studio` | Browse the local DB with Drizzle Studio |
 | `pnpm istat:update` | Refresh `data/istat-nic.json` from ISTAT's SDMX service (commit the diff) |
-| `pnpm receipt:fixture` | Regenerate the synthetic receipt PDF the E2E suite uploads (never commit a real receipt) |
 
 ---
 
@@ -104,8 +103,9 @@ A PR is ready for review only when **all four** are green locally:
 pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e
 ```
 
-CI runs the same checks, with E2E in a separate non-blocking job; a red
-pipeline means the PR won't be reviewed yet.
+There is no CI workflow: these four commands, run locally, are the gate, and
+a PR whose author has not run them is not ready for review. The only GitHub
+Actions workflow is the monthly ISTAT refresh.
 New behavior needs tests at the right level of the pyramid: unit tests
 (colocated `*.test.ts`) for logic — especially anything under `src/lib/inflation/`
 and `src/lib/domain/` — integration tests for wiring, Playwright only for

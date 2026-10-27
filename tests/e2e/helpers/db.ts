@@ -35,7 +35,7 @@ async function withLocalClient(work: (client: Client) => Promise<void>): Promise
  * don't accumulate signup-test users that scripts/seed.ts doesn't know about.
  * Playwright tests assert through HTTP responses, never by reaching into the
  * DB for behavior; the helpers in this file touch it only to clean up after a
- * suite or, in seedExtractedReceipt, to stand in for the model call.
+ * suite.
  */
 export async function deleteUserByEmail(email: string): Promise<void> {
   await withLocalClient(async (client) => {
@@ -92,103 +92,6 @@ export async function deleteProductsByName(email: string, names: string[]): Prom
     await client.execute({
       sql: `DELETE FROM products WHERE id IN (${selectProducts})`,
       args: [...names, email],
-    });
-  });
-}
-
-/**
- * The products the receipt-import suite's confirms create. Invented names
- * (spy words, "parole spia") so cleanup can never touch seeded or real data;
- * a test that adds a spy word adds its product here.
- */
-const RECEIPT_FIXTURE_PRODUCT_NAMES = [
-  'Pasta fenicottero n.5 500g',
-  'Latte ornitorinco 1L',
-  'Quokka fresco',
-  'Pesto capibara 190g',
-  'Crema narvalo 250g',
-];
-
-/**
- * Remove everything the receipt-import E2E suite writes for one user: the
- * entries it confirms, the products those entries created, the learned
- * aliases and the import records themselves.
- *
- * Order matters twice: price_entries.product_id blocks deleting a product
- * that still has history, and price_entries.receipt_id would
- * merely be nulled by a receipt delete, leaving orphans behind.
- *
- * Called before each test, like resetCaptureFixtures, so a run that died
- * halfway cannot make the next attempt fail for the wrong reason.
- */
-export async function resetReceiptFixtures(email: string): Promise<void> {
-  const owner = 'SELECT id FROM users WHERE email = ?';
-  await withLocalClient(async (client) => {
-    await client.execute({
-      sql: `DELETE FROM price_entries
-            WHERE source = 'receipt' AND user_id IN (${owner})`,
-      args: [email],
-    });
-    await client.execute({
-      sql: `DELETE FROM product_aliases WHERE user_id IN (${owner})`,
-      args: [email],
-    });
-    await client.execute({
-      sql: `DELETE FROM receipts WHERE user_id IN (${owner})`,
-      args: [email],
-    });
-    // The products the confirm created. Guarded on "no entries left" so this
-    // can never take a product that some other suite is still using, and
-    // matched by the fixture's invented names so it can never take a real one.
-    const placeholders = RECEIPT_FIXTURE_PRODUCT_NAMES.map(() => '?').join(', ');
-    await client.execute({
-      sql: `DELETE FROM products
-            WHERE user_id IN (${owner})
-              AND name IN (${placeholders})
-              AND id NOT IN (SELECT product_id FROM price_entries)`,
-      args: [email, ...RECEIPT_FIXTURE_PRODUCT_NAMES],
-    });
-  });
-}
-
-export interface SeedReceiptInput {
-  id: string;
-  contentHash: string;
-  purchasedAt: number;
-  receiptTotalCents: number;
-  extraction: unknown;
-}
-
-/**
- * Insert one receipt in status `extracted`, as POST /api/extract-receipt
- * would have.
- *
- * Why seeded rather than produced by the real route: the route's one
- * irreplaceable step is the `claude-haiku-4-5` call, which an E2E run must
- * not make (it costs money and its answer is not deterministic). Everything
- * downstream of the extraction — resolution, review, confirm, alias
- * learning — is then exercised for real against the real database.
- */
-export async function seedExtractedReceipt(email: string, input: SeedReceiptInput): Promise<void> {
-  const now = Date.now();
-  await withLocalClient(async (client) => {
-    await client.execute({
-      sql: `INSERT INTO receipts
-              (id, user_id, store_id, status, purchased_at, receipt_total_cents, line_count,
-               content_hash, file_kind, ai_model, ai_raw_json, confirmed_at, created_at, updated_at)
-            SELECT ?, id, NULL, 'extracted', ?, ?, ?, ?, 'pdf', 'claude-haiku-4-5', ?, NULL, ?, ?
-            FROM users WHERE email = ?`,
-      args: [
-        input.id,
-        input.purchasedAt,
-        input.receiptTotalCents,
-        (input.extraction as { lines: unknown[] }).lines.length,
-        input.contentHash,
-        JSON.stringify(input.extraction),
-        now,
-        now,
-        email,
-      ],
     });
   });
 }

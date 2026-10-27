@@ -63,7 +63,7 @@ function buildExtractionResponse(overrides: { needsReview?: boolean } = {}) {
         score: 0.95,
       },
     ],
-    model: 'claude-haiku-4-5',
+    model: 'claude-opus-5-5',
   };
 }
 
@@ -135,7 +135,7 @@ test('should capture a photo, review it and confirm it into the database', async
     productId: YOGURT_PRODUCT_ID,
     totalPriceCents: 179,
     unitPriceMilli: 448,
-    aiModel: 'claude-haiku-4-5',
+    aiModel: 'claude-opus-5-5',
   });
   expect(photoEntries[0].photoUrl).toContain('public.blob.vercel-storage.com');
 

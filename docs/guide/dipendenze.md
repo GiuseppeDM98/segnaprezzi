@@ -5,12 +5,17 @@ tabella. La risposta è una riga: «dipendenze: invariate dal <data>» oppure «
 nuovo entra qui con la sua decisione; nessun aggiornamento nella stessa sessione. Un aggiornamento è una
 sessione a sé, sul suo branch, con versione scelta a mano e almeno qualche giorno di età.
 
-**Ultimo audit: 2026-10-27** · gestore pnpm 11.22 · Node 22+ · next 16.4.2 · react 19.2.8
+**Ultimo audit: 2026-10-27 (seconda sessione, sul Mac)** · gestore pnpm 11.22 · Node 22.14 · next 16.4.2 · react 19.2.8
 
 `pnpm audit` del 2026-10-26 contava 24 avvisi (1 critico, 11 alti, 10 moderati, 2 bassi). Il
 proprietario ha scelto di aggiornare nella stessa sessione (2026-10-27, in deroga alla regola qui
 sopra) tutto ciò che è solo dev; dopo gli aggiornamenti restano 6 avvisi (3 alti, 2 moderati, 1
 basso), tutti in `zod` e `undici`, con la decisione in tabella.
+
+Il secondo audit del 2026-10-27 ha trovato 4 avvisi nuovi, tutti su `better-auth` 1.7.1 (vedi
+riga): il proprietario ha scelto di aggiornare subito, seconda deroga nello stesso giorno, perché
+uno era critico e la correzione (1.7.7) era già vecchia di una settimana. Dopo l'aggiornamento
+l'audit torna ai 6 avvisi di `zod` e `undici`.
 
 | Pacchetto | Versione installata | Diretto / transitivo | Solo dev | Gravità | Prima versione corretta | Decisione | Data |
 |---|---|---|---|---|---|---|---|
@@ -24,6 +29,7 @@ basso), tutti in `zod` e `undici`, con la decisione in tabella.
 | brace-expansion | 5.0.12 (era 5.0.9) | transitivo | sì | era alta ×2, moderata | 5.0.12 | aggiornato 2026-10-27 (`pnpm update --depth Infinity`) | 2026-10-27 |
 | source-map-js | 1.2.2 (era 1.2.1) | transitivo (postcss) | sì | era alta (DoS event loop) | 1.2.2 | aggiornato 2026-10-27 (`pnpm update --depth Infinity`) | 2026-10-27 |
 | drizzle-kit | 0.31.11 (era 0.31.10) | diretto | sì | — | — | patch presa insieme agli altri, 2026-10-27 | 2026-10-27 |
+| better-auth | 1.7.12 (era 1.7.1) | diretto | no | era critica (GHSA-965c-763c-88jm, stato OAuth usabile come magic link) + alta (GHSA-r4xp-prcw-77qf, OAuth Proxy) + bassa ×2 (GHSA-44jh-23m7-hpcf, rate limit su PostgreSQL) | 1.7.7 | aggiornato 2026-10-27 in deroga (proprietario). L'app usa solo email+password su SQLite, quindi nessuno dei quattro era sfruttabile qui, ma il critico non si lascia in tabella. Conseguenza non annunciata dall'advisory: dalla 1.7.12 l'adapter Drizzle rifiuta di partire con la colonna `accounts.issuer` NOT NULL che la 1.7.1 esigeva — rimossa con la migrazione 0002 (AGENTS.md §4.69) | 2026-10-27 |
 
 ## Override in `pnpm-workspace.yaml`
 

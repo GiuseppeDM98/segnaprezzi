@@ -13,11 +13,10 @@ import { deleteProductsByName } from './helpers/db';
  * thing it exists to say — how many observations are about to disappear —
  * because a count that lies is worse than no count at all.
  *
- * Runs as the second seed user, whose catalog no other spec asserts on — but
- * with spy words of its own ("vombato", "axolotl"). The receipt suite shares
- * that account and fuzzy-matches its lines against the whole catalog, so
- * reusing its fenicottero/ornitorinco/quokka would have let these products
- * capture its receipt lines and change what that suite measures.
+ * Runs as the second seed user, whose catalog no other spec asserts on — with
+ * spy words of its own ("vombato", "axolotl"), disjoint from every other
+ * suite's, so no product this suite creates can be captured by another
+ * suite's fuzzy match (AGENTS.md §4.60).
  */
 
 test.use({ storageState: 'playwright/.auth/dev2.json' });

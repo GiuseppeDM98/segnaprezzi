@@ -27,7 +27,7 @@ export type MonthlyExpenditure = Map<string, Map<CategoryId, number>>;
  * Promo entries ALWAYS count toward expenditure, regardless of
  * includePromosInIndex — expenditure is what was actually paid; the promo
  * setting only governs which price observations enter the means.
- * The spend of an observation is totalPriceCents × quantity: a receipt line
+ * The spend of an observation is totalPriceCents × quantity: a till line
  * "2 × 1,29" was paid twice even though it is one price observation.
  */
 export function computeMonthlyExpenditure(entries: readonly BucketedEntry[]): MonthlyExpenditure {

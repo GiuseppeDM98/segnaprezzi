@@ -349,7 +349,7 @@ function buildMonthlyEntry({
     source: isPhoto ? 'photo' : 'manual',
     currency: 'EUR',
     ...(isPhoto
-      ? { aiConfidence: 0.93, aiModel: 'claude-haiku-4-5', photoUrl: null, aiRawJson: null }
+      ? { aiConfidence: 0.93, aiModel: 'claude-opus-5-5', photoUrl: null, aiRawJson: null }
       : {}),
   };
 }

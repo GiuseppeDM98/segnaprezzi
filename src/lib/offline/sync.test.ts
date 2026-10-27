@@ -41,7 +41,7 @@ const EXTRACTION: ExtractPhotoResponse = {
     reviewReasons: [],
   },
   suggestions: [],
-  model: 'claude-haiku-4-5',
+  model: 'claude-opus-5-5',
 };
 
 let disposeEngine: (() => void) | null = null;

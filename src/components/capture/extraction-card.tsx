@@ -186,8 +186,8 @@ export function ExtractionCard({
        * One field per row on the phone, two from `tablet:`. Three columns in
        * 390 px gave each control ~116 px: "Volume" became "Volu…", the unit
        * price clipped its own digits, and the one label that wrapped pushed
-       * its input a line below its neighbours. The receipt line card already
-       * pairs these fields two by two — this follows it.
+       * its input a line below its neighbours. Two by two is the pairing the
+       * phone can afford.
        */}
       <div className="grid gap-3 px-3 tablet:grid-cols-2">
         <Field label={t('fields.category')} className="gap-1">

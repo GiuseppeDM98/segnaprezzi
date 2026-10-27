@@ -9,7 +9,6 @@
 Photograph supermarket price tags, let AI read them, and watch *your* cost of living — not the national average — take shape month by month.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/GiuseppeDM98/segnaprezzi/actions/workflows/ci.yml/badge.svg)](https://github.com/GiuseppeDM98/segnaprezzi/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 </div>
@@ -25,16 +24,14 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 ## How it works
 
 1. **Snap.** While shopping, photograph the shelf tag of each item you put in the cart. Photos are captured and queued locally — the app is offline-first, because supermarkets have terrible connectivity. Zero signal is fine; everything syncs when the network returns.
-2. **Extract.** Claude Haiku 4.5 reads each photo and pulls out the product, brand, category, total price, and unit price (€/kg, €/L, €/piece), normalized to comparable base units. You review every extraction before anything is saved — the AI proposes, you confirm.
-3. **Or import.** Got the digital receipt your supermarket e-mailed you? Upload the PDF (or a photo of a paper one) and every product line on it becomes its own observation — at the price you actually paid. The app matches each abbreviated line to your catalog and remembers your corrections, so the next receipt from that chain resolves itself. The file is read and discarded, never stored.
-4. **Track.** The app buckets your entries by month, chains matched products into a personal CPI (base month = 100), and shows headline numbers ("your inflation: +4.2% YoY"), category breakdowns, per-product price histories, and a comparison against the official ISTAT index.
+2. **Extract.** Claude Opus 5.5 reads each photo and pulls out the product, brand, category, total price, and unit price (€/kg, €/L, €/piece), normalized to comparable base units. You review every extraction before anything is saved — the AI proposes, you confirm.
+3. **Track.** The app buckets your entries by month, chains matched products into a personal CPI (base month = 100), and shows headline numbers ("your inflation: +4.2% YoY"), category breakdowns, per-product price histories, and a comparison against the official ISTAT index.
 
 **The honesty principle:** a personal index built from a few dozen products is statistically thin, and the app never pretends otherwise. Every number ships with its coverage stats — how many products were compared, which categories had data, how much was imputed — so you always know how much to trust what you see.
 
 ## Features
 
-- [x] **Tag scanning** — photograph shelf price tags; Claude Haiku 4.5 extracts product, total price, and unit price with a review-before-save flow
-- [x] **Receipt import** — one PDF or photo becomes N observations: per-line extraction, automatic matching against your catalog, learned aliases so the next receipt from the same chain needs no work, identical lines folded into one purchase, a review that reconciles against the printed total (and names the line responsible when it does not add up), and the file itself is never kept
+- [x] **Tag scanning** — photograph shelf price tags; Claude Opus 5.5 extracts product, total price, and unit price with a review-before-save flow
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
 - [x] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and a one-tap ISTAT comparison rebased to your own starting month, on a dashboard that leads with your year-over-year number and its coverage line
 - [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, duplicate-product merging, and deleting a product with its observations when you want it gone for good
@@ -60,7 +57,7 @@ The interface is a *tabulato a modulo continuo* — your index printed as a cont
 | Language | TypeScript 7 |
 | Database | [Turso](https://turso.tech) (libSQL/SQLite) + [Drizzle ORM](https://orm.drizzle.team) |
 | Auth | [Better Auth](https://better-auth.com) (email + password) |
-| AI extraction | Claude Haiku 4.5 (`claude-haiku-4-5`) via `@anthropic-ai/sdk` |
+| AI extraction | Claude Opus 5.5 (`claude-opus-5-5`) via `@anthropic-ai/sdk` |
 | Photo storage | [Vercel Blob](https://vercel.com/storage/blob) |
 | PWA / offline | [Serwist](https://serwist.pages.dev) + [Dexie](https://dexie.org) (IndexedDB photo queue) |
 | i18n | [next-intl](https://next-intl.dev) (`it` + `en`) |
@@ -74,13 +71,13 @@ The interface is a *tabulato a modulo continuo* — your index printed as a cont
 
 ## Self-hosting
 
-segnaprezzi is designed to run on free tiers: Vercel Hobby, Turso's free plan, and an Anthropic API key with a spend cap (a tag photo costs well under €0.01, a receipt about €0.03 — a few hundred a month is pocket change). It is meant to run as **one** environment — no preview deployments, no second database — which keeps the moving parts to a minimum for a single-user instance.
+segnaprezzi is designed to run on free tiers: Vercel Hobby, Turso's free plan, and an Anthropic API key with a spend cap (a tag photo costs a few cents with Opus 5.5 — a few hundred a month is still pocket change). It is meant to run as **one** environment — no preview deployments, no second database — which keeps the moving parts to a minimum for a single-user instance.
 
 ### Prerequisites
 
 - A [Turso](https://turso.tech) account (database)
 - A [Vercel](https://vercel.com) account (hosting + Blob photo storage)
-- An [Anthropic API key](https://console.anthropic.com) (tag and receipt extraction) — set a monthly spend cap
+- An [Anthropic API key](https://console.anthropic.com) (tag extraction) — set a monthly spend cap
 
 ### Environment variables
 
@@ -141,9 +138,9 @@ The service worker is disabled under `pnpm dev`. To try the app offline or insta
 
 ## Roadmap
 
-- **v1.1** — barcode scanning · richer ISTAT category-level comparison · private signed photo URLs · multi-file receipt upload and private receipt archive
+- **v1.1** — barcode scanning · richer ISTAT category-level comparison · private signed photo URLs
 - **v1.2** — household sharing (shared basket, private accounts) · price alerts ("olive oil below €7/L")
-- **Later** — automatic receipt ingestion (e-mail/bank) · EU HICP comparison · multi-currency
+- **Later** — EU HICP comparison · multi-currency
 
 ## Contributing
 

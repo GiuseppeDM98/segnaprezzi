@@ -94,6 +94,61 @@ describe('importUserData', () => {
     expect((await listPriceEntries(db, userId)).entries).toHaveLength(1);
   });
 
+  it('should accept a v2 backup, skipping its receipt entries and ignoring its aliases', async () => {
+    const product = await createProduct(db, userId, {
+      name: 'Pasta',
+      category: 'food',
+      unitKind: 'weight',
+    });
+    const base = await exportUserData(db, userId);
+    const entry = (id: string, source: string) => ({
+      id,
+      productId: product.id,
+      storeId: null,
+      sessionId: null,
+      receiptId: null,
+      recordedAt: '2026-04-10T10:00:00.000Z',
+      totalPriceCents: 129,
+      quantity: 2,
+      packageSize: 0.5,
+      unitPriceMilli: 2580,
+      isPromo: false,
+      promoKind: null,
+      source,
+      currency: 'EUR',
+      photoUrl: null,
+      aiConfidence: null,
+      aiModel: null,
+      aiRawJson: null,
+    });
+
+    const result = await importUserData(db, userId, {
+      ...base,
+      schemaVersion: 2,
+      products: [{ ...base.products[0], defaultPackageSize: 0.5 }],
+      entries: [
+        entry('entry0000000000000003', 'manual'),
+        entry('entry0000000000000004', 'receipt'),
+      ],
+      receipts: [{ id: 'rcpt0000000000000001', status: 'confirmed' }],
+      productAliases: [
+        {
+          id: 'alias000000000000001',
+          productId: product.id,
+          alias: 'pasta bar 500g',
+          storeChain: null,
+          hitCount: 3,
+          lastSeenAt: '2026-04-10T10:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({ entries: 1, skippedEntries: 1 });
+    const page = await listPriceEntries(db, userId);
+    expect(page.entries.map((row) => row.id)).toEqual(['entry0000000000000003']);
+    expect(page.entries[0].quantity).toBe(2);
+  });
+
   it("should never overwrite or link another user's rows", async () => {
     const foreignStore = await createStore(db, otherUserId, { name: 'Coop', kind: 'supermarket' });
     const foreignProduct = await createProduct(db, otherUserId, {

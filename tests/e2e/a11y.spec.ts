@@ -27,7 +27,6 @@ const AUTHENTICATED_ROUTES = [
   '/settings',
   '/add/manual',
   '/add/fuel',
-  '/add/receipt',
   '/scan/review',
   '/scan',
 ];

@@ -19,7 +19,7 @@ for them. No shared/household accounts in v1 (roadmap v1.2).
 
 segnaprezzi computes **your personal inflation index** from the prices you
 actually pay. You photograph shelf price tags (the *segnaprezzi*) while
-shopping; Claude Haiku 4.5 extracts product, total price and unit price; the
+shopping; Claude Opus 5.5 extracts product, total price and unit price; the
 app tracks the same products month over month and chains a personal CPI
 (base month = 100) with month-over-month, year-over-year and since-start
 headlines, per-category breakdown, top movers and a comparison against the
@@ -41,8 +41,8 @@ comparison. Private per user, offline-first, self-hostable.
 
 - Capture happens in the aisle: fast shutter, queue-and-forget, review later
   (even on the way home with no signal). Quick forms exist for fuel (at the
-  pump, one-handed) and manual entries; receipt import (PDF/photo) is also
-  supported.
+  pump, one-handed) and manual entries. The shelf tag is the unit of
+  capture: it is the one place a supermarket prints the unit price.
 - Reading happens at home: dashboard, product histories, timeline, stores.
 - Mobile-first PWA at 390 × 844; tablet (≥ 768) and desktop rail (≥ 1024)
   are secondary. Both light and dark themes are first-class.
@@ -67,7 +67,8 @@ comparison. Private per user, offline-first, self-hostable.
   next-intl (it/en), lucide-react icons, hand-rolled SVG charts (no chart
   library).
 - Non-goals v1: barcode scanning, shared prices, budgeting, multi-currency,
-  native app stores, automatic receipt ingestion.
+  native app stores, receipt import (tried and retired: receipts rarely
+  print the unit price, which is what the index needs).
 
 ## Brand Commitments
 

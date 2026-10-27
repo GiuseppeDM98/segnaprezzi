@@ -2,7 +2,7 @@
  * Price entry repository. Every function is scoped by userId — no
  * cross-user read or write is representable through this layer.
  */
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, lt, lte, or, type SQL, sql } from 'drizzle-orm';
 
 import type { Db, DbTransaction } from '@/lib/db/client';
 import {
@@ -299,8 +299,8 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
       recordedAt: priceEntries.recordedAt,
       unitPriceMilli: priceEntries.unitPriceMilli,
       totalPriceCents: priceEntries.totalPriceCents,
-      // A receipt line bought twice is one observation with quantity 2 —
-      // the monthly mean ignores it, the expenditure weights multiply by it.
+      // Packages bought in one observation: the monthly mean ignores it,
+      // the expenditure weights multiply by it.
       quantity: priceEntries.quantity,
       isPromo: priceEntries.isPromo,
     })
@@ -310,50 +310,6 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
     .orderBy(asc(priceEntries.recordedAt));
 
   return rows.map((row) => ({ ...row, recordedAt: row.recordedAt.getTime() }));
-}
-
-export interface ProductDayObservation {
-  productId: string;
-  recordedAt: Date;
-  totalPriceCents: number;
-  unitPriceMilli: number;
-  source: EntrySource;
-}
-
-/**
- * Observations of the given products inside a time window (the receipt
- * review screen's "already recorded today" hint).
- *
- * One query for the whole line list rather than one per line — a 40-line
- * receipt would otherwise be 40 round trips to say "no duplicates".
- */
-export async function listObservationsForProductsInRange(
-  db: Db | DbTransaction,
-  userId: string,
-  productIds: string[],
-  range: { from: Date; to: Date },
-): Promise<ProductDayObservation[]> {
-  if (productIds.length === 0) {
-    return [];
-  }
-  return db
-    .select({
-      productId: priceEntries.productId,
-      recordedAt: priceEntries.recordedAt,
-      totalPriceCents: priceEntries.totalPriceCents,
-      unitPriceMilli: priceEntries.unitPriceMilli,
-      source: priceEntries.source,
-    })
-    .from(priceEntries)
-    .where(
-      and(
-        eq(priceEntries.userId, userId),
-        inArray(priceEntries.productId, productIds),
-        gte(priceEntries.recordedAt, range.from),
-        lte(priceEntries.recordedAt, range.to),
-      ),
-    )
-    .orderBy(desc(priceEntries.recordedAt));
 }
 
 export type CreatePriceEntryWithIdInput = CreatePriceEntryInput & { id: string };
@@ -396,20 +352,6 @@ export async function listPriceEntryIdsBySession(
     .from(priceEntries)
     .where(and(eq(priceEntries.userId, userId), eq(priceEntries.sessionId, sessionId)))
     .orderBy(asc(priceEntries.recordedAt));
-  return rows.map((row) => row.id);
-}
-
-/** Ids of the entries created from one receipt, oldest first. */
-export async function listPriceEntryIdsByReceipt(
-  db: Db | DbTransaction,
-  userId: string,
-  receiptId: string,
-): Promise<string[]> {
-  const rows = await db
-    .select({ id: priceEntries.id })
-    .from(priceEntries)
-    .where(and(eq(priceEntries.userId, userId), eq(priceEntries.receiptId, receiptId)))
-    .orderBy(asc(priceEntries.createdAt));
   return rows.map((row) => row.id);
 }
 
@@ -554,7 +496,7 @@ export async function listPriceEntriesForProduct(
 /**
  * Insert-or-update entries by id for the backup import; foreign ids are
  * skipped by the user_id guard. Callers must have verified that every
- * reference (product, store, session, receipt) belongs to the user first —
+ * reference (product, store, session) belongs to the user first —
  * the FK only checks existence, not ownership.
  */
 export async function upsertPriceEntries(
@@ -574,7 +516,6 @@ export async function upsertPriceEntries(
         productId: sql`excluded.product_id`,
         storeId: sql`excluded.store_id`,
         sessionId: sql`excluded.session_id`,
-        receiptId: sql`excluded.receipt_id`,
         recordedAt: sql`excluded.recorded_at`,
         totalPriceCents: sql`excluded.total_price_cents`,
         quantity: sql`excluded.quantity`,

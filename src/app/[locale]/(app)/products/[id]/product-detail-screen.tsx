@@ -6,8 +6,8 @@
  * product and entry action; the parts it renders live beside it: the chart
  * and stat tiles (price-overview), the per-store comparison
  * (store-comparison-section), the entries list (price-history-list), the
- * learned receipt aliases (alias-section), the overflow menu
- * (product-menu-sheet) and the edit form (edit-product-sheet). The delete
+ * overflow menu (product-menu-sheet) and the edit form (edit-product-sheet).
+ * The delete
  * confirmation and the entry sheet are shared components.
  */
 import { MoreHorizontal } from 'lucide-react';
@@ -30,7 +30,6 @@ import { useRouter } from '@/lib/i18n/navigation';
 import type { ProductDetail } from '@/lib/services/product-detail';
 import { deleteProducts, setProductArchived, updateProduct } from '../actions';
 import { deletePriceEntry, updatePriceEntry } from './actions';
-import { AliasSection } from './alias-section';
 import type { ChartRange } from './chart-window';
 import { EditProductSheet, type ProductDraft } from './edit-product-sheet';
 import { PriceHistoryList } from './price-history-list';
@@ -197,7 +196,6 @@ export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps
               unitKind={product.unitKind}
               onOpenEntry={setActiveEntry}
             />
-            <AliasSection aliases={detail.aliases} />
           </>
         )}
       </div>

@@ -6,7 +6,6 @@ import { z } from 'zod';
 
 import type { Db } from '@/lib/db/client';
 import { upsertPriceEntries } from '@/lib/db/repositories/price-entries';
-import { upsertProductAliases } from '@/lib/db/repositories/product-aliases';
 import { listProductIds, upsertProducts } from '@/lib/db/repositories/products';
 import { getUserSettings, updateUserSettings } from '@/lib/db/repositories/settings';
 import {
@@ -56,20 +55,22 @@ export async function updateIndexSettings(
  * nanoid(21) so a hand-edited file cannot smuggle arbitrary keys into the
  * tables.
  *
- * Every published schema version is accepted: a v1 backup predates receipt import and simply
- * carries no quantity, so it defaults to 1. What a v2 backup does NOT restore
- * is the `receipts` import records — they hold no observation (the entries
- * do) and their `ai_raw_json` is deliberately absent from the export, so a
- * restored row would be a receipt whose audit trail is empty. Entries
- * therefore come back with `receipt_id` cleared, exactly as they come back
- * with a store or session id the user no longer owns cleared. The learned
- * `productAliases` ARE restored: they are fully round-trippable, and losing
- * them would make every future receipt start from fuzzy matching again.
+ * Every published schema version is accepted. A v1 backup carries no
+ * quantity, so it defaults to 1. A v2 backup comes from the time the app
+ * imported receipts: its `receipts` and `productAliases` arrays have no
+ * table to land in any more and are ignored, `receiptId` and
+ * `defaultPackageSize` are dropped, and its entries with source 'receipt'
+ * are skipped — the owner chose to remove that history together with the
+ * feature, and the enum no longer admits the value. They are counted in
+ * `skippedEntries`, so the result says what was left out.
  */
 const isoDateSchema = z.iso.datetime().transform((value) => new Date(value));
 
+/** The source value v2 backups carry that no current write path produces. */
+const LEGACY_RECEIPT_SOURCE = 'receipt';
+
 export const exportPayloadSchema = z.object({
-  schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   settings: z.object({
     includePromosInIndex: z.boolean(),
     carryForwardMonths: z.number().int().min(0).max(MAX_CARRY_FORWARD_MONTHS),
@@ -91,7 +92,6 @@ export const exportPayloadSchema = z.object({
       category: z.enum(CATEGORY_IDS),
       unitKind: z.enum(UNIT_KINDS),
       notes: z.string().max(2000).nullable(),
-      defaultPackageSize: z.number().positive().nullable().default(null),
       isArchived: z.boolean(),
     }),
   ),
@@ -117,7 +117,7 @@ export const exportPayloadSchema = z.object({
       unitPriceMilli: z.number().int().min(1),
       isPromo: z.boolean(),
       promoKind: z.enum(PROMO_KINDS).nullable(),
-      source: z.enum(ENTRY_SOURCES),
+      source: z.enum([...ENTRY_SOURCES, LEGACY_RECEIPT_SOURCE]),
       currency: z.string().length(3),
       photoUrl: z.string().nullable(),
       aiConfidence: z.number().min(0).max(1).nullable(),
@@ -125,18 +125,6 @@ export const exportPayloadSchema = z.object({
       aiRawJson: z.string().nullable(),
     }),
   ),
-  productAliases: z
-    .array(
-      z.object({
-        id: nanoidSchema,
-        productId: nanoidSchema,
-        alias: z.string().min(1).max(200),
-        storeChain: z.string().max(100).nullable(),
-        hitCount: z.number().int().min(1),
-        lastSeenAt: isoDateSchema,
-      }),
-    )
-    .default([]),
 });
 
 export type ExportPayloadInput = z.infer<typeof exportPayloadSchema>;
@@ -146,8 +134,7 @@ export interface ImportResult {
   products: number;
   sessions: number;
   entries: number;
-  aliases: number;
-  /** Entries dropped because they referenced a product that is not the user's. */
+  /** Entries dropped: a product that is not the user's, or the retired 'receipt' source. */
   skippedEntries: number;
 }
 
@@ -185,7 +172,13 @@ export async function importUserData(db: Db, userId: string, raw: unknown): Prom
       listProductIds(tx, userId),
       listShoppingSessionIds(tx, userId),
     ]);
-    const importable = payload.entries.filter((entry) => ownedProductIds.has(entry.productId));
+    const importable = payload.entries.flatMap((entry) => {
+      const { source, ...rest } = entry;
+      if (source === LEGACY_RECEIPT_SOURCE || !ownedProductIds.has(entry.productId)) {
+        return [];
+      }
+      return [{ ...rest, source }];
+    });
     await upsertPriceEntries(
       tx,
       userId,
@@ -193,16 +186,8 @@ export async function importUserData(db: Db, userId: string, raw: unknown): Prom
         ...entry,
         storeId: entry.storeId && ownedStoreIds.has(entry.storeId) ? entry.storeId : null,
         sessionId: entry.sessionId && ownedSessionIds.has(entry.sessionId) ? entry.sessionId : null,
-        // See the note above the schema: import records are not restored, so
-        // there is nothing for an entry to point at.
-        receiptId: null,
       })),
     );
-
-    const importableAliases = payload.productAliases.filter((alias) =>
-      ownedProductIds.has(alias.productId),
-    );
-    await upsertProductAliases(tx, userId, importableAliases);
 
     await updateUserSettings(tx, userId, payload.settings);
 
@@ -211,7 +196,6 @@ export async function importUserData(db: Db, userId: string, raw: unknown): Prom
       products: payload.products.length,
       sessions: payload.shoppingSessions.length,
       entries: importable.length,
-      aliases: importableAliases.length,
       skippedEntries: payload.entries.length - importable.length,
     };
   });

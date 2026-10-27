@@ -9,7 +9,6 @@ import { type NewProduct, type Product, priceEntries, products } from '@/lib/db/
 import type { CategoryId } from '@/lib/domain/categories';
 import { ProductNotFoundError } from '@/lib/errors';
 import type { IndexProduct } from '@/lib/inflation';
-import { moveProductAliases } from './product-aliases';
 
 export type CreateProductInput = Omit<NewProduct, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
 export type UpdateProductPatch = Partial<CreateProductInput>;
@@ -119,8 +118,7 @@ export interface DeleteProductsResult {
  * price_entries.productId is NO ACTION precisely so a stray delete cannot
  * silently orphan history (see the note at the top of schema/app.ts), which
  * is why the entries are removed explicitly and first: the check runs at
- * end-of-statement, and by then nothing references the row. Learned receipt
- * aliases cascade on their own.
+ * end-of-statement, and by then nothing references the row.
  *
  * The caller gets the entries' photo URLs back rather than a count alone,
  * because blobs live outside this transaction and can only be cleaned up
@@ -208,10 +206,6 @@ export async function mergeProducts(
       .where(and(eq(priceEntries.userId, userId), eq(priceEntries.productId, sourceProductId)))
       .returning({ id: priceEntries.id });
 
-    // The learned receipt aliases follow the history — otherwise the next
-    // receipt would stop resolving lines the user had already taught the app.
-    await moveProductAliases(tx, userId, sourceProductId, targetProductId);
-
     await tx
       .update(products)
       .set({ isArchived: true })
@@ -219,36 +213,6 @@ export async function mergeProducts(
 
     return { movedEntriesCount: moved.length };
   });
-}
-
-/**
- * Record the package size a product's newest observation used. Called by
- * every write path that inserts an entry.
- *
- * Last write wins on purpose: a product whose size changes (the
- * "shrinkflation" case, 500 g becoming 450 g) should follow the newest
- * observation, because that is what the NEXT receipt line will be.
- */
-export async function updateDefaultPackageSizes(
-  db: Db | DbTransaction,
-  userId: string,
-  sizes: Array<{ productId: string; packageSize: number }>,
-): Promise<void> {
-  // Later entries in the batch are the newer observations, so a second pass
-  // over the same product must overwrite the first — Map preserves insertion
-  // order while collapsing duplicates onto the last value.
-  const lastSizeByProduct = new Map(
-    sizes
-      .filter((size) => size.packageSize > 0)
-      .map((size) => [size.productId, size.packageSize] as const),
-  );
-
-  for (const [productId, packageSize] of lastSizeByProduct) {
-    await db
-      .update(products)
-      .set({ defaultPackageSize: packageSize })
-      .where(and(eq(products.userId, userId), eq(products.id, productId)));
-  }
 }
 
 /**
@@ -313,7 +277,6 @@ export async function upsertProducts(
         category: sql`excluded.category`,
         unitKind: sql`excluded.unit_kind`,
         notes: sql`excluded.notes`,
-        defaultPackageSize: sql`excluded.default_package_size`,
         isArchived: sql`excluded.is_archived`,
       },
       setWhere: eq(products.userId, userId),

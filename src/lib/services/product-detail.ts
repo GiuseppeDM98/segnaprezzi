@@ -13,7 +13,6 @@ import {
   type PriceEntryWithProduct,
   updatePriceEntry as updatePriceEntryRow,
 } from '@/lib/db/repositories/price-entries';
-import { listAliasesForProduct } from '@/lib/db/repositories/product-aliases';
 import { getProductById } from '@/lib/db/repositories/products';
 import { getStoreById } from '@/lib/db/repositories/stores';
 import type { CategoryId } from '@/lib/domain/categories';
@@ -43,15 +42,6 @@ export interface ProductStat {
   recordedAt?: number;
 }
 
-export interface ProductAliasSummary {
-  id: string;
-  alias: string;
-  storeChain: string | null;
-  hitCount: number;
-  /** Epoch ms UTC. */
-  lastSeenAt: number;
-}
-
 export interface StoreComparison {
   storeId: string;
   storeName: string;
@@ -76,8 +66,6 @@ export interface ProductDetail {
   /** Cheapest first; only populated when ≥ 2 stores have observations. */
   storeComparison: StoreComparison[];
   entries: EntrySummary[];
-  /** Receipt lines learned for this product, most-used first. */
-  aliases: ProductAliasSummary[];
 }
 
 /** Everything the product detail screen renders; null when the product is not the user's. */
@@ -90,10 +78,7 @@ export async function getProductDetail(
   if (!product) {
     return null;
   }
-  const [rows, aliases] = await Promise.all([
-    listPriceEntriesForProduct(db, userId, productId),
-    listAliasesForProduct(db, userId, productId),
-  ]);
+  const rows = await listPriceEntriesForProduct(db, userId, productId);
   const entries = rows.map(toEntrySummary);
 
   return {
@@ -110,13 +95,6 @@ export async function getProductDetail(
     stats: buildStats(entries),
     storeComparison: buildStoreComparison(entries),
     entries,
-    aliases: aliases.map((alias) => ({
-      id: alias.id,
-      alias: alias.alias,
-      storeChain: alias.storeChain,
-      hitCount: alias.hitCount,
-      lastSeenAt: alias.lastSeenAt.getTime(),
-    })),
   };
 }
 
