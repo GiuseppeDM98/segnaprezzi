@@ -97,7 +97,7 @@ const EXTRACTION = {
   ],
 };
 
-function fixtureHash(): string {
+function computeFixtureHash(): string {
   return createHash('sha256').update(readFileSync(FIXTURE_PATH)).digest('hex');
 }
 
@@ -107,12 +107,20 @@ test.beforeAll(async () => {
   await resetReceiptFixtures(SEED_USER_2.email);
 });
 
+// afterAll too: the fixture's August purchase dates give this account a second
+// month of series, which is exactly what turns the thin dashboard that
+// a11y.spec.ts expects (in every project) into the full one. Leave the account
+// as this file found it, like the other flow suites do.
+test.afterAll(async () => {
+  await resetReceiptFixtures(SEED_USER_2.email);
+});
+
 test('should read a receipt, fix the flagged line and confirm it into the database', async ({
   page,
 }) => {
   await seedExtractedReceipt(SEED_USER_2.email, {
     id: RECEIPT_ID,
-    contentHash: fixtureHash(),
+    contentHash: computeFixtureHash(),
     purchasedAt: PURCHASED_AT,
     receiptTotalCents: 620,
     extraction: EXTRACTION,

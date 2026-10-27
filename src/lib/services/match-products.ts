@@ -10,24 +10,22 @@
  * Pure: the service passes the candidates in, so the whole module is
  * table-testable without a database.
  */
+import type { ProductSuggestion } from '@/lib/domain/extract-photo';
 
 export interface MatchCandidate {
   id: string;
   name: string;
   brand: string | null;
-  /** True when the product has an entry at the capture store in the last 90 days. */
+  /** True when the product has a recent entry at the capture store (the caller sets the window). */
   hasRecentEntryAtStore: boolean;
 }
 
-export interface ProductSuggestion {
-  productId: string;
-  name: string;
-  brand: string | null;
-  score: number;
-}
+export type { ProductSuggestion };
 
 const SUGGESTION_THRESHOLD = 0.4;
-const MAX_SUGGESTIONS = 3;
+
+/** Most suggestions any card shows, for a price tag and a receipt line alike. */
+export const MAX_SUGGESTIONS = 3;
 const EXACT_BRAND_BONUS = 0.15;
 const STORE_RECENCY_BONUS = 0.05;
 

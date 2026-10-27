@@ -7,6 +7,7 @@
  * unreadable coupon line; the user is the authority and the flags exist to
  * point their eyes at the right rows, not to refuse the file.
  */
+import type { LineReviewReason } from '@/lib/domain/receipt-lines';
 import { parseReceiptPurchasedAt, RECEIPT_TOTAL_TOLERANCE_CENTS } from '@/lib/domain/receipts';
 import type { ReceiptExtraction, ReceiptLine } from './receipt-schema';
 
@@ -32,11 +33,7 @@ export type ReceiptReviewReason =
   /** purchasedAt null, unparseable, or outside the plausible window. */
   | 'no-date';
 
-export type LineReviewReason =
-  | 'low-confidence'
-  /** unitPriceCentsOnReceipt × quantity ≠ lineTotal + discount (pieces only). */
-  | 'qty-price-mismatch'
-  | 'zero-price';
+export type { LineReviewReason };
 
 export interface FlaggedReceiptHeader {
   needsReview: boolean;

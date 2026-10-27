@@ -2,13 +2,21 @@ import { NextResponse } from 'next/server';
 
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
-import { UnauthorizedError } from '@/lib/errors';
 import { exportUserData } from '@/lib/services/export';
+import { toErrorResponse } from '../route-errors';
 
-export async function GET() {
+/**
+ * GET /api/export — the user's data as a downloadable JSON file, in the shape
+ * importBackup (settings/actions.ts) accepts back. Failures answer with the
+ * same `{ error: { code, message } }` body as every other handler:
+ * unauthenticated callers get a 401, anything unexpected is logged with the
+ * user id and becomes a 500.
+ */
+export async function GET(): Promise<Response> {
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const payload = await exportUserData(db, user.id);
+    userId = (await requireUser()).id;
+    const payload = await exportUserData(db, userId);
 
     const date = new Date().toISOString().slice(0, 10);
     return NextResponse.json(payload, {
@@ -18,9 +26,6 @@ export async function GET() {
       },
     });
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
-    throw error;
+    return toErrorResponse(error, { route: 'GET /api/export', userId });
   }
 }

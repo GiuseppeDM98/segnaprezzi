@@ -13,8 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * The pump form. Optimized to be filled standing at the pump
- * in under ten seconds: three quick-pick fuels, any two of {€/L, litres,
- * total}, and the station the user last refuelled at preselected.
+ * in under ten seconds: a quick-pick chip per fuel, any two of {unit price,
+ * quantity, total}, and the station the user last refuelled at preselected.
  */
 export default async function AddFuelPage() {
   const user = await requireUser();

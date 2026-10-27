@@ -6,11 +6,18 @@
  * IndexedDB small, lets uploads survive supermarket connectivity, and caps
  * Anthropic image-token cost (tokens ≈ width × height / 750).
  */
+import type { PhotoMediaType } from '@/lib/domain/photos';
 
 const MAX_DIMENSION_PX = 1600;
 const TARGET_BYTES = 400 * 1024;
 const INITIAL_QUALITY = 0.8;
 const RETRY_QUALITY = 0.65;
+
+// Why typed on PhotoMediaType: /api/extract rejects any other encoding, so
+// a change to PHOTO_MEDIA_TYPES that drops one of these fails to compile
+// here instead of failing every upload from the browsers that produce it.
+const PREFERRED_MEDIA_TYPE: PhotoMediaType = 'image/webp';
+const FALLBACK_MEDIA_TYPE: PhotoMediaType = 'image/jpeg';
 
 export interface CompressedPhoto {
   blob: Blob;
@@ -76,12 +83,12 @@ export function fitWithinMaxDimension(
 }
 
 async function encodeCanvas(canvas: OffscreenCanvas, quality: number): Promise<Blob> {
-  const webp = await canvas.convertToBlob({ type: 'image/webp', quality });
+  const webp = await canvas.convertToBlob({ type: PREFERRED_MEDIA_TYPE, quality });
   // Safari < 17 silently ignores the requested type and encodes PNG when it
   // cannot produce WebP; JPEG at the same quality is the closest substitute
   // that keeps uploads small.
-  if (webp.type === 'image/webp') {
+  if (webp.type === PREFERRED_MEDIA_TYPE) {
     return webp;
   }
-  return canvas.convertToBlob({ type: 'image/jpeg', quality });
+  return canvas.convertToBlob({ type: FALLBACK_MEDIA_TYPE, quality });
 }

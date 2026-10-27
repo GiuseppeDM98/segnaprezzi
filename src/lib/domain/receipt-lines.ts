@@ -8,7 +8,9 @@
  * price comparable over time. This module turns the printed columns into the
  * (quantity, packageSize, totalPriceCents, unitPriceMilli) quadruple the
  * price_entries contract wants, and reports WHERE the size came from so the
- * review screen can ask the user when it came from nowhere.
+ * review screen can ask the user when it came from nowhere. It also owns the
+ * rules that say what a line still needs, so that the server's first verdict,
+ * the screen's live one and the confirm guard cannot drift apart.
  */
 import { calculateUnitPriceMilli, isUnitPriceConsistent } from './money';
 import type { UnitKind } from './units';
@@ -20,6 +22,13 @@ export type QuantityKind = (typeof QUANTITY_KINDS)[number];
 /** Where a line's package size came from — drives the "needs size" prompt. */
 export type SizeSource = 'weighed' | 'receipt' | 'catalog' | 'assumed-one' | 'missing';
 
+/** Why the receipt flags put one line in front of the user. */
+export type LineReviewReason =
+  | 'low-confidence'
+  /** unitPriceCentsOnReceipt × quantity ≠ lineTotal + discount (pieces only). */
+  | 'qty-price-mismatch'
+  | 'zero-price';
+
 /** Review state of one line. */
 export const RECEIPT_LINE_STATUSES = [
   'ready',
@@ -30,11 +39,32 @@ export const RECEIPT_LINE_STATUSES = [
 export type ReceiptLineStatus = (typeof RECEIPT_LINE_STATUSES)[number];
 
 /**
+ * What stops a line from being confirmed, in the order the user fixes it.
+ *
+ * Distinct from the status, which is the model's doubt: a line the model read
+ * perfectly can still carry a price, a size and a unit price that contradict
+ * each other after a hand edit, and only this says so.
+ */
+export const RECEIPT_LINE_BLOCKING_REASONS = ['product', 'size', 'price', 'unit-price'] as const;
+export type ReceiptLineBlockingReason = (typeof RECEIPT_LINE_BLOCKING_REASONS)[number];
+
+/**
  * Relative gap allowed between the €/kg the receipt printed and the one
  * derived from the line total. One percent: weighed lines round the weight
  * to the gram and the total to the cent, so the two never agree exactly.
  */
 const PRINTED_UNIT_PRICE_TOLERANCE = 0.01;
+
+/**
+ * Lowest match score (0–1) at which the top product suggestion is
+ * preselected for the user, on a receipt line and on a price-tag review card
+ * alike.
+ *
+ * Why one constant for both flows: the same product, suggested with the same
+ * score, must not arrive preselected through one capture path and
+ * unselected through the other.
+ */
+export const PRESELECT_SCORE_THRESHOLD = 0.7;
 
 /*
  * Alias normalization.
@@ -284,4 +314,93 @@ export function suggestExtraPackages(
     hit = { key: line.key, packages };
   }
   return hit;
+}
+
+/** The parts of one line, as it stands now, that decide whether it is done. */
+export interface ReceiptLineCheck {
+  /** Content of ONE package in base units; null while nobody knows it. */
+  packageSize: number | null;
+  /** Price of ONE package, in euro cents. */
+  totalPriceCents: number;
+  /** Milli-euros per base unit; null while it cannot be derived. */
+  unitPriceMilli: number | null;
+  /**
+   * The matcher found candidates but none convincing, and nobody has chosen
+   * yet: true for a suggested match without a preselected product.
+   */
+  needsProductDecision: boolean;
+}
+
+/**
+ * The review status of one line.
+ *
+ * Status precedence: a missing size blocks harder than an undecided product,
+ * which blocks harder than a price that is missing or a flag the user only
+ * has to look at.
+ *
+ * Deliberate design choice, not the naive rule: a line with NO candidate does
+ * NOT need a product decision — it becomes a genuinely new product, and
+ * `resolveProductPicks` still dedupes it against the catalog by normalized
+ * name — while an ambiguous one (a suggestion above the suggestion bar, below
+ * the preselect bar) does. That looks backwards until you consider the only
+ * failure that actually costs something: a line the matcher *half*
+ * recognised is exactly the one that silently creates a duplicate of an
+ * existing product, and a duplicate removes that product from every
+ * month-over-month relative it should have contributed to. Blocking every
+ * unmatched line instead would make the first receipt from a chain thirty
+ * mandatory taps, which is a different way of losing the user.
+ *
+ * @param line - The line's current fields and product state
+ * @param hasReviewReasons - Whether the extraction flagged the line
+ * @returns 'needs-size' | 'needs-product' | 'needs-review' | 'ready'
+ */
+export function computeReceiptLineStatus(
+  line: ReceiptLineCheck,
+  hasReviewReasons: boolean,
+): ReceiptLineStatus {
+  if (line.packageSize === null || line.packageSize <= 0) {
+    return 'needs-size';
+  }
+  if (line.needsProductDecision) {
+    return 'needs-product';
+  }
+  if (line.totalPriceCents <= 0 || line.unitPriceMilli === null || hasReviewReasons) {
+    return 'needs-review';
+  }
+  return 'ready';
+}
+
+/**
+ * Name what a line is still missing before it can be confirmed, in the order
+ * the user has to fix it: the product first (only they can choose it), then
+ * the size the unit price hangs off, then the money.
+ *
+ * The last check is the entry contract itself: a total, a size and a unit
+ * price that contradict each other cannot be stored (isUnitPriceConsistent),
+ * and `confirmReceipt` refuses them for the WHOLE receipt — so the screen has
+ * to name the card before the user presses confirm.
+ *
+ * @param line - The line's current fields and product state
+ * @param productName - Name the line will be saved under, as the screen shows
+ *   it; null when the caller does not have it (the server, for a pick of an
+ *   existing catalog product, whose name is not in question)
+ * @returns null when the line can be confirmed as it stands
+ */
+export function getReceiptLineBlockingReason(
+  line: ReceiptLineCheck,
+  productName: string | null,
+): ReceiptLineBlockingReason | null {
+  if (line.needsProductDecision || (productName !== null && productName.trim().length === 0)) {
+    return 'product';
+  }
+  if (line.packageSize === null || line.packageSize <= 0) {
+    return 'size';
+  }
+  if (line.totalPriceCents <= 0 || line.unitPriceMilli === null || line.unitPriceMilli <= 0) {
+    return 'price';
+  }
+  if (!isUnitPriceConsistent(line.totalPriceCents, line.packageSize, line.unitPriceMilli)) {
+    return 'unit-price';
+  }
+  return null;
 }

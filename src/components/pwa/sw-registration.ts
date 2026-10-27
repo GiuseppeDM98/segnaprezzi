@@ -10,7 +10,7 @@
  * a waiting worker only becomes the controller after the user accepts, and
  * only then does the page reload, exactly once.
  *
- * The state lives at module scope rather than in React because two different
+ * The state lives at module scope rather than in React because separate
  * subtrees need it: the provider in the root layout starts it, the toast
  * inside the app shell renders it.
  */
@@ -40,6 +40,47 @@ function setWaitingWorker(worker: ServiceWorker): void {
 }
 
 /**
+ * Announce the worker an update installs, once it has finished installing
+ * and is parked waiting. Also picks up a worker installed on a previous
+ * visit and parked ever since.
+ *
+ * @returns Disposer that detaches the updatefound listener and the
+ *   statechange listener of every installing worker it has watched.
+ */
+function watchForUpdate(swRegistration: ServiceWorkerRegistration): () => void {
+  if (swRegistration.waiting) {
+    setWaitingWorker(swRegistration.waiting);
+  }
+
+  const stateListeners = new Map<ServiceWorker, () => void>();
+
+  function handleUpdateFound(): void {
+    const installing = swRegistration.installing;
+    if (!installing) {
+      return;
+    }
+    const handleStateChange = (): void => {
+      // A controller already present means this is an update, not the
+      // first install — only then is there something to announce.
+      if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+        setWaitingWorker(installing);
+      }
+    };
+    installing.addEventListener('statechange', handleStateChange);
+    stateListeners.set(installing, handleStateChange);
+  }
+
+  swRegistration.addEventListener('updatefound', handleUpdateFound);
+  return () => {
+    swRegistration.removeEventListener('updatefound', handleUpdateFound);
+    for (const [worker, handleStateChange] of stateListeners) {
+      worker.removeEventListener('statechange', handleStateChange);
+    }
+    stateListeners.clear();
+  };
+}
+
+/**
  * Register `/sw.js` and watch for an update.
  *
  * @returns Disposer that detaches every listener and timer.
@@ -49,29 +90,18 @@ export function startServiceWorker(): () => void {
     return () => {};
   }
 
+  let stopWatchingForUpdate: (() => void) | null = null;
+  let isStopped = false;
+
   async function register(): Promise<void> {
     try {
-      const swRegistration = await navigator.serviceWorker.register('/sw.js');
-      registration = swRegistration;
-
-      // Installed on a previous visit and parked ever since.
-      if (swRegistration.waiting) {
-        setWaitingWorker(swRegistration.waiting);
+      registration = await navigator.serviceWorker.register('/sw.js');
+      // Disposed while registering (a StrictMode remount, an unmount): watch
+      // nothing, since the disposer has already run and could not detach it.
+      if (isStopped) {
+        return;
       }
-
-      swRegistration.addEventListener('updatefound', () => {
-        const installing = swRegistration.installing;
-        if (!installing) {
-          return;
-        }
-        installing.addEventListener('statechange', () => {
-          // A controller already present means this is an update, not the
-          // first install — only then is there something to announce.
-          if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-            setWaitingWorker(installing);
-          }
-        });
-      });
+      stopWatchingForUpdate = watchForUpdate(registration);
     } catch (error) {
       // An unsupported or insecure context is not an app failure: the site
       // simply runs without offline support.
@@ -109,10 +139,13 @@ export function startServiceWorker(): () => void {
   navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
   document.addEventListener('visibilitychange', handleVisibilityChange);
   const pollTimer = window.setInterval(() => {
+    // Same as the visibility check: a failed poll waits for the next one.
     void registration?.update().catch(() => {});
   }, UPDATE_POLL_MS);
 
   return () => {
+    isStopped = true;
+    stopWatchingForUpdate?.();
     window.removeEventListener('load', handleLoad);
     navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
     document.removeEventListener('visibilitychange', handleVisibilityChange);

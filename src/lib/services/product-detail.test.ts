@@ -6,7 +6,7 @@ import { createProduct } from '@/lib/db/repositories/products';
 import { createStore } from '@/lib/db/repositories/stores';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { listHistoryPage } from './history';
-import { editPriceEntry, getProductDetail, removePriceEntry } from './product-detail';
+import { deletePriceEntry, getProductDetail, updatePriceEntry } from './product-detail';
 
 /*
  * Integration tests for the product detail read model and
@@ -101,7 +101,7 @@ describe('entry edits', () => {
       source: 'manual',
     });
 
-    await editPriceEntry(db, userId, entry.id, {
+    await updatePriceEntry(db, userId, entry.id, {
       recordedAt: Date.parse('2026-04-06T10:00:00Z'),
       storeId: null,
       totalPriceCents: 239,
@@ -118,7 +118,7 @@ describe('entry edits', () => {
       promoKind: null,
     });
 
-    await removePriceEntry(db, userId, entry.id);
+    await deletePriceEntry(db, userId, entry.id);
     expect((await listHistoryPage(db, userId)).entries).toHaveLength(0);
   });
 
@@ -137,11 +137,11 @@ describe('entry edits', () => {
       source: 'manual',
     });
 
-    await expect(removePriceEntry(db, userId, foreign.id)).rejects.toMatchObject({
+    await expect(deletePriceEntry(db, userId, foreign.id)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
     await expect(
-      editPriceEntry(db, userId, foreign.id, {
+      updatePriceEntry(db, userId, foreign.id, {
         recordedAt: Date.now(),
         storeId: null,
         totalPriceCents: 1,

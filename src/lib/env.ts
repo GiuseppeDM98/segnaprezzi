@@ -8,11 +8,10 @@ import { z } from 'zod';
  * `process.env`, so a missing or malformed variable crashes at startup
  * with a readable report instead of failing later at request time.
  *
- * This module is imported by server code AND by CLI tooling
- * (drizzle.config.ts and scripts/* in later specs). Do not add the
- * `server-only` package here — it throws outside the Next.js runtime and
- * would break drizzle-kit and tsx. The safeguard against client-side
- * imports is that `process.env` secrets are simply undefined in the
+ * This module is imported by server code AND by the tsx scripts under
+ * scripts/. Do not add the `server-only` package here — it throws outside
+ * the Next.js runtime and would break those scripts. The safeguard against
+ * client-side imports is that `process.env` secrets are simply undefined in the
  * browser bundle, which makes parsing fail loudly during development.
  */
 
@@ -26,6 +25,9 @@ const envSchema = z
     BETTER_AUTH_URL: z.url(),
     BLOB_READ_WRITE_TOKEN: z.string().min(1),
     SIGNUP_ENABLED: z.enum(['true', 'false']).default('true'),
+    // Set by Next.js and Vitest; the tsx scripts run without it, which is a
+    // development run.
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   })
   .superRefine((vars, ctx) => {
     // Why: the auth token is optional only because local file databases

@@ -3,7 +3,7 @@ export { SEED_USER, SEED_USER_2 } from '../../../scripts/seed-users';
 /**
  * A throwaway account owned by the offline/PWA suites.
  *
- * Why not a seed user: those two run against a production server on a
+ * Why not a seed user: those suites run against a production server on a
  * different port, in parallel with the rest of the suite, and the offline
  * scenarios confirm real entries — sharing an account with the capture suite
  * (which wipes every photo entry before each of its tests) would make both

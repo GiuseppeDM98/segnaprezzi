@@ -16,16 +16,9 @@ import { type PointerEvent, useId, useState } from 'react';
 
 import { cx } from '@/lib/cx';
 import { type AppLocale, formatMonth, formatMonthShort } from '@/lib/format';
-import { useAppMotion } from '@/lib/motion';
+import { chartDraw, useAppMotion } from '@/lib/motion';
 import { useContainerWidth } from '@/lib/use-container-width';
-import {
-  buildAreaPath,
-  buildLinePath,
-  createLinearScale,
-  niceTicks,
-  padDomain,
-  pickLabelIndexes,
-} from './scale';
+import { buildAreaChartGeometry } from './scale';
 
 export interface MonthValue {
   /** 'YYYY-MM' */
@@ -48,7 +41,10 @@ export interface AreaChartProps {
   className?: string;
 }
 
-const PADDING = { top: 12, right: 12, bottom: 24, left: 44 };
+/** Gap between a y tick label's right edge and the plot. */
+const Y_TICK_LABEL_GAP = 8;
+/** Month labels sit this far above the bottom edge of the SVG. */
+const X_LABEL_BOTTOM_OFFSET = 6;
 
 export function AreaChart({
   series,
@@ -74,36 +70,33 @@ export function AreaChart({
   const comparePoints = months.map((month) => compareByMonth.get(month) ?? null);
   const hasCompare = isCompareVisible && comparePoints.some((value) => value !== null);
 
-  const domainValues = [
-    ...series.map((p) => p.value),
-    ...(hasCompare ? comparePoints.filter((v): v is number => v !== null) : []),
-    ...markers.map((m) => m.value),
-  ];
-  const plotWidth = Math.max(40, width - PADDING.left - PADDING.right);
-  const plotHeight = height - PADDING.top - PADDING.bottom;
-  const x = createLinearScale(
-    [0, Math.max(1, series.length - 1)],
-    [PADDING.left, PADDING.left + plotWidth],
-  );
-  const yDomain = padDomain(domainValues, 0.12);
-  const y = createLinearScale(yDomain, [PADDING.top + plotHeight, PADDING.top]);
-
-  const linePoints = series.map((point, index) => ({ x: x(index), y: y(point.value) }));
-  const linePath = buildLinePath(linePoints);
-  const areaPath = buildAreaPath(linePoints, PADDING.top + plotHeight);
-  const comparePath = buildLinePath(
-    comparePoints.map((value, index) => ({ x: x(index), y: value === null ? null : y(value) })),
-  );
-  const ticks = niceTicks(yDomain, 3);
-  const labelIndexes = pickLabelIndexes(series.length, width < 480 ? 4 : 6);
+  const {
+    plotLeft,
+    plotRight,
+    plotTop,
+    plotBottom,
+    x,
+    y,
+    linePath,
+    areaPath,
+    comparePath,
+    yTicks,
+    labelIndexes,
+    indexAtX,
+  } = buildAreaChartGeometry({
+    values: series.map((point) => point.value),
+    compareValues: hasCompare ? comparePoints : [],
+    markerValues: markers.map((marker) => marker.value),
+    width,
+    height,
+  });
   const monthIndex = new Map(months.map((month, index) => [month, index] as const));
 
   function handlePointer(event: PointerEvent<SVGSVGElement>): void {
+    // Client pixels → viewBox units: the SVG is drawn at `width` but laid out
+    // at whatever size its container gives it.
     const rect = event.currentTarget.getBoundingClientRect();
-    const px = ((event.clientX - rect.left) / rect.width) * width;
-    const ratio = (px - PADDING.left) / plotWidth;
-    const index = Math.round(ratio * (series.length - 1));
-    setActiveIndex(Math.min(series.length - 1, Math.max(0, index)));
+    setActiveIndex(indexAtX(((event.clientX - rect.left) / rect.width) * width));
   }
 
   const active = activeIndex === null ? null : series[activeIndex];
@@ -156,18 +149,18 @@ export function AreaChart({
         </defs>
 
         {/* Gridlines + y ticks */}
-        {ticks.map((tick) => (
+        {yTicks.map((tick) => (
           <g key={tick}>
             <line
-              x1={PADDING.left}
-              x2={PADDING.left + plotWidth}
+              x1={plotLeft}
+              x2={plotRight}
               y1={y(tick)}
               y2={y(tick)}
               stroke="var(--color-chart-grid)"
               strokeDasharray="2 4"
             />
             <text
-              x={PADDING.left - 8}
+              x={plotLeft - Y_TICK_LABEL_GAP}
               y={y(tick)}
               textAnchor="end"
               dominantBaseline="middle"
@@ -184,7 +177,7 @@ export function AreaChart({
           <text
             key={months[index]}
             x={x(index)}
-            y={height - 6}
+            y={height - X_LABEL_BOTTOM_OFFSET}
             textAnchor={index === 0 ? 'start' : index === series.length - 1 ? 'end' : 'middle'}
             fill="var(--color-text-muted)"
             className="font-mono text-[11px]"
@@ -218,7 +211,7 @@ export function AreaChart({
           fill={`url(#${gradientId})`}
           initial={isReduced ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring, delay: isReduced ? 0 : 0.15 }}
+          transition={{ ...spring, delay: isReduced ? 0 : chartDraw.areaFadeDelay }}
         />
         <motion.path
           d={linePath}
@@ -229,7 +222,11 @@ export function AreaChart({
           strokeLinejoin="round"
           initial={isReduced ? false : { pathLength: 0 }}
           animate={{ pathLength: 1 }}
-          transition={isReduced ? { duration: 0 } : { duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
+          transition={
+            isReduced
+              ? { duration: 0 }
+              : { duration: chartDraw.lineDrawDuration, ease: chartDraw.lineDrawEase }
+          }
         />
 
         {/* Promo markers */}
@@ -257,8 +254,8 @@ export function AreaChart({
             <line
               x1={x(activeIndex)}
               x2={x(activeIndex)}
-              y1={PADDING.top}
-              y2={PADDING.top + plotHeight}
+              y1={plotTop}
+              y2={plotBottom}
               stroke="var(--color-text-muted)"
               strokeDasharray="2 3"
             />

@@ -44,7 +44,9 @@ test.describe('anonymous visitors', () => {
   test('should return 401 from GET /api/export when anonymous', async ({ page }) => {
     const response = await page.request.get('/api/export');
     expect(response.status()).toBe(401);
-    expect(await response.json()).toEqual({ error: 'unauthorized' });
+    expect(await response.json()).toEqual({
+      error: { code: 'UNAUTHORIZED', message: expect.any(String) },
+    });
   });
 });
 

@@ -4,7 +4,7 @@
  * base unit. Every helper returns an integer; floats exist only
  * transiently inside a computation, never in stored values.
  *
- * Scope: generic conversions plus the fuel two-of-three helpers; display
+ * Scope: conversions and the arithmetic checks on prices; display
  * formatting AND input parsing live exclusively in
  * src/lib/format.ts — nothing here touches strings.
  */
@@ -32,6 +32,34 @@ export function centsToMilli(cents: number): number {
  */
 export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: number): number {
   return Math.round(centsToMilli(totalPriceCents) / packageSize);
+}
+
+/**
+ * The unit price a review draft takes after an edit, under the rule the
+ * capture reviews share: the unit price is derived from the total and the
+ * size until the user types one, and from then on it is theirs.
+ *
+ * @param totalPriceCents - The draft's total after the edit, in euro cents
+ * @param packageSize - The draft's size after the edit, in base units; null
+ *   when the receipt printed none
+ * @param isUnitPriceEdited - Whether the user owns the unit price, having
+ *   typed it in this edit or an earlier one
+ * @returns the derived unit price in milli-euros, or null when the draft's
+ *   current one stands: the user's own, or a total or size that cannot
+ *   yield one
+ *
+ * @example computeDerivedUnitPriceMilli(129, 0.5, false) === 2580
+ * @example computeDerivedUnitPriceMilli(129, 0.5, true) === null
+ */
+export function computeDerivedUnitPriceMilli(
+  totalPriceCents: number,
+  packageSize: number | null,
+  isUnitPriceEdited: boolean,
+): number | null {
+  if (isUnitPriceEdited || totalPriceCents <= 0 || packageSize === null || packageSize <= 0) {
+    return null;
+  }
+  return calculateUnitPriceMilli(totalPriceCents, packageSize);
 }
 
 /*
@@ -92,13 +120,13 @@ export const UNIT_PRICE_TOLERANCE_MILLI = 10;
 /**
  * Whether a (total, size, unit price) triple can all be true at once.
  *
- * Why it lives here and not next to the one caller: the same question is
- * asked in three places that must never disagree — the receipt line
- * derivation picks between a printed and a derived unit price with it, the
- * review screen names the card that fails it, and `confirmReceipt` refuses
- * to store a triple that does not. Two copies of this arithmetic would
- * eventually be two different tolerances, which is a rejection the user
- * cannot see coming.
+ * Why it lives here and not next to a caller: every place that asks this
+ * question must give the same answer. The receipt line derivation picks
+ * between a printed and a derived unit price with it, the review screen
+ * names the card that fails it, and the writes (`confirmReceipt`, the fuel
+ * entry among them) refuse to store a triple that does not. Two copies of
+ * this arithmetic would eventually be two different tolerances, which is a
+ * rejection the user cannot see coming.
  *
  * Teacher: the tolerance has to GROW with the package size. A unit price is
  * an integer number of milli-euros, so rounding it costs up to half a milli
@@ -126,4 +154,36 @@ export function isUnitPriceConsistent(
 ): boolean {
   const tolerance = Math.max(UNIT_PRICE_TOLERANCE_MILLI, packageSize / 2);
   return Math.abs(unitPriceMilli * packageSize - centsToMilli(totalPriceCents)) <= tolerance;
+}
+
+/** Relative gap between a printed total and unit price × size that still reads as "agrees" (2%). */
+export const CROSS_CHECK_TOLERANCE_RATIO = 0.02;
+
+/**
+ * Whether a printed total and a printed unit price tell the same story, to
+ * within CROSS_CHECK_TOLERANCE_RATIO of the total.
+ *
+ * Why a second, looser check beside isUnitPriceConsistent: that one asks
+ * whether a triple can be STORED (rounding slack only); this one asks whether
+ * two numbers a person or the model READ off a tag are worth a second look.
+ * A gap beyond 2% means a misread digit, a promo tag whose unit price refers
+ * to the old full price, or a unit mix-up. The extraction flag and the manual
+ * form's warning both ask it, so they can never disagree about the same tag.
+ *
+ * @param totalPriceCents - Printed total, in euro cents; > 0
+ * @param packageSize - Content, in base units; > 0
+ * @param unitPriceMilli - Printed unit price, in milli-euros per base unit; > 0
+ * @returns true when unit price × size is within 2% of the total
+ *
+ * @example isWithinCrossCheckTolerance(129, 0.5, 2580) === true
+ * @example isWithinCrossCheckTolerance(80, 0.5, 2000) === false // 2,00 EUR/kg was the price before the discount
+ */
+export function isWithinCrossCheckTolerance(
+  totalPriceCents: number,
+  packageSize: number,
+  unitPriceMilli: number,
+): boolean {
+  const totalMilli = centsToMilli(totalPriceCents);
+  const gapMilli = Math.abs(unitPriceMilli * packageSize - totalMilli);
+  return gapMilli <= CROSS_CHECK_TOLERANCE_RATIO * totalMilli;
 }

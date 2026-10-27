@@ -3,12 +3,13 @@
 /**
  * Settings Server Actions: index options and backup import.
  */
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { invalidInputResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
+import { MAX_CARRY_FORWARD_MONTHS } from '@/lib/inflation';
 import {
   type ImportResult,
   type IndexSettings,
@@ -19,25 +20,26 @@ import {
 const indexSettingsSchema = z
   .object({
     includePromosInIndex: z.boolean().optional(),
-    carryForwardMonths: z.number().int().min(0).max(6).optional(),
+    carryForwardMonths: z.number().int().min(0).max(MAX_CARRY_FORWARD_MONTHS).optional(),
   })
   .refine((patch) => Object.keys(patch).length > 0, { message: 'Empty patch' });
 
-/** Change one or both index options; the index recomputes on the next read. */
+/** Patch any subset of the index options; the index recomputes on the next read. */
 export async function updateIndexSettings(
   input: Partial<IndexSettings>,
 ): Promise<ActionResult<IndexSettings>> {
   const parsed = indexSettingsSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await updateIndexSettingsService(db, user.id, parsed.data);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    const data = await updateIndexSettingsService(db, userId, parsed.data);
+    revalidateAppLayout();
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('updateIndexSettings', error) };
+    return { ok: false, error: toLoggedActionError('updateIndexSettings', error, { userId }) };
   }
 }
 
@@ -51,7 +53,7 @@ const MAX_IMPORT_BYTES = 20 * 1024 * 1024;
 export async function importBackup(input: { json: string }): Promise<ActionResult<ImportResult>> {
   const parsed = z.object({ json: z.string().max(MAX_IMPORT_BYTES) }).safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
   let payload: unknown;
   try {
@@ -59,12 +61,13 @@ export async function importBackup(input: { json: string }): Promise<ActionResul
   } catch {
     return { ok: false, error: { code: 'VALIDATION_FAILED', message: 'Not JSON' } };
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await importUserData(db, user.id, payload);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    const data = await importUserData(db, userId, payload);
+    revalidateAppLayout();
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('importBackup', error) };
+    return { ok: false, error: toLoggedActionError('importBackup', error, { userId }) };
   }
 }

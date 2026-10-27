@@ -1,6 +1,7 @@
 /**
  * Europe/Rome month bucketing, 'YYYY-MM' arithmetic, the month grid,
- * per-product monthly means, and carry-forward imputation.
+ * monthly means (the engine's per-product ones and the plain display series
+ * the read models plot), and carry-forward imputation.
  *
  * Design: the only place the engine touches a Date is toRomeYearMonth. From
  * there on, months are 'YYYY-MM' strings handled with integer arithmetic —
@@ -137,6 +138,55 @@ export function computeObservedMeans(
   }
   return means;
 }
+
+/** One point of a plain monthly-mean series. */
+export interface MonthlyMean {
+  /** 'YYYY-MM' (Europe/Rome calendar month). */
+  month: string;
+  /** Mean unitPriceMilli of the month's entries; a float, round at display only. */
+  value: number;
+}
+
+/**
+ * Arithmetic mean of unitPriceMilli per Europe/Rome month over the entries
+ * that pass `filter` (all of them when omitted), oldest month first. Months
+ * without a passing entry are absent, not zero.
+ *
+ * Why not computeObservedMeans: that is the index's input, with the promo
+ * preference applied and the entries already bucketed. This is the series a
+ * screen plots for one product — every observation counts, and the caller
+ * chooses which (all of them, only promos, only one product).
+ *
+ * @param entries - Any entries carrying an epoch-ms recordedAt and a unitPriceMilli
+ * @param filter - Keeps an entry in the mean when it returns true
+ */
+export function computeMonthlyMeans<T extends Pick<IndexEntry, 'recordedAt' | 'unitPriceMilli'>>(
+  entries: readonly T[],
+  filter: (entry: T) => boolean = () => true,
+): MonthlyMean[] {
+  const byMonth = new Map<string, Accumulator>();
+  for (const entry of entries) {
+    if (!filter(entry)) {
+      continue;
+    }
+    const accumulator = getOrCreate(byMonth, toRomeYearMonth(entry.recordedAt), () => ({
+      sum: 0,
+      count: 0,
+    }));
+    accumulator.sum += entry.unitPriceMilli;
+    accumulator.count += 1;
+  }
+  return [...byMonth.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, { sum, count }]) => ({ month, value: sum / count }));
+}
+
+/**
+ * Largest carryForwardMonths a user may choose. The engine itself accepts any
+ * integer >= 0; this is the bound every boundary that validates the setting
+ * shares, from the settings action to the Settings stepper.
+ */
+export const MAX_CARRY_FORWARD_MONTHS = 6;
 
 /**
  * Carry-forward imputation: fill each product's empty grid

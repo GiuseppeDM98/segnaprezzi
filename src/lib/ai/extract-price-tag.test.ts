@@ -28,7 +28,8 @@ const VALID_EXTRACTION: ExtractionResult = {
 };
 
 const INPUT = {
-  imageBase64: 'aGVsbG8=',
+  // 'aGVsbG8=' once base64-encoded by the gateway.
+  bytes: new TextEncoder().encode('hello'),
   mediaType: 'image/webp' as const,
   storeKind: null,
 };

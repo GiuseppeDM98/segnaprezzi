@@ -4,11 +4,11 @@ import { confirmShoppingSessionSchema } from './schema';
 
 /*
  * The confirm boundary is where hand-edited client data becomes durable, so
- * these two rules are tested at the schema itself rather than through the
- * action (which needs a request context): a promo kind without a promo would
- * silently poison the promo filter of the index, and a photoUrl outside the
- * Blob store would turn the user's own history into a request to someone
- * else's server.
+ * its rules are tested at the schema itself rather than through the action
+ * (which needs a request context). What is at stake, for instance: a promo
+ * kind without a promo would silently poison the promo filter of the index,
+ * and a photoUrl outside the Blob store would turn the user's own history
+ * into a request to someone else's server.
  */
 
 const BLOB_URL = 'https://store.public.blob.vercel-storage.com/users/u/photos/p.webp';

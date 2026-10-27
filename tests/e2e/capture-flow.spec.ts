@@ -24,7 +24,7 @@ import { resetCaptureFixtures } from './helpers/db';
  */
 
 test.use({ storageState: 'playwright/.auth/dev2.json' });
-// Serial: both tests write to the same account, and each starts from a clean
+// Serial: every test here writes to the same account, and each starts from a clean
 // slate that a parallel sibling would pull out from under it.
 test.describe.configure({ mode: 'serial' });
 
@@ -36,7 +36,7 @@ const YOGURT_PRODUCT_ID = seedId('seed2-prod-yogurt');
 const PHOTO_FIXTURE = 'tests/e2e/fixtures/price-tag.png';
 
 /** A realistic /api/extract response for a yogurt tag the catalog already knows. */
-function extractionResponse(overrides: { needsReview?: boolean } = {}) {
+function buildExtractionResponse(overrides: { needsReview?: boolean } = {}) {
   const needsReview = overrides.needsReview ?? false;
   return {
     blobUrl: 'https://store.public.blob.vercel-storage.com/users/u/photos/p.webp',
@@ -73,7 +73,7 @@ function extractionResponse(overrides: { needsReview?: boolean } = {}) {
  */
 async function stubExtraction(
   page: Page,
-  body: ReturnType<typeof extractionResponse>,
+  body: ReturnType<typeof buildExtractionResponse>,
 ): Promise<{ uploads: Array<{ contentType: string; byteLength: number }> }> {
   const uploads: Array<{ contentType: string; byteLength: number }> = [];
 
@@ -93,7 +93,7 @@ async function stubExtraction(
 }
 
 test('should capture a photo, review it and confirm it into the database', async ({ page }) => {
-  const { uploads } = await stubExtraction(page, extractionResponse());
+  const { uploads } = await stubExtraction(page, buildExtractionResponse());
 
   await page.goto('/scan');
   // Wait for hydration before touching the input: the camera panel only
@@ -146,7 +146,7 @@ test('should capture a photo, review it and confirm it into the database', async
 });
 
 test('should flag a doubtful extraction and block confirm until it is fixed', async ({ page }) => {
-  await stubExtraction(page, extractionResponse({ needsReview: true }));
+  await stubExtraction(page, buildExtractionResponse({ needsReview: true }));
 
   await page.goto('/scan');
   // Wait for hydration before touching the input: the camera panel only

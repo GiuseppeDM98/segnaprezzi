@@ -2,7 +2,7 @@ import { Skeleton, SkeletonRows } from '@/components/ui/skeleton';
 
 /**
  * Dashboard loading state: skeletons mirroring the hero
- * number, the chart block, four bar rows and three mover rows.
+ * number, the chart block, the category bars and the movers.
  */
 export default function DashboardLoading() {
   return (

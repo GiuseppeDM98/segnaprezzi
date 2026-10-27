@@ -2,13 +2,13 @@
  * Product repository. Every function is scoped by userId — no cross-user
  * read or write is representable through this layer.
  */
-import { and, asc, eq, inArray, like, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, or, sql } from 'drizzle-orm';
 
 import type { Db, DbTransaction } from '@/lib/db/client';
 import { type NewProduct, type Product, priceEntries, products } from '@/lib/db/schema/app';
 import type { CategoryId } from '@/lib/domain/categories';
-import { NotFoundError } from '@/lib/errors';
-import type { IndexProduct } from '@/lib/inflation/types';
+import { ProductNotFoundError } from '@/lib/errors';
+import type { IndexProduct } from '@/lib/inflation';
 import { moveProductAliases } from './product-aliases';
 
 export type CreateProductInput = Omit<NewProduct, 'id' | 'userId' | 'createdAt' | 'updatedAt'>;
@@ -16,10 +16,19 @@ export type UpdateProductPatch = Partial<CreateProductInput>;
 
 export interface ListProductsOptions {
   category?: CategoryId;
-  /** Case-insensitive substring match on name and brand. */
+  /** Case-insensitive substring match on name and brand; `%` and `_` match literally. */
   search?: string;
   /** Default false: archived products are hidden from lists and suggestions. */
   includeArchived?: boolean;
+}
+
+/**
+ * Escape the LIKE wildcards in user input so it matches literally; the
+ * pattern must be used with `ESCAPE '\'`. Without it, a search for "50%"
+ * would match every product name containing "50", and "%" alone everything.
+ */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
 /** Insert a product for the user and return the created row. */
@@ -50,10 +59,10 @@ export async function listProducts(
     conditions.push(eq(products.category, options.category));
   }
   if (options.search) {
-    const pattern = `%${options.search.toLowerCase()}%`;
+    const pattern = `%${escapeLikePattern(options.search.toLowerCase())}%`;
     const searchCondition = or(
-      like(sql`lower(${products.name})`, pattern),
-      like(sql`lower(${products.brand})`, pattern),
+      sql`lower(${products.name}) like ${pattern} escape '\\'`,
+      sql`lower(${products.brand}) like ${pattern} escape '\\'`,
     );
     if (searchCondition) {
       conditions.push(searchCondition);
@@ -117,7 +126,7 @@ export interface DeleteProductsResult {
  * because blobs live outside this transaction and can only be cleaned up
  * after it commits.
  *
- * @throws NotFoundError when any id is not this user's — deleting "3
+ * @throws ProductNotFoundError when any id is not this user's — deleting "3
  *   products" must never quietly delete two.
  */
 export async function deleteProducts(
@@ -133,7 +142,7 @@ export async function deleteProducts(
     const ownedIds = new Set(owned.map((row) => row.id));
     const missing = productIds.find((id) => !ownedIds.has(id));
     if (missing) {
-      throw new NotFoundError('product', missing);
+      throw new ProductNotFoundError(missing);
     }
 
     const deletedEntries = await tx
@@ -164,11 +173,12 @@ export interface MergeProductsResult {
  * leaves both products untouched.
  *
  * The source is archived rather than deleted: deletion would be blocked by
- * the FK restrict if any entry slipped in concurrently, and archiving keeps
+ * the price_entries FK if any entry slipped in concurrently, and archiving keeps
  * the merge trivially reversible by hand.
  *
- * Throws NotFoundError if either product does not exist for this user, or
- * if sourceProductId === targetProductId (self-merge is a caller bug).
+ * @throws ProductNotFoundError if either product does not exist for this
+ *   user, or if sourceProductId === targetProductId (self-merge is a caller
+ *   bug).
  */
 export async function mergeProducts(
   db: Db,
@@ -183,12 +193,12 @@ export async function mergeProducts(
       getProductById(tx, userId, targetProductId),
     ]);
     if (!source) {
-      throw new NotFoundError('product', sourceProductId);
+      throw new ProductNotFoundError(sourceProductId);
     }
     if (!target || sourceProductId === targetProductId) {
       // Why: a self-merge is a caller bug; treating it as a missing target
       // aborts the transaction without inventing a dedicated error code.
-      throw new NotFoundError('product', targetProductId);
+      throw new ProductNotFoundError(targetProductId);
     }
 
     // Move entries, then archive the source.
@@ -213,8 +223,7 @@ export async function mergeProducts(
 
 /**
  * Record the package size a product's newest observation used. Called by
- * every write path that inserts an entry — tags, manual entries and
- * receipts alike.
+ * every write path that inserts an entry.
  *
  * Last write wins on purpose: a product whose size changes (the
  * "shrinkflation" case, 500 g becoming 450 g) should follow the newest

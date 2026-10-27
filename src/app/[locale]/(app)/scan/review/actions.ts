@@ -8,17 +8,10 @@
  * everything they accept has already been edited by hand on the client, so
  * nothing reaching the service is assumed to resemble what was extracted.
  */
-import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
-
+import { fieldErrorResult, invalidInputResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
-import { toFieldErrorCode } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
-import {
-  type ProductSearchHit,
-  searchProducts as searchProductsService,
-} from '@/lib/services/catalog';
 import {
   type ConfirmShoppingSessionResult,
   confirmShoppingSession as confirmShoppingSessionService,
@@ -36,21 +29,20 @@ export async function confirmShoppingSession(
 ): Promise<ActionResult<ConfirmShoppingSessionResult>> {
   const parsed = confirmShoppingSessionSchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: { code: toFieldErrorCode(parsed.error), message: parsed.error.message },
-    };
+    return fieldErrorResult(parsed.error);
   }
 
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await confirmShoppingSessionService(db, user.id, parsed.data);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    const data = await confirmShoppingSessionService(db, userId, parsed.data);
+    revalidateAppLayout();
     return { ok: true, data };
   } catch (error) {
     return {
       ok: false,
       error: toLoggedActionError('confirmShoppingSession', error, {
+        userId,
         sessionId: parsed.data.sessionId,
       }),
     };
@@ -67,33 +59,15 @@ export async function beginSessionReview(input: {
 }): Promise<ActionResult<{ sessionId: string }>> {
   const parsed = beginSessionReviewSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
 
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const session = await beginSessionReviewService(db, user.id, parsed.data.sessionId);
+    userId = (await requireUser()).id;
+    const session = await beginSessionReviewService(db, userId, parsed.data.sessionId);
     return { ok: true, data: { sessionId: session.id } };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('beginSessionReview', error) };
-  }
-}
-
-const searchProductsSchema = z.object({ query: z.string().trim().max(100) });
-
-/** Catalog search for the match picker. */
-export async function searchProducts(input: {
-  query: string;
-}): Promise<ActionResult<ProductSearchHit[]>> {
-  const parsed = searchProductsSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
-  }
-  try {
-    const user = await requireUser();
-    const data = await searchProductsService(db, user.id, parsed.data.query);
-    return { ok: true, data };
-  } catch (error) {
-    return { ok: false, error: toLoggedActionError('searchProducts', error) };
+    return { ok: false, error: toLoggedActionError('beginSessionReview', error, { userId }) };
   }
 }

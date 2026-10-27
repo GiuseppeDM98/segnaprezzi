@@ -33,6 +33,7 @@ import { isNotNull } from 'drizzle-orm';
 
 import { db } from '@/lib/db/client';
 import { priceEntries } from '@/lib/db/schema/app';
+import { env } from '@/lib/env';
 
 /** Blobs listed per request; the store's maximum. */
 const PAGE_SIZE = 1000;
@@ -91,7 +92,7 @@ async function main(): Promise<void> {
 
 /** The database being compared, with any credentials stripped. */
 function describeDatabase(): string {
-  const url = process.env.TURSO_DATABASE_URL ?? '(unset)';
+  const url = env.TURSO_DATABASE_URL;
   return url.startsWith('file:') ? `${url} (LOCAL FILE)` : url.split('?')[0];
 }
 

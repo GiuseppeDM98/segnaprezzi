@@ -1,11 +1,11 @@
 /**
- * Writing one price entry — the single path every non-photo entry takes,
- * parameterized by `source`.
+ * Writing one price entry — the single path every one-at-a-time entry form
+ * takes, parameterized by `source`.
  *
  * Design: the product pick resolution lives here too, because "reuse the
- * product the user already has instead of creating a near-duplicate" is the
- * one rule the manual form, the fuel form and the batch confirm must apply
- * identically. Duplicates are not a cosmetic problem: the inflation engine
+ * product the user already has instead of creating a near-duplicate" is a
+ * rule every path that attaches entries to products must apply identically.
+ * Duplicates are not a cosmetic problem: the inflation engine
  * matches products month over month, so a second "Latte PS 1L" row silently
  * removes that product from every relative it should have contributed to.
  */
@@ -20,7 +20,13 @@ import {
 import { getStoreById } from '@/lib/db/repositories/stores';
 import type { EntrySource, PromoKind } from '@/lib/domain/entries';
 import { type FuelQuickPickKey, getFuelQuickPick } from '@/lib/domain/fuel-products';
-import type { ProductPick } from '@/lib/domain/schemas';
+import { centsToMilli, isUnitPriceConsistent } from '@/lib/domain/money';
+import {
+  MAX_PACKAGE_SIZE,
+  MAX_TOTAL_PRICE_CENTS,
+  MAX_UNIT_PRICE_MILLI,
+  type ProductPick,
+} from '@/lib/domain/schemas';
 import {
   InconsistentFuelPricesError,
   InvalidDateError,
@@ -41,10 +47,6 @@ const MIN_RECORDED_AT_MS = Date.UTC(2020, 0, 1);
 
 /** Tolerated clock skew between the user's phone and the server. */
 const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
-
-const MAX_TOTAL_PRICE_CENTS = 1_000_000;
-const MAX_UNIT_PRICE_MILLI = 100_000_000;
-const MAX_PACKAGE_SIZE = 10_000;
 
 export interface CreatePriceEntryInput {
   product: ProductPick;
@@ -230,9 +232,6 @@ function assertEntryValues(input: CreatePriceEntryInput): void {
   }
 }
 
-/** Pump readings round to the cent, so the triple may disagree by that much. */
-const FUEL_CROSS_CHECK_TOLERANCE_MILLI = 10;
-
 export interface CreateFuelEntryInput {
   fuel: FuelQuickPickKey;
   storeId: string | null;
@@ -250,7 +249,9 @@ export interface CreateFuelEntryInput {
  * The user enters any two of {unit price, quantity, total} and the client
  * computes the third; the server re-derives the relation rather than trusting
  * it, because a stale computed field is exactly what a fat-fingered edit at
- * the pump produces.
+ * the pump produces. The check is isUnitPriceConsistent, the same rule every
+ * other write applies to the unit-price invariant, with the litres (or kg)
+ * as the package size.
  *
  * @throws InvalidStoreKindError when the store is not a fuel station
  * @throws InconsistentFuelPricesError when the three numbers cannot all be true
@@ -262,9 +263,9 @@ export async function createFuelEntry(
 ): Promise<CreatePriceEntryResult> {
   await assertFuelStation(db, userId, input.storeId);
 
-  const derivedMilli = input.unitPriceMilli * input.quantity;
-  const totalMilli = input.totalPriceCents * 10;
-  if (Math.abs(derivedMilli - totalMilli) > FUEL_CROSS_CHECK_TOLERANCE_MILLI) {
+  if (!isUnitPriceConsistent(input.totalPriceCents, input.quantity, input.unitPriceMilli)) {
+    const derivedMilli = input.unitPriceMilli * input.quantity;
+    const totalMilli = centsToMilli(input.totalPriceCents);
     throw new InconsistentFuelPricesError(
       `unitPriceMilli x quantity (${derivedMilli}) does not match totalPriceCents (${totalMilli})`,
     );

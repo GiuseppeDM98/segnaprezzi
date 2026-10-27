@@ -5,7 +5,7 @@
  *
  * Design: Dexie's useLiveQuery re-runs the query on every write to the
  * observed tables, so a status flip in the service worker's drain reaches
- * the Scan and Review screens with no polling and no refresh.
+ * every subscribed screen with no polling and no refresh.
  */
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -34,7 +34,7 @@ const EMPTY_STATUS: QueueStatus = {
 /**
  * Subscribe to queue counters, optionally scoped to one shopping session
  * (the Scan screen passes the active sessionId; global consumers such as the
- * Dashboard cached-data banner pass none).
+ * offline banner pass none).
  */
 export function useQueueStatus(sessionId?: string): QueueStatus {
   const status = useLiveQuery(async () => {

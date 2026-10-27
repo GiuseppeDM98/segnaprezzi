@@ -7,8 +7,9 @@
  */
 import { nanoid } from 'nanoid';
 
-import type { ExtractPhotoResponse } from '@/lib/services/extract-photo-entry';
+import type { ExtractPhotoResponse } from '@/lib/domain/extract-photo';
 import { offlineDb, type PendingPhoto } from './db';
+import { readStorageItem, removeStorageItem, writeStorageItem } from './safe-storage';
 
 export const MAX_UPLOAD_ATTEMPTS = 5;
 
@@ -17,23 +18,25 @@ export const MAX_UPLOAD_ATTEMPTS = 5;
  *
  * localStorage rather than a server round-trip: the first shutter press has
  * to work with the phone in airplane mode, so the session id
- * is minted and kept locally until something reaches the server.
+ * is minted and kept locally until something reaches the server. Where
+ * storage is unavailable (Safari private mode) the id is simply not
+ * remembered across reloads, and the next shutter press starts a new spesa.
  */
 export const ACTIVE_SESSION_STORAGE_KEY = 'segnaprezzi.activeSessionId';
 
 /** The spesa in progress on this device, or null. */
 export function readActiveSessionId(): string | null {
-  return localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+  return readStorageItem(ACTIVE_SESSION_STORAGE_KEY);
 }
 
 /** Adopt a session id as this device's spesa in progress. */
 export function writeActiveSessionId(sessionId: string): void {
-  localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, sessionId);
+  writeStorageItem(ACTIVE_SESSION_STORAGE_KEY, sessionId);
 }
 
 /** Forget the spesa in progress — after confirm or discard. */
 export function clearActiveSessionId(): void {
-  localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+  removeStorageItem(ACTIVE_SESSION_STORAGE_KEY);
 }
 
 /** Mint the id of a brand-new spesa. Client-side, no network involved. */
@@ -63,11 +66,6 @@ export async function enqueuePendingPhoto(input: {
 /** All photos of one session, oldest first — powers the tray and the review screen. */
 export function listSessionPhotos(sessionId: string): Promise<PendingPhoto[]> {
   return offlineDb.pendingPhotos.where('sessionId').equals(sessionId).sortBy('createdAt');
-}
-
-/** Photos still travelling — powers the queue badge in the tab bar. */
-export function countQueuedPhotos(): Promise<number> {
-  return offlineDb.pendingPhotos.where('status').anyOf('queued', 'uploading').count();
 }
 
 /**
@@ -162,7 +160,7 @@ export async function retryFailedPhoto(id: string): Promise<void> {
 
 /**
  * Reset every failed photo, optionally only those of one session — the
- * "Riprova tutti" action of the Scan queue line.
+ * "Retry all" action of the Scan queue line.
  *
  * @returns How many photos were re-queued.
  */

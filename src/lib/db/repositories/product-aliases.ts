@@ -5,9 +5,9 @@
  * Design note on upserting: `(user_id, alias, store_chain)` is a UNIQUE
  * index, but SQLite treats NULLs as DISTINCT inside one, so two aliases
  * learned from receipts with no known chain do NOT collide and
- * `onConflictDoUpdate` never fires for them. Every write here therefore
- * looks the row up first and updates it explicitly. Both call sites run
- * inside a transaction, so the read-then-write is atomic.
+ * `onConflictDoUpdate` never fires for them. Every write keyed on that
+ * triple therefore looks the row up first and updates it explicitly, and
+ * runs inside its caller's transaction, so the read-then-write is atomic.
  */
 import { and, eq, isNull, sql } from 'drizzle-orm';
 

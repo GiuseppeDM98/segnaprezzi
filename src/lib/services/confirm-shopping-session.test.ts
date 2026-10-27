@@ -19,8 +19,8 @@ import {
  * The project's test DB factory deliberately avoids
  * `createClient({ url: ':memory:' })` and uses a uniquely-named temp file
  * instead, because an anonymous in-memory libSQL connection silently resets itself when a
- * transaction callback throws (AGENTS.md §4.17) — which is exactly what half
- * of these tests do.
+ * transaction callback throws (AGENTS.md §4.17) — which is exactly what
+ * several of these tests do.
  */
 
 const SESSION_ID = 'sess0000000000000000A';

@@ -12,12 +12,14 @@
  * failure re-uses (overwrites) the same blob on retry instead of orphaning it.
  */
 import { AiGatewayError, EXTRACTION_MODEL, extractPriceTag } from '@/lib/ai/extract-price-tag';
-import { flagExtractionForReview, type ReviewedExtraction } from '@/lib/ai/flag-extraction';
+import { flagExtractionForReview } from '@/lib/ai/flag-extraction';
 import { uploadEntryPhoto } from '@/lib/blob/photo-storage';
-import { db } from '@/lib/db/client';
+import type { Db } from '@/lib/db/client';
 import { listProductIdsWithEntriesAtStoreSince } from '@/lib/db/repositories/price-entries';
 import { listProducts } from '@/lib/db/repositories/products';
 import { getStoreById } from '@/lib/db/repositories/stores';
+import type { ExtractPhotoResponse } from '@/lib/domain/extract-photo';
+import type { PhotoMediaType } from '@/lib/domain/photos';
 import type { StoreKind } from '@/lib/domain/stores';
 import { ExtractionError, ExtractionUnavailableError, StoreNotFoundError } from '@/lib/errors';
 import {
@@ -25,9 +27,9 @@ import {
   type ProductSuggestion,
   suggestProductMatches,
 } from './match-products';
-import { findOrCreateShoppingSession } from './shopping-session-lifecycle';
+import { getOrCreateShoppingSession } from './shopping-session-lifecycle';
 
-export type { ProductSuggestion };
+export type { ExtractPhotoResponse, ProductSuggestion };
 
 /**
  * How far back an entry at the capture store still counts as "recent" for
@@ -43,26 +45,18 @@ export interface ExtractPhotoEntryInput {
   storeId: string | null;
   storeKind: StoreKind | null;
   photoBytes: ArrayBuffer;
-  photoContentType: 'image/webp' | 'image/jpeg';
-}
-
-export interface ExtractPhotoResponse {
-  blobUrl: string;
-  extraction: ReviewedExtraction;
-  /** Top 3 catalog matches, best first; may be empty. */
-  suggestions: ProductSuggestion[];
-  /** Model that produced the extraction — stored to price_entries.ai_model on confirm. */
-  model: string;
+  photoContentType: PhotoMediaType;
 }
 
 /**
  * Turn one uploaded photo into a reviewable extraction.
  *
- * @throws StoreNotFoundError, SessionNotFoundError, SessionClosedError — see findOrCreateShoppingSession
+ * @throws StoreNotFoundError, SessionNotFoundError, SessionClosedError — see getOrCreateShoppingSession
  * @throws ExtractionUnavailableError when the upstream failure is retryable
  * @throws ExtractionError when this exact photo will never extract
  */
 export async function extractPhotoEntry(
+  db: Db,
   input: ExtractPhotoEntryInput,
 ): Promise<ExtractPhotoResponse> {
   // A store row wins over the client's storeKind hint: the hint only exists
@@ -76,7 +70,7 @@ export async function extractPhotoEntry(
     storeKind = store.kind;
   }
 
-  await findOrCreateShoppingSession(db, input.userId, input.sessionId, input.storeId);
+  await getOrCreateShoppingSession(db, input.userId, input.sessionId, input.storeId);
 
   const blobUrl = await uploadEntryPhoto({
     userId: input.userId,
@@ -86,14 +80,14 @@ export async function extractPhotoEntry(
   });
 
   const extraction = await runExtraction({
-    imageBase64: Buffer.from(input.photoBytes).toString('base64'),
+    bytes: new Uint8Array(input.photoBytes),
     mediaType: input.photoContentType,
     storeKind,
     userId: input.userId,
     photoId: input.photoId,
   });
 
-  const candidates = await loadMatchCandidates(input.userId, input.storeId);
+  const candidates = await loadMatchCandidates(db, input.userId, input.storeId);
 
   return {
     blobUrl,
@@ -105,20 +99,20 @@ export async function extractPhotoEntry(
 
 /**
  * Call the gateway and translate its internal error type into the domain
- * contract. AiGatewayError never leaves src/lib/ai — the retryable flag
+ * contract. AiGatewayError never travels past this service — the retryable flag
  * becomes the difference between "we will try again" (503) and "retake the
  * photo" (422).
  */
 async function runExtraction(input: {
-  imageBase64: string;
-  mediaType: 'image/webp' | 'image/jpeg';
+  bytes: Uint8Array;
+  mediaType: PhotoMediaType;
   storeKind: StoreKind | null;
   userId: string;
   photoId: string;
 }) {
   try {
     return await extractPriceTag({
-      imageBase64: input.imageBase64,
+      bytes: input.bytes,
       mediaType: input.mediaType,
       storeKind: input.storeKind,
     });
@@ -146,6 +140,7 @@ async function runExtraction(input: {
  * queries total, never one per product.
  */
 async function loadMatchCandidates(
+  db: Db,
   userId: string,
   storeId: string | null,
 ): Promise<MatchCandidate[]> {

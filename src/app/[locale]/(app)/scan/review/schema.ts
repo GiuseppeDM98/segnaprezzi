@@ -2,12 +2,13 @@
  * Boundary schemas for the review screen's Server Actions.
  *
  * They live beside `actions.ts` rather than inside it because a `"use server"`
- * module may only export async functions — and both the action and its tests
- * need this schema.
+ * module may only export async functions — and modules other than the action
+ * need these shapes too, the review screen and the schema tests among them.
  */
 import { z } from 'zod';
 
 import { PROMO_KINDS } from '@/lib/domain/entries';
+import { BLOB_PUBLIC_HOSTNAME_SUFFIX } from '@/lib/domain/photos';
 import {
   epochMsSchema,
   nanoidSchema,
@@ -16,9 +17,6 @@ import {
   totalPriceCentsSchema,
   unitPriceMilliSchema,
 } from '@/lib/domain/schemas';
-
-/** Vercel Blob's public host suffix — photoUrl may point nowhere else. */
-const BLOB_HOSTNAME_SUFFIX = '.public.blob.vercel-storage.com';
 
 const confirmEntrySchema = z
   .object({
@@ -37,7 +35,7 @@ const confirmEntrySchema = z
     photoUrl: z
       .url()
       .refine(
-        (url) => new URL(url).hostname.endsWith(BLOB_HOSTNAME_SUFFIX),
+        (url) => new URL(url).hostname.endsWith(BLOB_PUBLIC_HOSTNAME_SUFFIX),
         'photoUrl must be a Vercel Blob URL',
       )
       .nullable(),

@@ -6,12 +6,17 @@ import { useTranslations } from 'next-intl';
 import { AuthForm } from '@/components/auth/auth-form';
 import { authClient } from '@/lib/auth/client';
 import { Link, useRouter } from '@/lib/i18n/navigation';
+import { sanitizeRedirectPath } from '@/lib/redirects';
 
+/**
+ * Email sign-up; returns to `redirectTo` when the auth gate set one and it
+ * is a same-origin path, or home.
+ */
 export function SignupForm() {
   const t = useTranslations('auth');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirectTo') || '/';
+  const redirectTo = sanitizeRedirectPath(searchParams.get('redirectTo'));
 
   return (
     <AuthForm

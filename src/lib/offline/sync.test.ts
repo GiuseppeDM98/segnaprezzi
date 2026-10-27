@@ -1,7 +1,7 @@
 /*
  * Sync engine tests.
  *
- * Three deliberate choices:
+ * Deliberate choices:
  * - Only `Date` is faked, never the timers. fake-indexeddb drives itself on
  *   real macrotasks, so faking setTimeout deadlocks Dexie mid-transaction;
  *   freezing the clock instead makes every `nextAttemptAt` an exact number
@@ -16,7 +16,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import type { ExtractPhotoResponse } from '@/lib/services/extract-photo-entry';
+import type { ExtractPhotoResponse } from '@/lib/domain/extract-photo';
 import { LAST_SYNC_AT_KEY, offlineDb, type PendingPhoto } from './db';
 import { enqueuePendingPhoto, retryFailedPhoto } from './photo-queue';
 import { drainPendingPhotos, startSyncEngine } from './sync';

@@ -6,9 +6,9 @@
  * Thin by contract: authenticate, validate with Zod, call the service, map
  * domain errors. No business rule lives here.
  */
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { invalidInputResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { nanoidSchema } from '@/lib/domain/schemas';
@@ -29,15 +29,16 @@ export async function discardShoppingSession(
 ): Promise<ActionResult<{ sessionId: string }>> {
   const parsed = discardShoppingSessionSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
 
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await discardShoppingSessionService(db, user.id, parsed.data);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    const data = await discardShoppingSessionService(db, userId, parsed.data);
+    revalidateAppLayout();
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('discardShoppingSession', error) };
+    return { ok: false, error: toLoggedActionError('discardShoppingSession', error, { userId }) };
   }
 }

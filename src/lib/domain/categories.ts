@@ -6,7 +6,7 @@
 
 // WARNING: adding or renaming a category also requires updating:
 // - messages/it.json and messages/en.json (keys under "categories")
-// - the AI extraction prompt in src/lib/ai/
+// - the category list in each AI prompt under src/lib/ai/
 // - the ISTAT comparison mapping, if category-level comparison exists
 export const CATEGORY_IDS = [
   'food',

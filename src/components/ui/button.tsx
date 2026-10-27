@@ -1,9 +1,10 @@
 'use client';
 
 /**
- * The only action trigger in the app. Owns the app's sole
- * spinner: the inline pending indicator. Renders a <button>, or a locale-aware
- * <Link> when `href` is given, with the same stamped-control look.
+ * The only action trigger in the app. Owns the inline pending indicator,
+ * one of the app's spinners (DESIGN.md, Buttons: the button's arc and the
+ * offline banner's sync icon are the app's spinners). Renders a <button>, or a
+ * locale-aware <Link> when `href` is given, with the same stamped-control look.
  */
 import { motion } from 'motion/react';
 import type { ComponentProps, ReactNode } from 'react';
@@ -97,7 +98,7 @@ export function Button(props: ButtonProps) {
   );
 }
 
-/** The app's one spinner: a quarter arc in the current text color. */
+/** The pending arc: a quarter arc in the current text color. */
 function PendingSpinner() {
   return (
     <svg

@@ -16,8 +16,8 @@ const withNextIntl = createNextIntlPlugin('./src/lib/i18n/request.ts');
  *
  * A fresh revision per build is deliberate: it is what makes an updated
  * worker re-fetch the fallback instead of keeping the previous deploy's copy.
- * WARNING: adding a locale means adding its /<locale>/offline entry here as
- * well as in the `fallbacks` list in src/app/sw.ts.
+ * WARNING: adding a locale means adding its /<locale>/offline entry here;
+ * the `fallbacks` list in src/app/sw.ts follows routing.locales on its own.
  */
 const offlineFallbackRevision = randomUUID();
 

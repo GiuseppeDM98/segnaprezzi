@@ -6,8 +6,8 @@ import { deleteProductsByName } from './helpers/db';
 /*
  * Product deletion E2E suite.
  *
- * This is the one action in the app that destroys price history on purpose,
- * so the assertions are about what is gone from the DATABASE, not about what
+ * Deleting a product destroys its whole price history on purpose, so the
+ * assertions are about what is gone from the DATABASE, not about what
  * left the screen: GET /api/export must lose the product AND every entry that
  * referenced it, in the same breath. The confirmation is checked for the one
  * thing it exists to say — how many observations are about to disappear —

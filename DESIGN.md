@@ -231,7 +231,7 @@ A cream-and-ink paper register with five semantic inks, each owning exactly one 
 
 **The Ink-on-Highlighter Rule.** Text on the accent is always `accent-contrast` (ink). Accent as text is always `accent-ink`. White never touches the highlighter.
 
-**The Rising-Is-Red Rule.** This is an inflation tracker: `priceDirectionOf()` maps a positive ratio to the `negative` family and a negative ratio to `positive`; exactly zero (|ratio| <= 0.00005) is neutral band. Every direction is also carried by sign, arrow and an sr-only word; color is never the only channel.
+**The Rising-Is-Red Rule.** This is an inflation tracker: `calculatePriceDirection()` (`components/charts/scale.ts`) maps a positive ratio to the `negative` family and a negative ratio to `positive`; a ratio that displays as 0,0% (|ratio| < `FLAT_RATIO_EPSILON`, 0.0005) is neutral. Every direction is also carried by sign, arrow and an sr-only word; color is never the only channel.
 
 **The Two-Places Rule.** A literal color appears only in `globals.css` and `docs/assets/logo.svg`. Components use semantic utilities only; Tailwind palette colors (`gray-500`, `orange-*`) do not exist in this project.
 
@@ -312,7 +312,7 @@ Stamped controls, not pebbles. Two radii: **control** (6 px) for buttons, inputs
 - **Ghost:** transparent, ink text underlined with a hairline decoration at 4 px offset.
 - **Danger:** ribbon-red fill with paper text.
 - **Hover / Press / Focus:** hover `brightness-95` (filled) or `bg-band` (framed/ghost); pressed `scale: 0.97` via Motion `whileTap` (off under reduced motion); focus is the global 2 px stamp-blue outline at 2 px offset.
-- **Pending:** the app's only spinner, a quarter arc in `currentColor` inside the button, with `aria-busy`; content areas use skeleton zebra rows, never spinners.
+- **Pending:** a quarter arc in `currentColor` inside the button, with `aria-busy`. The button's arc and the offline banner's sync icon are the app's spinners; content areas use skeleton zebra rows, never spinners.
 - **Disabled:** a framed `surface` plate with `text-muted` ink and a hairline border, in every variant — never the variant's own fill at reduced opacity, which drops a filled button's label to about 2:1 and hides the words. A disabled control is also not the live thing on the screen, so it hands the accent back.
 - **Icon buttons:** 44/52 px squares in `plain`, `outlined`, `filled` variants with the same states.
 
@@ -361,7 +361,7 @@ Mono 600 12 px uppercase, 0.12em tracking, muted ink, 6 px above a 3 px double r
 Area chart with the personal series in the highlighter `accent` (line + soft gradient area), promo observations as `promo` dots, the ISTAT overlay in `chart-compare` (neutral grey), gridlines in `chart-grid`; category bars and sparklines use the same inks; axis labels mono 12-13 px. The series draws in on mount only; the overlay toggles with the 150 ms fade.
 
 ### Motion
-From `src/lib/motion.ts` only: `houseSpring` (`spring`, stiffness 400, damping 35) for all movement, `quickFade` (150 ms ease-out) for opacity, `CARD_STAGGER_SECONDS` 0.03 for review cards. `useAppMotion()` is the single reduced-motion switch: springs become instant cuts, fades up to 150 ms stay; a global CSS override collapses every transition under `prefers-reduced-motion`. Inventory: hero digit roll, FAB -> viewfinder morph, review card stagger, 150 ms route cross-fade, confirm checkmark draw + pop, chart draw-in, sheet slide/drag, tab bar hide/show, toast slide + fade, pressed 0.97, derived-value highlight.
+From `src/lib/motion.ts` only; among its exports, `houseSpring` (`spring`, stiffness 400, damping 35) for all movement, `quickFade` (150 ms ease-out) for opacity, `CARD_STAGGER_SECONDS` 0.03 for review cards, `chartDraw` for the area chart's draw-in (a 0.7 s line tween, the area fading up 0.15 s behind it). `useAppMotion()` is the single reduced-motion switch: springs become instant cuts, fades up to 150 ms stay; a global CSS override collapses every transition under `prefers-reduced-motion`. Inventory: hero digit roll, FAB -> viewfinder morph, review card stagger, 150 ms route cross-fade, confirm checkmark draw + pop, chart draw-in, sheet slide/drag, tab bar hide/show, toast slide + fade, pressed 0.97, derived-value highlight.
 
 ## Do's and Don'ts
 
@@ -370,7 +370,7 @@ From `src/lib/motion.ts` only: `houseSpring` (`spring`, stiffness 400, damping 3
 - **Do** build lists as `zebra` rows on a 48 px rhythm, bleeding to the gutter, with hover `accent-soft`; paginate with a dashed rule, not with cards.
 - **Do** head sections with `SectionHeading` (uppercase mono over the double rule) and put the section's one control on the rule.
 - **Do** use `accent-ink` whenever the accent is text, and `accent-contrast` (ink) for text on an accent fill.
-- **Do** render price direction through `TrendBadge` / `priceDirectionOf` so rising = red, falling = green, with sign, arrow and sr-only word.
+- **Do** render price direction through `TrendBadge` / `calculatePriceDirection` so rising = red, falling = green, with sign, arrow and sr-only word.
 - **Do** use the named breakpoints `tablet:` (48rem), `rail:` (64rem), `desktop:` (90rem) and the `pt-safe` / `pb-safe` utilities.
 - **Do** give sticky footers `pb-11` on mobile (and `rail:pb-3`) so the Scan disc never covers their controls.
 - **Do** animate only with `useAppMotion().spring` / `.fade`; stagger review cards at 30 ms; keep route changes to the 150 ms cross-fade.
@@ -382,7 +382,7 @@ From `src/lib/motion.ts` only: `houseSpring` (`spring`, stiffness 400, damping 3
 - **Don't** give a status color a second meaning: no red for "important", no green for "brand", no amber decoration.
 - **Don't** add kicker or eyebrow labels above a title; the mono heading is the heading.
 - **Don't** nest cards in cards or put a resting surface in a shadow; the only shadows belong to sheets, toasts and the Scan disc.
-- **Don't** show spinners for loading content; use zebra skeleton rows. The button's pending arc is the one spinner.
+- **Don't** show spinners for loading content; use zebra skeleton rows. The button's pending arc and the offline banner's sync icon are the app's spinners.
 - **Don't** declare ad-hoc springs, durations or `whileTap` values, or read `useReducedMotion` outside `src/lib/motion.ts`.
 - **Don't** use raw `sm:` / `md:` / `lg:` breakpoints; they are reset to nothing.
 - **Don't** invent new type sizes between the steps 24/17/15/14/13/12/11 px, or a second display size beside the hero clamp.

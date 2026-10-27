@@ -2,26 +2,23 @@
  * Post-extraction sanity check. Pure — the service applies it to every
  * extraction before the response leaves the server.
  */
-import type { ExtractionResult } from './extraction-schema';
+import type {
+  ExtractionResult,
+  ReviewedExtraction,
+  ReviewReason,
+} from '@/lib/domain/extract-photo';
+import { isWithinCrossCheckTolerance } from '@/lib/domain/money';
 
-/** Allowed relative gap between the printed total and unit × size (2%). */
-const CROSS_CHECK_TOLERANCE = 0.02;
+export type { ReviewedExtraction, ReviewReason };
+
 const MIN_CONFIDENCE = 0.6;
-
-export type ReviewReason = 'price-mismatch' | 'low-confidence';
-
-export interface ReviewedExtraction extends ExtractionResult {
-  needsReview: boolean;
-  reviewReasons: ReviewReason[];
-}
 
 /**
  * Flag extractions the user must double-check before confirming.
  *
  * The invariant unitPriceMilli × packageSize = totalPriceCents × 10 holds on
  * a correct tag (both sides are milli-euros for the whole package). A gap
- * beyond 2% means a misread digit, a promo tag whose unit price refers to
- * the old full price, or a unit mix-up — all worth a human look.
+ * beyond isWithinCrossCheckTolerance's 2% is worth a human look.
  *
  * @param extraction - A schema-valid extraction straight from the gateway
  * @returns The same fields plus needsReview and the reasons behind it
@@ -34,12 +31,15 @@ export function flagExtractionForReview(extraction: ExtractionResult): ReviewedE
   const hasAllPrices =
     extraction.totalPriceCents > 0 && extraction.unitPriceMilli > 0 && extraction.packageSize > 0;
 
-  if (hasAllPrices) {
-    const totalMilli = extraction.totalPriceCents * 10;
-    const derivedMilli = extraction.unitPriceMilli * extraction.packageSize;
-    if (Math.abs(derivedMilli - totalMilli) > CROSS_CHECK_TOLERANCE * totalMilli) {
-      reviewReasons.push('price-mismatch');
-    }
+  if (
+    hasAllPrices &&
+    !isWithinCrossCheckTolerance(
+      extraction.totalPriceCents,
+      extraction.packageSize,
+      extraction.unitPriceMilli,
+    )
+  ) {
+    reviewReasons.push('price-mismatch');
   }
 
   if (extraction.confidence < MIN_CONFIDENCE) {

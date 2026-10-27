@@ -15,6 +15,9 @@ const FORBIDDEN_IMPORT = /from\s+['"](?:@\/lib\/(?:db|ai|blob|services|env|auth)
 describe('inflation barrel', () => {
   it('should export exactly the public API', () => {
     expect(Object.keys(inflation).sort()).toEqual([
+      'BASE_INDEX',
+      'MAX_CARRY_FORWARD_MONTHS',
+      'computeMonthlyMeans',
       'computePersonalCpi',
       'rebaseIstat',
       'toRomeYearMonth',

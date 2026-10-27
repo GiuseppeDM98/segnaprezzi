@@ -15,6 +15,10 @@ import { routing } from '@/lib/i18n/routing';
 
 const handleI18n = createMiddleware(routing);
 
+// Built from routing.locales so that a new locale is recognized here without
+// an edit. Locale ids are plain letters, so no escaping is needed.
+const LOCALE_PREFIX_PATTERN = new RegExp(`^/(${routing.locales.join('|')})(?=/|$)`);
+
 // Locale-stripped pathnames reachable without a session. /offline is the
 // service worker's precached fallback page — an auth-free static
 // page that must render without a session cookie.
@@ -23,9 +27,9 @@ const PUBLIC_PATHNAMES = new Set(['/login', '/signup', '/offline']);
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Normalize away the locale prefix so the allowlist matches
-  // /login, /it/login, and /en/login alike.
-  const localeMatch = pathname.match(/^\/(it|en)(?=\/|$)/);
+  // Normalize away the locale prefix so the allowlist matches /login and its
+  // locale-prefixed forms (/en/login…) alike.
+  const localeMatch = pathname.match(LOCALE_PREFIX_PATTERN);
   const pathnameWithoutLocale = localeMatch
     ? pathname.slice(localeMatch[0].length) || '/'
     : pathname;

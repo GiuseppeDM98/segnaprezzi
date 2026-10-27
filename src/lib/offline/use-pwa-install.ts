@@ -11,6 +11,8 @@
  */
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
+import { readStorageItem, writeStorageItem } from './safe-storage';
+
 /** Chromium's install prompt event; absent from TypeScript's DOM lib. */
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -81,7 +83,7 @@ export function usePwaInstall(): PwaInstallState {
   const [platform, setPlatform] = useState({ isIos: false, isStandalone: false });
 
   useEffect(() => {
-    setPlatform({ isIos: detectIos(), isStandalone: detectStandalone() });
+    setPlatform({ isIos: isIosDevice(), isStandalone: isRunningStandalone() });
   }, []);
 
   const promptInstall = useCallback(async (): Promise<'accepted' | 'dismissed'> => {
@@ -109,7 +111,7 @@ function hasStashedPrompt(): boolean {
   return stashedPrompt !== null;
 }
 
-function detectIos(): boolean {
+function isIosDevice(): boolean {
   // iPadOS 13+ reports itself as macOS; the touch-point count is what still
   // separates an iPad from a Mac.
   return (
@@ -118,7 +120,7 @@ function detectIos(): boolean {
   );
 }
 
-function detectStandalone(): boolean {
+function isRunningStandalone(): boolean {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true
@@ -133,7 +135,7 @@ function detectStandalone(): boolean {
  * moment where an install pitch is honest rather than an interruption.
  */
 export function notifySessionCompleted(): void {
-  writeStorage(COMPLETED_SESSION_KEY, '1');
+  writeStorageItem(COMPLETED_SESSION_KEY, '1');
   for (const notify of sessionSubscribers) {
     notify();
   }
@@ -150,35 +152,21 @@ export function subscribeToSessionCompleted(onCompleted: () => void): () => void
  * MAX_LIFETIME_PROMPTS ever, and never within 30 days of the last one.
  */
 export function canShowInstallSheet(now: number = Date.now()): boolean {
-  const count = Number(readStorage(PROMPT_COUNT_KEY) ?? '0');
+  const count = Number(readStorageItem(PROMPT_COUNT_KEY) ?? '0');
   if (count >= MAX_LIFETIME_PROMPTS) {
     return false;
   }
-  const lastPromptAt = Number(readStorage(LAST_PROMPT_KEY) ?? '0');
+  const lastPromptAt = Number(readStorageItem(LAST_PROMPT_KEY) ?? '0');
   return now - lastPromptAt >= PROMPT_COOLDOWN_MS;
 }
 
-/** Spend one of the two lifetime prompts and restart the 30-day cooldown. */
+/**
+ * Spend one of the MAX_LIFETIME_PROMPTS lifetime prompts and restart the
+ * cooldown. Where storage is unavailable the write is lost and the cap
+ * degrades to "prompt again next time".
+ */
 export function recordInstallSheetShown(now: number = Date.now()): void {
-  const count = Number(readStorage(PROMPT_COUNT_KEY) ?? '0');
-  writeStorage(PROMPT_COUNT_KEY, String(count + 1));
-  writeStorage(LAST_PROMPT_KEY, String(now));
-}
-
-// localStorage throws in Safari private mode rather than returning null, and
-// an install nag is never worth a crashed screen.
-function readStorage(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function writeStorage(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Nothing to do: the cap degrades to "prompt again next time".
-  }
+  const count = Number(readStorageItem(PROMPT_COUNT_KEY) ?? '0');
+  writeStorageItem(PROMPT_COUNT_KEY, String(count + 1));
+  writeStorageItem(LAST_PROMPT_KEY, String(now));
 }

@@ -18,10 +18,10 @@ import { Field } from '@/components/ui/field';
 import { IconButton } from '@/components/ui/icon-button';
 import { Input } from '@/components/ui/input';
 import { LogoMark } from '@/components/ui/logo-mark';
+import { MIN_PASSWORD_LENGTH } from '@/lib/domain/auth';
 import { useAppMotion } from '@/lib/motion';
 
 const emailSchema = z.email();
-const PASSWORD_MIN_LENGTH = 8;
 
 export interface AuthFormProps {
   mode: 'login' | 'signup';
@@ -36,6 +36,7 @@ export interface AuthFormProps {
 export function AuthForm({ mode, title, submitLabel, onSubmit, footer }: AuthFormProps) {
   const t = useTranslations('auth');
   const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,7 +53,7 @@ export function AuthForm({ mode, title, submitLabel, onSubmit, footer }: AuthFor
 
   const isNameValid = mode === 'login' || name.trim().length > 0;
   const isEmailValid = emailSchema.safeParse(email).success;
-  const isPasswordValid = password.length >= PASSWORD_MIN_LENGTH;
+  const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH;
 
   const isEmailRevealed = isNameValid;
   const isPasswordRevealed = isEmailRevealed && isEmailValid;
@@ -70,8 +71,17 @@ export function AuthForm({ mode, title, submitLabel, onSubmit, footer }: AuthFor
       return;
     }
     setIsSubmitting(true);
-    const error = await onSubmit({ name: name.trim(), email, password });
-    setIsSubmitting(false);
+    let error: string | null;
+    try {
+      error = await onSubmit({ name: name.trim(), email, password });
+    } catch (cause) {
+      // onSubmit maps the auth errors it expects to a message; a rejection is
+      // a bug or an outage, so it gets the generic message, not a stuck button.
+      console.error('Auth submit failed', { mode, cause });
+      error = tErrors('INTERNAL');
+    } finally {
+      setIsSubmitting(false);
+    }
     if (error) {
       setSubmitError(error);
       passwordRef.current?.focus();
@@ -170,7 +180,7 @@ export function AuthForm({ mode, title, submitLabel, onSubmit, footer }: AuthFor
                   name="password"
                   type={isPasswordVisible ? 'text' : 'password'}
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  minLength={PASSWORD_MIN_LENGTH}
+                  minLength={MIN_PASSWORD_LENGTH}
                   value={password}
                   onChange={(event) => {
                     setPassword(event.target.value);

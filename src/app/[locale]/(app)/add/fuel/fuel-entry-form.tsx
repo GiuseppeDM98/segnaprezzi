@@ -6,18 +6,19 @@
  * Design: the user knows any two of {unit price, quantity, total} — which two
  * depends on whether they filled the tank, paid a round amount, or just read
  * the board. So all three fields are editable and the two touched most
- * recently win; the third follows on every keystroke, marked "calcolato" and
+ * recently win; the third follows on every keystroke, marked "computed" and
  * briefly highlighted. The server re-derives the same relation, because a
  * stale computed field is exactly what a corrected typo leaves behind.
  *
- * The quantity's unit follows the selected fuel: litres for petrol, diesel
- * and LPG, kilograms for methane (§11.1).
+ * The quantity's unit follows the selected fuel's `unitKind`: litres for the
+ * liquid fuels, kilograms for methane (§11.1).
  */
 import { ChevronDown, Fuel as FuelIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useState } from 'react';
 
-import { type StoreOption, StorePickerSheet } from '@/components/capture/store-picker-sheet';
+import { StorePickerSheet } from '@/components/capture/store-picker-sheet';
+import { useStoreOptions } from '@/components/capture/use-store-options';
 import { ScreenHeader } from '@/components/layout/screen-header';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -27,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { SectionHeading } from '@/components/ui/section-heading';
 import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import { useToast } from '@/components/ui/toast';
+import { callAction } from '@/lib/call-action';
 import { cx } from '@/lib/cx';
 import { FUEL_QUICK_PICKS, type FuelQuickPickKey } from '@/lib/domain/fuel-products';
 import {
@@ -38,6 +40,7 @@ import {
   toCents,
   toMilli,
 } from '@/lib/domain/money';
+import { formatDateTimeLocalValue, parseDateTimeLocalValue } from '@/lib/format';
 import { useRouter } from '@/lib/i18n/navigation';
 import type { FuelEntryContext } from '@/lib/services/capture-context';
 import { createStore } from '../../stores/actions';
@@ -57,10 +60,14 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
   const { toast } = useToast();
 
   const [fuel, setFuel] = useState<FuelQuickPickKey>(FUEL_QUICK_PICKS[0].key);
-  const [stations, setStations] = useState<StoreOption[]>(context.stations);
+  const { stores: stations, createStore: handleCreateStation } = useStoreOptions(
+    context.stations,
+    createStore,
+    'fuel_station',
+  );
   const [storeId, setStoreId] = useState<string | null>(context.defaultStationId);
   const [isStationPickerOpen, setIsStationPickerOpen] = useState(false);
-  const [recordedAtLocal, setRecordedAtLocal] = useState(toLocalDateTimeValue(new Date()));
+  const [recordedAtLocal, setRecordedAtLocal] = useState(() => formatDateTimeLocalValue(Date.now()));
   const [inputs, setInputs] = useState<Record<FuelField, number | null>>({
     unitPrice: null,
     quantity: null,
@@ -82,7 +89,7 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
   }
 
   /** The typed value for authoritative fields, the computed one otherwise. */
-  function fieldValue(field: FuelField): number | null {
+  function getFieldValue(field: FuelField): number | null {
     if (field !== derivedField) {
       return inputs[field];
     }
@@ -96,29 +103,29 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
     }
   }
 
-  async function handleCreateStation(name: string): Promise<StoreOption | null> {
-    const result = await createStore({ name, chain: null, city: null, kind: 'fuel_station' });
-    if (!result.ok) {
-      return null;
-    }
-    const created = { id: result.data.id, name, chain: null };
-    setStations((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
-    return created;
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    // The input is `required`, so this holds only an emptied value the
+    // browser let through; the server would answer the same code.
+    const recordedAt = parseDateTimeLocalValue(recordedAtLocal);
+    if (recordedAt === null) {
+      setErrorCode('INVALID_DATE');
+      return;
+    }
     setErrorCode(null);
     setIsSubmitting(true);
 
-    const result = await createFuelEntry({
-      fuel,
-      storeId,
-      recordedAt: new Date(recordedAtLocal).getTime(),
-      unitPriceMilli: triple.unitPriceMilli,
-      quantity: triple.quantity,
-      totalPriceCents: triple.totalPriceCents,
-    });
+    const result = await callAction(
+      'createFuelEntry',
+      createFuelEntry({
+        fuel,
+        storeId,
+        recordedAt,
+        unitPriceMilli: triple.unitPriceMilli,
+        quantity: triple.quantity,
+        totalPriceCents: triple.totalPriceCents,
+      }),
+    );
 
     setIsSubmitting(false);
     if (!result.ok) {
@@ -131,7 +138,7 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
   }
 
   const isDerivedVisible = (field: FuelField): boolean =>
-    field === derivedField && fieldValue(field) !== null;
+    field === derivedField && getFieldValue(field) !== null;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-1 flex-col" noValidate>
@@ -163,7 +170,7 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
               label={t(`unitPriceByUnit.${selectedPick.unitKind}`)}
               suffix={t(`unitPriceByUnit.${selectedPick.unitKind}`)}
               testId="fuel-unit-price"
-              value={fieldValue('unitPrice')}
+              value={getFieldValue('unitPrice')}
               isDerived={isDerivedVisible('unitPrice')}
               computedLabel={tCommon('computed')}
               maxDecimals={3}
@@ -174,7 +181,7 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
               label={t(`quantityByUnit.${selectedPick.unitKind}`)}
               suffix={selectedPick.unitKind === 'weight' ? 'kg' : 'L'}
               testId="fuel-quantity"
-              value={fieldValue('quantity')}
+              value={getFieldValue('quantity')}
               isDerived={isDerivedVisible('quantity')}
               computedLabel={tCommon('computed')}
               maxDecimals={3}
@@ -185,7 +192,7 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
               label={t('total')}
               suffix="€"
               testId="fuel-total"
-              value={fieldValue('total')}
+              value={getFieldValue('total')}
               isDerived={isDerivedVisible('total')}
               computedLabel={tCommon('computed')}
               maxDecimals={2}
@@ -371,10 +378,4 @@ function deriveTriple(
     quantity: typedQuantity,
     totalPriceCents: typedTotalPriceCents,
   };
-}
-
-/** The value a `datetime-local` input expects: local wall clock, no timezone. */
-function toLocalDateTimeValue(date: Date): string {
-  const offsetMs = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }

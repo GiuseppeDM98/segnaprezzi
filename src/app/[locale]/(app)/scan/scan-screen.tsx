@@ -2,7 +2,7 @@
 
 /**
  * Client half of the capture screen: session resume, store chip + picker
- * sheet, immersive viewfinder, tray
+ * sheet, immersive viewfinder, tray with its queue status line
  * and the review CTA. The FAB's accent disc morphs into this screen
  * through the shared layoutId.
  *
@@ -22,11 +22,14 @@ import { useEffect, useState } from 'react';
 import { CameraView } from '@/components/capture/camera-view';
 import { PhotoTray } from '@/components/capture/photo-tray';
 import { QueueStatusLine } from '@/components/capture/queue-status-line';
-import { type StoreOption, StorePickerSheet } from '@/components/capture/store-picker-sheet';
+import { StorePickerSheet } from '@/components/capture/store-picker-sheet';
+import { useStoreOptions } from '@/components/capture/use-store-options';
 import { Button } from '@/components/ui/button';
 import { SCAN_MORPH_LAYOUT_ID } from '@/components/ui/fab';
 import { IconButton } from '@/components/ui/icon-button';
 import { Sheet } from '@/components/ui/sheet';
+import { useToast } from '@/components/ui/toast';
+import { callAction, describeActionError } from '@/lib/call-action';
 import { cx } from '@/lib/cx';
 import { useRouter } from '@/lib/i18n/navigation';
 import { useAppMotion } from '@/lib/motion';
@@ -41,7 +44,7 @@ import {
   readActiveSessionId,
   writeActiveSessionId,
 } from '@/lib/offline/photo-queue';
-import { drainPendingPhotos, retryFailedPhoto } from '@/lib/offline/sync';
+import { drainPendingPhotos, retryAllFailedPhotos, retryFailedPhoto } from '@/lib/offline/sync';
 import type { ScanContext } from '@/lib/services/capture-context';
 import { createStore } from '../stores/actions';
 import { discardShoppingSession } from './actions';
@@ -55,10 +58,17 @@ export interface ScanScreenProps {
 
 export function ScanScreen({ context }: ScanScreenProps) {
   const t = useTranslations('scan');
+  const tOffline = useTranslations('offline');
+  const tErrors = useTranslations('errors');
+  const { toast } = useToast();
   const router = useRouter();
   const { isReduced, spring } = useAppMotion();
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [stores, setStores] = useState<StoreOption[]>(context.stores);
+  const { stores, createStore: handleCreateStore } = useStoreOptions(
+    context.stores,
+    createStore,
+    'supermarket',
+  );
   const [storeId, setStoreId] = useState<string | null>(context.defaultStoreId);
   const [isStorePickerOpen, setIsStorePickerOpen] = useState(false);
   const [isResumeDismissed, setIsResumeDismissed] = useState(false);
@@ -100,23 +110,57 @@ export function ScanScreen({ context }: ScanScreenProps) {
     });
   }
 
+  // Why the catch: the retries are fired from a click and never awaited, so
+  // an IndexedDB rejection would otherwise surface nowhere. The photos stay
+  // queued locally either way; the toast says the retry did not take.
   async function handleRetry(photoId: string): Promise<void> {
-    await retryFailedPhoto(photoId);
-    await drainPendingPhotos();
+    try {
+      await retryFailedPhoto(photoId);
+      await drainPendingPhotos();
+    } catch (error) {
+      console.error('Photo retry failed', { photoId, error });
+      toast({ kind: 'error', message: tOffline('retryError') });
+    }
+  }
+
+  async function handleRetryAll(): Promise<void> {
+    try {
+      await retryAllFailedPhotos(sessionId ?? undefined);
+      await drainPendingPhotos();
+    } catch (error) {
+      console.error('Retry all failed', { sessionId, error });
+      toast({ kind: 'error', message: tOffline('retryError') });
+    }
   }
 
   async function handleDelete(photoId: string): Promise<void> {
     await deletePendingPhoto(photoId);
   }
 
+  /*
+   * Why the local queue is cleared only after the server answers: the blob
+   * URLs of the uploaded photos live only in that queue. Clearing it after a
+   * failed discard would leave those photos in storage with nothing left
+   * that could ever delete them; keeping it lets the user try again.
+   */
   async function handleDiscard(targetSessionId: string): Promise<void> {
     const localPhotos = await listSessionPhotos(targetSessionId);
-    await discardShoppingSession({
-      sessionId: targetSessionId,
-      blobUrls: localPhotos
-        .map((photo) => photo.extraction?.blobUrl)
-        .filter((url): url is string => Boolean(url)),
-    });
+    const result = await callAction(
+      'discardShoppingSession',
+      discardShoppingSession({
+        sessionId: targetSessionId,
+        blobUrls: localPhotos
+          .map((photo) => photo.extraction?.blobUrl)
+          .filter((url): url is string => Boolean(url)),
+      }),
+    );
+    if (!result.ok) {
+      toast({
+        kind: 'error',
+        message: describeActionError(result.error, tErrors, t('resume.discardError')),
+      });
+      return;
+    }
     await clearSessionPhotos(targetSessionId);
     if (readActiveSessionId() === targetSessionId) {
       clearActiveSessionId();
@@ -129,16 +173,6 @@ export function ScanScreen({ context }: ScanScreenProps) {
     writeActiveSessionId(serverSessionId);
     setSessionId(serverSessionId);
     setIsResumeDismissed(true);
-  }
-
-  async function handleCreateStore(name: string): Promise<StoreOption | null> {
-    const result = await createStore({ name, chain: null, city: null, kind: 'supermarket' });
-    if (!result.ok) {
-      return null;
-    }
-    const created = { id: result.data.id, name, chain: null };
-    setStores((current) => [...current, created].sort((a, b) => a.name.localeCompare(b.name)));
-    return created;
   }
 
   // A spesa with photos queued on THIS device always wins over the server's
@@ -198,7 +232,11 @@ export function ScanScreen({ context }: ScanScreenProps) {
               onDelete={handleDelete}
               isOnCamera={isOnCamera}
             />
-            <QueueStatusLine sessionId={sessionId} isOnCamera={isOnCamera} />
+            <QueueStatusLine
+              sessionId={sessionId}
+              onRetryAll={handleRetryAll}
+              isOnCamera={isOnCamera}
+            />
             {reviewableCount > 0 && (
               <Button href="/scan/review" size="lg" data-testid="review-cta" className="w-full">
                 {t('review', { count: reviewableCount })}

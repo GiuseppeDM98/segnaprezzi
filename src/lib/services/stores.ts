@@ -70,8 +70,8 @@ export async function updateStore(
 }
 
 /**
- * Delete a store; its entries survive with store_id = NULL
- * ("Le rilevazioni restano, ma senza negozio").
+ * Delete a store; its entries survive with store_id = NULL, which is what
+ * the delete confirmation promises the user.
  * @throws StoreNotFoundError when it is not the user's
  */
 export async function deleteStore(db: Db, userId: string, storeId: string): Promise<void> {

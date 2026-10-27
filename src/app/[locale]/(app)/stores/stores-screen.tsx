@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
+import { callAction, describeActionError } from '@/lib/call-action';
 import { STORE_KINDS, type StoreKind } from '@/lib/domain/stores';
 import { useRouter } from '@/lib/i18n/navigation';
 import type { StoreListItem } from '@/lib/services/stores';
@@ -47,6 +48,7 @@ export interface StoresScreenProps {
 export function StoresScreen({ stores }: StoresScreenProps) {
   const t = useTranslations('stores');
   const tCommon = useTranslations('common');
+  const tErrors = useTranslations('errors');
   const router = useRouter();
   const { toast } = useToast();
   const [draft, setDraft] = useState<StoreDraft | null>(null);
@@ -76,11 +78,11 @@ export function StoresScreen({ stores }: StoresScreenProps) {
       kind: draft.kind,
     };
     const result = draft.id
-      ? await updateStore({ storeId: draft.id, input })
-      : await createStore(input);
+      ? await callAction('updateStore', updateStore({ storeId: draft.id, input }))
+      : await callAction('createStore', createStore(input));
     setIsSaving(false);
     if (!result.ok) {
-      toast({ kind: 'error', message: t('saveError') });
+      toast({ kind: 'error', message: describeActionError(result.error, tErrors, t('saveError')) });
       return;
     }
     setDraft(null);
@@ -93,10 +95,10 @@ export function StoresScreen({ stores }: StoresScreenProps) {
       return;
     }
     setIsSaving(true);
-    const result = await deleteStore({ storeId: draft.id });
+    const result = await callAction('deleteStore', deleteStore({ storeId: draft.id }));
     setIsSaving(false);
     if (!result.ok) {
-      toast({ kind: 'error', message: t('saveError') });
+      toast({ kind: 'error', message: describeActionError(result.error, tErrors, t('saveError')) });
       return;
     }
     setDraft(null);

@@ -1,6 +1,6 @@
 /**
  * Deterministic identifiers for seeded rows, shared by scripts/seed.ts and
- * the E2E fixtures. Pure data helper, no I/O.
+ * the E2E specs. Pure data helper, no I/O.
  *
  * Why this exists: every id is a nanoid(21), and the confirm boundary
  * validates that exact length — a shorter, human-readable

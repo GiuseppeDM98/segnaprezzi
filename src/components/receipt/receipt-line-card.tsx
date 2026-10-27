@@ -5,10 +5,10 @@
  *
  * Design: the same printed block as the capture review card —
  * hairline frame, status as a tinted header row rather than a thick border,
- * money fields in the print face — with the receipt's own two additions: the
- * verbatim `rawLine` under the fields, because it is the only trace of a
- * document the app deliberately does not keep, and the "remember this
- * line" toggle that turns one correction into a permanent shortcut.
+ * money fields in the print face — plus additions of the receipt's own,
+ * among them the verbatim `rawLine` under the fields, because it is the only
+ * trace of a document the app deliberately does not keep, and the "remember
+ * this line" toggle that turns one correction into a permanent shortcut.
  *
  * An excluded line collapses to a single muted row instead of disappearing:
  * the receipt's order is the user's mental model of the trip, and a hole in
@@ -17,33 +17,30 @@
 import { TriangleAlert, Undo2, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { PromoFields } from '@/components/entries/promo-fields';
 import { Chip } from '@/components/ui/chip';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { Field } from '@/components/ui/field';
 import { IconButton } from '@/components/ui/icon-button';
 import { Stepper } from '@/components/ui/stepper';
 import { Toggle } from '@/components/ui/toggle';
-import type { LineReviewReason } from '@/lib/ai/flag-receipt';
 import { cx } from '@/lib/cx';
-import { PROMO_KINDS, type PromoKind } from '@/lib/domain/entries';
+import type { PromoKind } from '@/lib/domain/entries';
 import { centsToEuros, milliToEuros, toCents, toMilli } from '@/lib/domain/money';
-import type { ReceiptLineStatus, SizeSource } from '@/lib/domain/receipt-lines';
+import type {
+  LineReviewReason,
+  ReceiptLineBlockingReason,
+  ReceiptLineStatus,
+  SizeSource,
+} from '@/lib/domain/receipt-lines';
 import type { UnitKind } from '@/lib/domain/units';
+import { formatProductLabel } from '@/lib/format';
 
 /** Highest quantity a single receipt line plausibly carries. */
 const MAX_QUANTITY = 99;
 
-/**
- * What this line is still missing before the receipt can be confirmed.
- *
- * Distinct from `status`, which is the model's doubt: a line the model read
- * perfectly can still carry three money numbers that contradict each other
- * after a hand edit, and only this says so.
- */
-export type ReceiptLineBlockingReason = 'product' | 'size' | 'price' | 'unit-price';
-
-// The first two reuse the sentences the status banner already had: the same
-// instruction twice, worded differently, is how §4.58 happened.
+// `product` and `size` reuse the sentences the status banner already had: the
+// same instruction twice, worded differently, is how AGENTS.md §4.58 happened.
 const BLOCKING_REASON_KEY: Record<ReceiptLineBlockingReason, string> = {
   product: 'needsProduct',
   size: 'needsSize',
@@ -119,7 +116,7 @@ export interface ReceiptLineCardProps {
   product: ReceiptLineCardProduct | null;
   sameDay: ReceiptLineCardSameDay | null;
   isExcluded: boolean;
-  learnAlias: boolean;
+  shouldLearnAlias: boolean;
   /** Pre-formatted unit symbols ("€/kg", "kg") from the units namespace. */
   unitSymbol: string;
   sizeSymbol: string;
@@ -131,7 +128,7 @@ export interface ReceiptLineCardProps {
   onRecalculateUnitPrice: () => void;
   onOpenMatch: () => void;
   onToggleExcluded: () => void;
-  onToggleLearnAlias: (learnAlias: boolean) => void;
+  onToggleLearnAlias: (shouldLearnAlias: boolean) => void;
   'data-testid'?: string;
 }
 
@@ -145,7 +142,7 @@ export function ReceiptLineCard({
   product,
   sameDay,
   isExcluded,
-  learnAlias,
+  shouldLearnAlias,
   unitSymbol,
   sizeSymbol,
   packagePriceLabel,
@@ -235,9 +232,7 @@ export function ReceiptLineCard({
             {t('fields.product')}
           </span>
           <span className="truncate font-sans font-medium text-[15px] text-text">
-            {product
-              ? `${product.brand ? `${product.brand} ` : ''}${product.label}`
-              : t('needsProduct')}
+            {product ? formatProductLabel(product.brand, product.label) : t('needsProduct')}
           </span>
           <div className="flex items-center gap-2">
             {product?.kind === 'new' && (
@@ -361,36 +356,18 @@ export function ReceiptLineCard({
       </div>
 
       <div className="flex flex-col gap-2 px-3 pt-3">
-        <Toggle
-          label={t('fields.isPromo')}
-          isChecked={fields.isPromo}
-          onChange={(isPromo) =>
-            onChange({ isPromo, promoKind: isPromo ? fields.promoKind : null })
-          }
+        <PromoFields
+          isPromo={fields.isPromo}
+          promoKind={fields.promoKind}
+          onChange={onChange}
+          toggleLabel={t('fields.isPromo')}
+          kindLabel={t('fields.promoKind')}
+          chipSize="sm"
         />
-        {fields.isPromo && (
-          <div
-            className="flex flex-wrap gap-2"
-            role="radiogroup"
-            aria-label={t('fields.promoKind')}
-          >
-            {PROMO_KINDS.map((kind) => (
-              <Chip
-                key={kind}
-                variant="filter"
-                size="sm"
-                isSelected={fields.promoKind === kind}
-                onClick={() => onChange({ promoKind: kind })}
-              >
-                {tReview(`promoKinds.${kind}`)}
-              </Chip>
-            ))}
-          </div>
-        )}
         <Toggle
           label={t('learnAlias')}
           description={t('learnAliasHint')}
-          isChecked={learnAlias}
+          isChecked={shouldLearnAlias}
           onChange={onToggleLearnAlias}
         />
       </div>

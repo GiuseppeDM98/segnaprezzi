@@ -17,13 +17,15 @@ export const MOVERS_PER_DIRECTION = 5;
  * Rank the user's products by observed price change.
  *
  * Per product: `toYm` is its latest observed month; `fromYm` is its earliest
- * observed month within [toYm − 12 months, toYm) — exactly twelve months back
- * when that month is observed, otherwise the earliest observation inside the
- * window. Products with fewer than two observed months, with no observation
- * inside the window, or with pct === 0 (nothing moved) are excluded.
+ * observed month within [toYm − MOVERS_WINDOW_MONTHS, toYm) — exactly that
+ * far back when that month is observed, otherwise the earliest observation
+ * inside the window. Products with fewer than two observed months, with no
+ * observation inside the window, or with pct === 0 (nothing moved) are
+ * excluded.
  *
- * Returns up to 5 risers and up to 5 fallers as one array sorted by pct
- * descending; ties break on productId so the order is deterministic.
+ * Returns up to MOVERS_PER_DIRECTION risers and as many fallers, as one array
+ * sorted by pct descending; ties break on productId so the order is
+ * deterministic.
  */
 export function computeMovers(
   observedMeans: ObservedMeans,

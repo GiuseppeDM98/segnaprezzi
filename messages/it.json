@@ -95,6 +95,7 @@
       "shutter": "Scatta",
       "unavailable": "Scatta una foto",
       "starting": "Avvio la fotocamera…",
+      "captureFailed": "Foto non salvata. Riprova.",
       "permissionDenied": {
         "title": "Serve la fotocamera per leggere i cartellini",
         "body": "segnaprezzi usa la fotocamera solo per fotografare i segnaprezzi. Nulla viene caricato senza la tua conferma. Puoi riattivarla dalle impostazioni del browser, oppure caricare una foto.",
@@ -108,7 +109,8 @@
       "none": "Nessuno",
       "search": "Cerca un negozio",
       "create": "Crea «{query}»",
-      "manage": "Gestisci negozi"
+      "manage": "Gestisci negozi",
+      "createError": "Impossibile creare «{name}»"
     },
     "tray": {
       "label": "Foto della spesa",
@@ -139,7 +141,8 @@
       "title": "Hai una spesa non conclusa",
       "body": "Riprendila oppure lasciala perdere: le foto già caricate verranno eliminate.",
       "resume": "Riprendi",
-      "discard": "Abbandona"
+      "discard": "Abbandona",
+      "discardError": "La spesa non è stata abbandonata. Riprova."
     },
     "stale": {
       "title": "Stai ancora facendo la spesa?",
@@ -171,6 +174,7 @@
     "matchSearch": "Cerca nel catalogo",
     "matchSuggestions": "Suggeriti",
     "matchNoResults": "Niente per «{query}»",
+    "matchSearchError": "Ricerca non riuscita. Riprova.",
     "newProduct": "Crea nuovo prodotto",
     "newProductHint": "Con i dati letti dal cartellino",
     "discard": "Scarta",
@@ -236,12 +240,6 @@
     "crossCheckWarning": "Prezzo e prezzo unitario non tornano — controlla",
     "isPromo": "In offerta",
     "promoKind": "Tipo di offerta",
-    "promoKinds": {
-      "discount": "Sconto",
-      "loyalty": "Carta fedeltà",
-      "coupon": "Coupon",
-      "bundle": "Multi-acquisto"
-    },
     "submit": "Salva",
     "saved": "Aggiunto ✓",
     "submitError": "Non salvato. Controlla i dati e riprova.",
@@ -471,6 +469,7 @@
     "aliasHits": "{count, plural, one {# volta} other {# volte}}",
     "aliasDelete": "Dimentica questa riga",
     "aliasDeleted": "Riga dimenticata",
+    "aliasDeleteError": "La riga non è stata dimenticata. Riprova.",
     "aliasesEmpty": "Nessuna riga di scontrino associata a questo prodotto.",
     "aliasAnyChain": "Tutte le catene"
   },
@@ -586,6 +585,7 @@
       "importing": "Importo…",
       "imported": "Importati: {entries, plural, one {# rilevazione} other {# rilevazioni}}, {products, plural, one {# prodotto} other {# prodotti}}, {stores, plural, one {# negozio} other {# negozi}}",
       "importInvalid": "File non valido. Serve un export di segnaprezzi.",
+      "importError": "Importazione non riuscita. Riprova.",
       "stores": "Negozi",
       "storesHelp": "Gestisci supermercati e distributori."
     },
@@ -659,7 +659,8 @@
     "RECEIPT_TOO_LONG": "Lo scontrino ha troppe pagine (massimo 10).",
     "RECEIPT_ALREADY_IMPORTED": "Questo scontrino è già stato importato.",
     "RECEIPT_NOT_FOUND": "Scontrino non trovato.",
-    "RECEIPT_NO_LINES": "Non ho trovato righe prodotto in questo scontrino."
+    "RECEIPT_NO_LINES": "Non ho trovato righe prodotto in questo scontrino.",
+    "RECEIPT_EXTRACTION_STALE": "Questo scontrino è stato letto da una versione precedente dell'app: caricalo di nuovo."
   },
   "offline": {
     "offline": "Sei offline — le foto restano sul telefono",
@@ -671,6 +672,7 @@
     "processing": "{count} in elaborazione",
     "failed": "{count, plural, one {# non riuscita} other {# non riuscite}}",
     "retryAll": "Riprova tutti",
+    "retryError": "Riprova non riuscita. Le foto restano sul telefono.",
     "cachedBanner": "Sei offline · dati aggiornati {lastSyncTime}",
     "fallbackTitle": "Sei offline",
     "fallbackBody": "Nessun problema: le foto scattate sono al sicuro e verranno elaborate al ritorno del segnale.",

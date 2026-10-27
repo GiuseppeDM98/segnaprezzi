@@ -23,9 +23,20 @@ export async function createStore(
   return store;
 }
 
-/** List all of the user's stores, ordered by name (case-insensitive). */
+/**
+ * List all of the user's stores, ordered by name case-insensitively.
+ *
+ * Why NOCASE: SQLite's default binary collation sorts every uppercase
+ * letter before every lowercase one, so a store typed "esselunga" would land
+ * after "Zara" in the picker. NOCASE folds ASCII only, which covers store
+ * names; the id tie-breaker keeps names equal under folding in a stable order.
+ */
 export async function listStores(db: Db | DbTransaction, userId: string): Promise<Store[]> {
-  return db.select().from(stores).where(eq(stores.userId, userId)).orderBy(asc(stores.name));
+  return db
+    .select()
+    .from(stores)
+    .where(eq(stores.userId, userId))
+    .orderBy(asc(sql`${stores.name} collate nocase`), asc(stores.id));
 }
 
 /** Fetch one store by id, or null if it does not exist for this user. */
@@ -57,8 +68,8 @@ export async function updateStore(
 }
 
 /**
- * Delete a store. Entries and sessions referencing it keep existing with
- * store_id = NULL (FK action). Returns false if not found.
+ * Delete a store. Every row referencing it (entries, sessions, receipts)
+ * keeps existing with store_id = NULL (FK action). Returns false if not found.
  */
 export async function deleteStore(db: Db, userId: string, storeId: string): Promise<boolean> {
   const deleted = await db

@@ -2,10 +2,10 @@
 
 /**
  * The horizontal strip of captured photos: one thumbnail per
- * photo with a status chip mapping exactly the four queue statuses —
- * queued · uploading · extracted · failed. Failed chips retry on tap; a tap
- * on any thumbnail opens the preview/delete sheet. New thumbnails spring in
- * from the shutter with the house spring.
+ * photo with a status chip for its queue status (STATUS_TONE and
+ * STATUS_ICON cover every PendingPhotoStatus). A tap on a failed thumbnail
+ * retries it; a tap on any other opens the preview/delete sheet. New
+ * thumbnails spring in from the shutter with the house spring.
  */
 import { AlertCircle, Check, Clock, CloudUpload, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -16,11 +16,17 @@ import { Button } from '@/components/ui/button';
 import { Chip, type ChipTone } from '@/components/ui/chip';
 import { Sheet } from '@/components/ui/sheet';
 import { cx } from '@/lib/cx';
+import type { DomainErrorCode } from '@/lib/errors';
 import { useAppMotion } from '@/lib/motion';
 import type { PendingPhoto, PendingPhotoStatus } from '@/lib/offline/db';
 
 /** Error codes that mean the photo itself is unusable, not the connection. */
-const INVALID_PHOTO_CODES = new Set(['PHOTO_TOO_LARGE', 'UNSUPPORTED_PHOTO_TYPE', 'INVALID_INPUT']);
+const INVALID_PHOTO_CODES: ReadonlySet<DomainErrorCode> = new Set<DomainErrorCode>([
+  'PHOTO_TOO_LARGE',
+  'UNSUPPORTED_PHOTO_TYPE',
+  'INVALID_INPUT',
+]);
+const EXTRACTION_FAILED_CODE: DomainErrorCode = 'EXTRACTION_FAILED';
 
 const STATUS_TONE: Record<PendingPhotoStatus, ChipTone> = {
   queued: 'neutral',
@@ -177,10 +183,13 @@ function statusMessageKey(status: PendingPhotoStatus, lastError: string | undefi
     case 'extracted':
       return 'queue.extracted';
     default:
-      if (lastError === 'EXTRACTION_FAILED') {
+      if (lastError === EXTRACTION_FAILED_CODE) {
         return 'errors.extractionFailed';
       }
-      if (lastError && INVALID_PHOTO_CODES.has(lastError)) {
+      // `lastError` is whatever the queue stored — a DomainErrorCode from the
+      // route, or a transport marker such as 'network' — so the lookup widens
+      // the set rather than narrowing the string.
+      if (lastError && (INVALID_PHOTO_CODES as ReadonlySet<string>).has(lastError)) {
         return 'errors.invalidPhoto';
       }
       return 'errors.uploadFailed';

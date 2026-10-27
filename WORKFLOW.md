@@ -267,13 +267,21 @@ statuses). Drizzle Studio
 (`pnpm db:studio`, from `CONTRIBUTING.md`) stays available for eyeballing, but
 it is a human tool, not scriptable, so prefer the other two.
 
+### Local paths for the standard's rules
+
+Rule 8 names `doc/guide/dipendenze.md`; this repo keeps its documentation under
+`docs/`, so the dependency guide is `docs/guide/dipendenze.md` and any future
+`doc/guide/<tema>.md` of the standard lives in `docs/guide/` here. `COMMENTS.md` and
+`DEVELOPMENT_GUIDELINES.md` are in the repository root, where the standard
+expects them (moved from `docs/` on 2026-10-26).
+
 ### Branches
 
 Default and integration branch: **`main`** (confirmed via `git branch -a` —
 `origin/main` is the only remote branch; there is no separate `develop`/
 `staging`). The per-session branch required by Part 1 obligation 2 should
 follow the naming scheme already documented in
-`docs/DEVELOPMENT_GUIDELINES.md` → "Branch Naming"
+`DEVELOPMENT_GUIDELINES.md` → "Branch Naming"
 (`feature/…`, `fix/…`, `refactor/…`, `chore/…`, lowercase, hyphen-separated) —
 this file doesn't introduce a second scheme.
 

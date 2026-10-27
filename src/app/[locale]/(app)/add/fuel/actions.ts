@@ -3,13 +3,13 @@
 /**
  * Fuel quick-entry Server Action.
  */
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { fieldErrorResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { FUEL_QUICK_PICKS, type FuelQuickPickKey } from '@/lib/domain/fuel-products';
-import { epochMsSchema, nanoidSchema, toFieldErrorCode } from '@/lib/domain/schemas';
+import { epochMsSchema, nanoidSchema } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
 import { createFuelEntry as createFuelEntryService } from '@/lib/services/create-price-entry';
 
@@ -39,18 +39,16 @@ export async function createFuelEntry(
 ): Promise<ActionResult<{ entryId: string }>> {
   const parsed = createFuelEntrySchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: { code: toFieldErrorCode(parsed.error), message: parsed.error.message },
-    };
+    return fieldErrorResult(parsed.error);
   }
 
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const { entryId } = await createFuelEntryService(db, user.id, parsed.data);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    const { entryId } = await createFuelEntryService(db, userId, parsed.data);
+    revalidateAppLayout();
     return { ok: true, data: { entryId } };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('createFuelEntry', error) };
+    return { ok: false, error: toLoggedActionError('createFuelEntry', error, { userId }) };
   }
 }

@@ -8,17 +8,10 @@
  * client, so nothing is assumed to resemble what the model extracted — the
  * service re-checks the price invariant itself.
  */
-import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
-
+import { fieldErrorResult, invalidInputResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
-import { toFieldErrorCode } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
-import {
-  type ProductSearchHit,
-  searchProducts as searchProductsService,
-} from '@/lib/services/catalog';
 import {
   type ConfirmReceiptResult,
   confirmReceipt as confirmReceiptService,
@@ -36,21 +29,30 @@ export async function confirmReceipt(
 ): Promise<ActionResult<ConfirmReceiptResult>> {
   const parsed = confirmReceiptSchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: { code: toFieldErrorCode(parsed.error), message: parsed.error.message },
-    };
+    return fieldErrorResult(parsed.error);
   }
 
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await confirmReceiptService(db, user.id, parsed.data);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    // The wire field keeps its short name (`learnAlias`); the service speaks
+    // in boolean-prefixed names, so the mapping happens here, once.
+    const data = await confirmReceiptService(db, userId, {
+      ...parsed.data,
+      lines: parsed.data.lines.map(({ learnAlias, ...line }) => ({
+        ...line,
+        shouldLearnAlias: learnAlias,
+      })),
+    });
+    revalidateAppLayout();
     return { ok: true, data };
   } catch (error) {
     return {
       ok: false,
-      error: toLoggedActionError('confirmReceipt', error, { receiptId: parsed.data.receiptId }),
+      error: toLoggedActionError('confirmReceipt', error, {
+        userId,
+        receiptId: parsed.data.receiptId,
+      }),
     };
   }
 }
@@ -61,33 +63,15 @@ export async function discardReceipt(input: {
 }): Promise<ActionResult<{ receiptId: string }>> {
   const parsed = discardReceiptSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
 
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await discardReceiptService(db, user.id, parsed.data.receiptId);
+    userId = (await requireUser()).id;
+    const data = await discardReceiptService(db, userId, parsed.data.receiptId);
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('discardReceipt', error) };
-  }
-}
-
-const searchProductsSchema = z.object({ query: z.string().trim().max(100) });
-
-/** Catalog search for the line cards' product picker (shared with the capture review's). */
-export async function searchProducts(input: {
-  query: string;
-}): Promise<ActionResult<ProductSearchHit[]>> {
-  const parsed = searchProductsSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
-  }
-  try {
-    const user = await requireUser();
-    const data = await searchProductsService(db, user.id, parsed.data.query);
-    return { ok: true, data };
-  } catch (error) {
-    return { ok: false, error: toLoggedActionError('searchProducts', error) };
+    return { ok: false, error: toLoggedActionError('discardReceipt', error, { userId }) };
   }
 }

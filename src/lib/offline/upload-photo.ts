@@ -7,7 +7,7 @@
  * because that policy has to be identical whether the drain runs in the page
  * or in the service worker's Background Sync handler.
  */
-import type { ExtractPhotoResponse } from '@/lib/services/extract-photo-entry';
+import type { ExtractPhotoResponse } from '@/lib/domain/extract-photo';
 import type { PendingPhoto } from './db';
 
 /** 30 s cap per attempt: supermarket connectivity can hang a request forever. */

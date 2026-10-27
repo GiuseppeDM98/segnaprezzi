@@ -1,10 +1,10 @@
 /**
  * Anthropic gateway: one receipt file in, one ReceiptExtraction out.
  *
- * Design: same client construction, same structured-output pattern and the
- * same AiGatewayError mapping as the price-tag gateway — imported from it
- * rather than duplicated, so there is exactly one place in the codebase that
- * knows how an SDK failure becomes a retryable/non-retryable domain error.
+ * Design: same structured-output pattern as the price-tag gateway, and the
+ * same AiGatewayError mapping — imported from it rather than duplicated, so
+ * there is exactly one place in the codebase that knows how an SDK failure
+ * becomes a retryable/non-retryable domain error.
  *
  * A PDF goes to the API as a native `document` block: the API renders the
  * pages and reads their text layer itself, which is why this project needs
@@ -66,7 +66,7 @@ export interface ExtractReceiptInput {
  * Read every product line off one receipt.
  *
  * @param input - The file bytes plus optional store hints for the prompt
- * @param client - Injected for tests; defaults to the shared SDK singleton
+ * @param client - Injected for tests; defaults to this module's SDK singleton
  * @returns The parsed extraction (schema-validated by the SDK)
  * @throws AiGatewayError for every failure mode, retryable flag set
  */
@@ -74,7 +74,7 @@ export async function extractReceipt(
   input: ExtractReceiptInput,
   client: Anthropic = receiptClient,
 ): Promise<ReceiptExtraction> {
-  const data = Buffer.from(input.bytes).toString('base64');
+  const base64Data = Buffer.from(input.bytes).toString('base64');
   const fileBlock =
     input.mediaType === 'application/pdf'
       ? {
@@ -82,12 +82,12 @@ export async function extractReceipt(
           source: {
             type: 'base64' as const,
             media_type: 'application/pdf' as const,
-            data,
+            data: base64Data,
           },
         }
       : {
           type: 'image' as const,
-          source: { type: 'base64' as const, media_type: input.mediaType, data },
+          source: { type: 'base64' as const, media_type: input.mediaType, data: base64Data },
         };
 
   try {

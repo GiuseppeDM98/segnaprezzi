@@ -22,6 +22,8 @@ import { OfflineBanner } from './offline-banner';
 const HIDE_ON_SCROLL_PREFIXES = ['/products', '/history'];
 /** Scroll travel (px) before the direction counts — filters rubber-banding. */
 const SCROLL_THRESHOLD_PX = 12;
+/** Near the top of the page the bar always shows, whatever the direction. */
+const ALWAYS_VISIBLE_TOP_PX = 64;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -83,7 +85,7 @@ function useScrollDirectionHidden(isEnabled: boolean): boolean {
         frame = 0;
         const y = window.scrollY;
         const delta = y - lastY;
-        if (y < 64) {
+        if (y < ALWAYS_VISIBLE_TOP_PX) {
           setIsHidden(false);
         } else if (delta > SCROLL_THRESHOLD_PX) {
           setIsHidden(true);

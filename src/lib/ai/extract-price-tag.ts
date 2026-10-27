@@ -1,15 +1,18 @@
 /**
  * Anthropic gateway: one photo in, one ExtractionResult out.
  *
- * Design: this module is the only place that talks to the Anthropic API.
- * It maps every failure mode onto AiGatewayError (internal to src/lib/ai/)
- * with an isRetryable flag, so the service and the offline queue can share
- * one retry policy without knowing SDK internals. The service/route layer
- * translates AiGatewayError into the app's ExtractionError / HTTP responses.
+ * Design: src/lib/ai/ is the only place that talks to the Anthropic API.
+ * This gateway maps every failure mode onto AiGatewayError with an
+ * isRetryable flag, so the service and the offline queue can share one retry
+ * policy without knowing SDK internals. The services translate AiGatewayError
+ * into ExtractionError / ExtractionUnavailableError, and the route layer
+ * turns those into HTTP responses — AiGatewayError never reaches it.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 
+import type { PhotoMediaType } from '@/lib/domain/photos';
+import type { StoreKind } from '@/lib/domain/stores';
 import { env } from '@/lib/env';
 import { EXTRACTION_SYSTEM_PROMPT } from './extraction-prompt';
 import { type ExtractionResult, extractionResultSchema } from './extraction-schema';
@@ -36,9 +39,18 @@ export class AiGatewayError extends Error {
   }
 }
 
+/**
+ * One image, one tag: a short read. The receipt gateway's RECEIPT_TIMEOUT_MS
+ * is longer because a receipt can span pages.
+ */
+const PRICE_TAG_TIMEOUT_MS = 30_000;
+
+/** One tag is a single JSON object; the slack is for a long transcribed rawText. */
+const PRICE_TAG_MAX_TOKENS = 1500;
+
 const anthropicClient = new Anthropic({
   apiKey: env.ANTHROPIC_API_KEY,
-  timeout: 30_000,
+  timeout: PRICE_TAG_TIMEOUT_MS,
   // The offline queue owns the retry policy (attempts + backoff). Letting the
   // SDK also retry would multiply attempts and hold the serverless function
   // open past its budget.
@@ -46,15 +58,16 @@ const anthropicClient = new Anthropic({
 });
 
 export interface ExtractPriceTagInput {
-  imageBase64: string;
-  mediaType: 'image/webp' | 'image/jpeg';
-  storeKind: 'supermarket' | 'fuel_station' | 'other' | null;
+  /** The photo as uploaded; base64-encoded here, as the receipt gateway does. */
+  bytes: Uint8Array;
+  mediaType: PhotoMediaType;
+  storeKind: StoreKind | null;
 }
 
 /**
  * Extract structured price-tag data from one photo.
  *
- * @param input - Base64 photo + optional store-kind hint for the prompt
+ * @param input - Photo bytes + optional store-kind hint for the prompt
  * @param client - Injected for tests; defaults to the module singleton
  * @returns The parsed extraction (schema-validated by the SDK)
  * @throws AiGatewayError for every failure mode, retryable flag set
@@ -63,10 +76,11 @@ export async function extractPriceTag(
   input: ExtractPriceTagInput,
   client: Anthropic = anthropicClient,
 ): Promise<ExtractionResult> {
+  const base64Data = Buffer.from(input.bytes).toString('base64');
   try {
     const response = await client.messages.parse({
       model: EXTRACTION_MODEL,
-      max_tokens: 1500,
+      max_tokens: PRICE_TAG_MAX_TOKENS,
       // Temperature 0: this is transcription, not generation — the correct
       // output is fully determined by the pixels, and sampling variety only
       // adds transposed digits. It also makes retries reproducible.
@@ -81,7 +95,7 @@ export async function extractPriceTag(
               source: {
                 type: 'base64',
                 media_type: input.mediaType,
-                data: input.imageBase64,
+                data: base64Data,
               },
             },
             { type: 'text', text: buildUserInstruction(input.storeKind) },

@@ -26,8 +26,9 @@ import { uploadPendingPhoto } from './upload-photo';
 
 /*
  * Delays applied after failed attempt N (1-indexed). Deterministic, with no
- * jitter: one client uploading two photos at a time has no thundering-herd
- * problem, and determinism is what makes the fake-timer tests exact.
+ * jitter: one client uploading a couple of photos at a time has no
+ * thundering-herd problem, and determinism is what makes the frozen-clock
+ * tests exact.
  *
  * With MAX_UPLOAD_ATTEMPTS = 5 the fifth failure parks the photo as `failed`
  * rather than waiting again, so the delays that can actually elapse are
@@ -61,10 +62,10 @@ let disposeEngine: (() => void) | null = null;
 let hasRequestedPersistence = false;
 
 /**
- * Start the sync engine: recover interrupted uploads, attach the four
- * page-side triggers (online, tab focus, enqueue, Background Sync), and
- * run an initial drain. Idempotent —
- * subsequent calls return the existing disposer.
+ * Start the sync engine: recover interrupted uploads, attach the page-side
+ * triggers (online, tab focus, enqueue — which also registers Background
+ * Sync), and run an initial drain. Idempotent — subsequent calls return the
+ * existing disposer.
  *
  * @returns Disposer that detaches every listener (used by tests and HMR).
  */
@@ -111,8 +112,8 @@ export function startSyncEngine(): () => void {
 }
 
 /**
- * Drain every due queued photo with concurrency 2, then arm a timer for the
- * earliest photo still serving its backoff.
+ * Drain every due queued photo with DRAIN_CONCURRENCY workers, then arm a
+ * timer for the earliest photo still serving its backoff.
  *
  * Exported for the service worker's `sync` handler; the page reaches it
  * through `startSyncEngine`'s triggers. Returns as soon as another context
@@ -122,8 +123,8 @@ export function startSyncEngine(): () => void {
 export async function drainPendingPhotos(): Promise<void> {
   // `navigator.onLine === false` is the one reliable half of that flag: it
   // means there is definitely no network. Attempting anyway would spend an
-  // attempt from every photo's budget of five on a request that cannot
-  // leave the device — the `online` event will call us back soon enough.
+  // attempt from every photo's MAX_UPLOAD_ATTEMPTS budget on a request that
+  // cannot leave the device — the `online` event will call us back soon enough.
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return;
   }
@@ -246,7 +247,7 @@ function requestPersistentStorage(): void {
 /**
  * Register a Background Sync so the queue drains even if the tab is closed
  * before signal returns. Chromium-only progressive enhancement; everywhere
- * else the four page-driven triggers cover the same ground on next open.
+ * else the page-driven triggers cover the same ground on next open.
  *
  * Not awaited: `serviceWorker.ready` never settles when no worker is
  * registered (dev, or a browser without service workers).

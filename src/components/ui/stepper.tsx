@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Integer stepper (Settings → carry-forward months). Two 44 px buttons
+ * Integer stepper (e.g. Settings → carry-forward months). Two 44 px buttons
  * around a printed value; the value text is passed in pre-formatted so the
  * component never decides how "2 mesi" reads.
  */

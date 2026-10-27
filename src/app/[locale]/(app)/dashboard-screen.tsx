@@ -2,9 +2,10 @@
 
 /**
  * Client half of the dashboard: the hero ticker, the trend
- * chart with its ISTAT toggle (persisted per device), the category bars and
- * the top movers. Every number arrives as a ratio/integer and is rendered
- * through src/lib/format.ts here — nothing is formatted upstream.
+ * chart with its ISTAT toggle (persisted per device), the category bars,
+ * the top movers and the quick-add row. Every number arrives as a
+ * ratio/integer and is rendered through src/lib/format.ts here — nothing is
+ * formatted upstream.
  */
 import { Camera, Fuel, PencilLine, ReceiptText } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -13,8 +14,9 @@ import { useEffect, useState } from 'react';
 import { AreaChart } from '@/components/charts/area-chart';
 import { CategoryBars } from '@/components/charts/category-bars';
 import { NumberTicker } from '@/components/charts/number-ticker';
+import { calculatePriceDirection, PRICE_DIRECTION_TEXT_CLASSES } from '@/components/charts/scale';
 import { Sparkline } from '@/components/charts/sparkline';
-import { priceDirectionOf, TrendBadge } from '@/components/charts/trend-badge';
+import { TrendBadge } from '@/components/charts/trend-badge';
 import { CachedDataBanner } from '@/components/layout/cached-data-banner';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -78,17 +80,16 @@ export function DashboardScreen({ data, generatedAt }: DashboardScreenProps) {
 type ReadyData = Extract<DashboardData, { state: 'ready' }>;
 type ThinData = Extract<DashboardData, { state: 'thin' }>;
 
-const HERO_DIRECTION_CLASSES = {
-  up: 'text-negative',
-  down: 'text-positive',
-  flat: 'text-text',
-} as const;
+// Why a second map: the hero figure is the page's headline, and a flat
+// month in muted ink would read as disabled rather than as news. Rising and
+// falling keep the shared tones.
+const HERO_DIRECTION_CLASSES = { ...PRICE_DIRECTION_TEXT_CLASSES, flat: 'text-text' };
 
 function Hero({ data }: { data: ReadyData }) {
   const t = useTranslations('dashboard');
   const locale = useLocale() as AppLocale;
   const { headline, coverage } = data;
-  const direction = priceDirectionOf(headline.ratio);
+  const direction = calculatePriceDirection(headline.ratio);
 
   const chips: Array<{ label: string; value: string; caption?: string }> = [
     { label: t('mom'), value: formatPct(headline.momRatio, locale) },
@@ -269,7 +270,7 @@ function MoversSection({ data }: { data: ReadyData }) {
               </span>
               <Sparkline
                 points={mover.sparkline}
-                trend={priceDirectionOf(mover.ratio)}
+                trend={calculatePriceDirection(mover.ratio)}
                 width={64}
                 height={22}
               />
