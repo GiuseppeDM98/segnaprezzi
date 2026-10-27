@@ -51,3 +51,4 @@ SESSION_NOTES.md
 .impeccable/review/
 .impeccable/hook.cache.json
 .impeccable/mocks/
+.vercel

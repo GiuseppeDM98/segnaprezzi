@@ -99,23 +99,23 @@ retired and the tag gateway moved to Claude Opus 5.5.
   (repository permission, AGENTS.md §4.71) and opened PR #15.
 - **better-auth 1.7.12**: the advisories and the deroga in
   `docs/guide/dipendenze.md`; the startup schema check in AGENTS.md §4.69.
-- **Collaudo**: automated suites and the four-viewport audit on the three
-  screens whose DOM changed (home in both states, empty history, product
-  detail) passed and closed; the live Opus call was **not** exercised (no
-  `ANTHROPIC_API_KEY` on this machine).
+- **Collaudo**: closed on 2026-10-27. Automated suites and the four-viewport
+  audit on the three screens whose DOM changed (home in both states, empty
+  history, product detail) passed; after the merge, migration 0002 was applied
+  to the production Turso database (verified on the database: receipt tables
+  and `issuer` gone, no `source='receipt'` rows left) and the owner read a real
+  shelf tag in production with Opus 5.5 — fields correct, nothing to fix.
 
 **Open / next:**
 
-1. Merge PR #15 (ISTAT series) and this branch; deploy.
-2. Production: export (`/api/export`), then `pnpm db:migrate` with the Turso
-   env (AGENTS.md §3.3). The deletion of receipt observations is irreversible.
-3. First live tag after deploy is the collaudo of Opus 5.5: watch the gateway
-   log for a refusal or a timeout at 60 s.
-4. `AGENTS.md` is ~1430 lines against the ~1000 guideline: a split of the
+1. `AGENTS.md` is ~1430 lines against the ~1000 guideline: a split of the
    capture/offline domain into `docs/guide/` is a session of its own.
-5. This Mac: `pnpm` needs `corepack enable --install-directory ~/.local/bin`
+2. This Mac: `pnpm` needs `corepack enable --install-directory ~/.local/bin`
    and `export PATH="$HOME/.local/bin:$PATH"` (AGENTS.md §4.11); the Windows
-   CRLF note (§4.31) is history here.
+   CRLF note (§4.31) is history here. The Vercel project is linked here
+   (`.vercel/`, gitignored); Turso production credentials are "Sensitive" on
+   Vercel and come from `turso db show segnaprezzi --url` / `turso db tokens
+   create segnaprezzi` (AGENTS.md §3.3), never from `vercel env pull`.
 
 ---
 
