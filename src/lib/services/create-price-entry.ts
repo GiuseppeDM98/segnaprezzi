@@ -11,12 +11,7 @@
  */
 import type { Db, DbTransaction } from '@/lib/db/client';
 import { createPriceEntry as insertPriceEntry } from '@/lib/db/repositories/price-entries';
-import {
-  createProduct,
-  listProducts,
-  listProductsByIds,
-  updateDefaultPackageSizes,
-} from '@/lib/db/repositories/products';
+import { createProduct, listProducts, listProductsByIds } from '@/lib/db/repositories/products';
 import { getStoreById } from '@/lib/db/repositories/stores';
 import type { EntrySource, PromoKind } from '@/lib/domain/entries';
 import { type FuelQuickPickKey, getFuelQuickPick } from '@/lib/domain/fuel-products';
@@ -39,7 +34,7 @@ import {
 import { normalizeProductName } from './match-products';
 
 /**
- * Oldest accepted observation date. Backfilling last year's receipts is
+ * Oldest accepted observation date. Backfilling last year's purchases is
  * legitimate; a mistyped "0202" year is not, and a stray decade of history
  * would wreck the chained index's base month.
  */
@@ -98,12 +93,6 @@ export async function createPriceEntry(
     promoKind: input.promoKind,
     source: input.source,
   });
-
-  // The newest observation's size is what a receipt line of
-  // this product will most likely be, so every write path records it.
-  await updateDefaultPackageSizes(db, userId, [
-    { productId: productIds[0], packageSize: input.packageSize },
-  ]);
 
   return { entryId: entry.id, productId: productIds[0] };
 }

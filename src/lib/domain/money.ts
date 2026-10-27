@@ -41,7 +41,7 @@ export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: nu
  *
  * @param totalPriceCents - The draft's total after the edit, in euro cents
  * @param packageSize - The draft's size after the edit, in base units; null
- *   when the receipt printed none
+ *   when the draft has none yet
  * @param isUnitPriceEdited - Whether the user owns the unit price, having
  *   typed it in this edit or an earlier one
  * @returns the derived unit price in milli-euros, or null when the draft's
@@ -121,12 +121,10 @@ export const UNIT_PRICE_TOLERANCE_MILLI = 10;
  * Whether a (total, size, unit price) triple can all be true at once.
  *
  * Why it lives here and not next to a caller: every place that asks this
- * question must give the same answer. The receipt line derivation picks
- * between a printed and a derived unit price with it, the review screen
- * names the card that fails it, and the writes (`confirmReceipt`, the fuel
- * entry among them) refuse to store a triple that does not. Two copies of
- * this arithmetic would eventually be two different tolerances, which is a
- * rejection the user cannot see coming.
+ * question must give the same answer: the review screens name the card that
+ * fails it, and the writes (the fuel entry among them) refuse to store a
+ * triple that does not. Two copies of this arithmetic would eventually be two
+ * different tolerances, which is a rejection the user cannot see coming.
  *
  * Teacher: the tolerance has to GROW with the package size. A unit price is
  * an integer number of milli-euros, so rounding it costs up to half a milli
@@ -134,7 +132,7 @@ export const UNIT_PRICE_TOLERANCE_MILLI = 10;
  * box of tissues (3,09 EUR / 270 = 0,01144 EUR each, storable only as 11).
  * A fixed one-cent slack therefore called the app's own derivation
  * inconsistent as soon as a package held more than twenty units, and refused
- * the whole receipt over a number nobody had touched. Anything a real
+ * a whole batch over a number nobody had touched. Anything a real
  * disagreement produces — a discount, an edited field — is worth far more
  * than `packageSize / 2`.
  *

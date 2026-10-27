@@ -5,19 +5,20 @@ the **segnaprezzi** repository. It distills the project's conventions and
 hard-won lessons into rules you can apply without re-deriving them.
 
 > **Current state**: segnaprezzi has a real DB, real auth, real repositories,
-> two real Anthropic gateways (shelf tags and receipts), the pure
+> one real Anthropic gateway (shelf tags, Claude Opus 5.5), the pure
 > personal-CPI engine with its service and the committed ISTAT series, every
 > screen of the app in the "tabulato a modulo continuo" visual world recorded
-> in **`DESIGN.md`** (mandatory reading before any UI work), a real service
-> worker with the sync engine that drains the photo queue, and the receipt
-> pipeline with its learned `product_aliases`. The current implementation
+> in **`DESIGN.md`** (mandatory reading before any UI work), and a real
+> service worker with the sync engine that drains the photo queue. Receipt
+> import was built, shipped and retired (2026-10-27): receipts rarely print
+> the unit price the index needs. The current implementation
 > state is tracked in **`CLAUDE.md` → "Current status"** — read it first,
 > trust it over any assumption. Where this file's guidance and the
 > actually-implemented code differ, this file describes what was actually
 > verified to work — a handful of snippets below didn't survive contact with
 > the real dependency versions, the Next.js runtime, the live ISTAT service,
 > the accessibility gates, Turbopack, Serwist's precache manifest, SQLite's
-> NULL semantics and Better Auth's production rate limiter (see §4.15–§4.53).
+> NULL semantics and Better Auth's production rate limiter (see §4.15–§4.71).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
@@ -239,10 +240,8 @@ export type DomainErrorCode =
 // INVALID_PRICE, INVALID_SIZE, INVALID_STORE_KIND,
 // INCONSISTENT_FUEL_PRICES, SESSION_NOT_FOUND, STORE_NOT_FOUND,
 // PRODUCT_NOT_FOUND, SESSION_CLOSED, PHOTO_TOO_LARGE,
-// UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE for capture, and
-// RECEIPT_TOO_LARGE, UNSUPPORTED_RECEIPT_TYPE, RECEIPT_TOO_LONG,
-// RECEIPT_ALREADY_IMPORTED, RECEIPT_NOT_FOUND, RECEIPT_NO_LINES and
-// RECEIPT_EXTRACTION_STALE for receipt import — both via the checklist above.
+// UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE for capture — via the
+// checklist above. (The seven RECEIPT_* codes left with receipt import.)
 // The code→HTTP mapping lives once, as HTTP_STATUS_BY_CODE in
 // src/app/api/route-errors.ts, shared by every route handler: an exhaustive
 // Record<DomainErrorCode, number> — which is what makes the compiler, not a
@@ -381,10 +380,9 @@ The complete list:
 |---|---|
 | `/api/auth/[...all]` | Better Auth owns this surface |
 | `/api/extract` | Called by the offline sync manager / service worker with a binary photo body |
-| `/api/extract-receipt` | Multipart upload of a PDF/image the user picked from disk |
 | `/api/export` | Streams a downloadable JSON file |
 
-Adding a fifth route handler requires a justification of this kind in the PR
+Adding a fourth route handler requires a justification of this kind in the PR
 description. "It felt more RESTful" is not one.
 
 ### 1.11 i18n rules (next-intl, `it` + `en`)
@@ -423,7 +421,6 @@ Namespace map **[decided]** — top-level keys of both message files:
 | `categories` | One label per taxonomy id (`food`, …, `other`) |
 | `units` | Unit labels and formats (kg, L, piece, €/kg, €/L) |
 | `pwa` | Install prompt, update toast |
-| `receipt` | Receipt upload, line review, per-line statuses |
 
 ### 1.12 Design tokens (semantic only)
 
@@ -514,7 +511,8 @@ segnaprezzi/
 │   └── istat-nic.json          # Committed ISTAT NIC monthly series. Only scripts/update-istat.ts writes it.
 ├── drizzle/                    # Generated SQL migrations + meta. Never hand-edited; always committed.
 ├── scripts/                    # tsx entry points: seed.ts, update-istat.ts, generate-icons.ts,
-│                               #   plus their pure helpers (seed-ids.ts, seed-users.ts, istat-nic.ts).
+│                               #   prune-photos.ts, plus their pure helpers (seed-ids.ts, seed-users.ts,
+│                               #   istat-nic.ts).
 │                               #   Scripts may import src/lib/** but nothing imports scripts/.
 ├── messages/
 │   ├── it.json                 # Default locale. Same key tree as en.json — always.
@@ -529,8 +527,6 @@ segnaprezzi/
 │   │   │                       #   scan/review/: review-derivations (pure, tested), use-review-drafts,
 │   │   │                       #     review-card-list, review-confirm-bar, review-match-sheet,
 │   │   │                       #     success-overlay.
-│   │   │                       #   add/receipt/review/: receipt-review-derivations (pure, tested),
-│   │   │                       #     receipt-review-header, receipt-store-date-rows, receipt-line-list.
 │   │   │                       #   add/manual/: use-manual-entry-form, manual-entry-derivations
 │   │   │                       #     (pure, tested), manual-product-section, manual-price-section,
 │   │   │                       #     manual-details-section, manual-submit-bar.
@@ -538,7 +534,7 @@ segnaprezzi/
 │   │   │                       #   products/: catalog-view (pure, tested), catalog-header, product-list,
 │   │   │                       #     selection-action-bar, merge-products-sheet.
 │   │   │                       #   products/[id]/: chart-window (pure, tested), price-overview,
-│   │   │                       #     store-comparison-section, price-history-list, alias-section,
+│   │   │                       #     store-comparison-section, price-history-list,
 │   │   │                       #     product-menu-sheet, edit-product-sheet.
 │   │   │                       #   settings/: index-settings-section, preferences-section, data-section,
 │   │   │                       #     delete-account-sheet.
@@ -555,7 +551,6 @@ segnaprezzi/
 │   │   ├── capture/            # The capture screens' parts: camera-view, photo-tray, extraction-card,
 │   │   │                       #   match-picker, store-picker-sheet + its use-store-options hook,
 │   │   │                       #   use-product-search (the match sheet's catalog search)…
-│   │   ├── receipt/            # receipt-dropzone, receipt-line-card, receipt-summary-bar.
 │   │   ├── entries/            # entry-sheet (view/edit/delete one observation; detail + timeline),
 │   │   │                       #   promo-fields (the promo toggle + kind chips every entry form shares).
 │   │   ├── auth/               # auth-form (progressive-reveal login/signup form).
@@ -564,8 +559,8 @@ segnaprezzi/
 │   │                           #   nor Server Actions — screens pass actions down as callbacks.
 │   ├── lib/
 │   │   ├── domain/             # categories.ts, units.ts, money.ts, schemas.ts and the other shared
-│   │   │                       #   rules and wire types: receipt-lines.ts, extract-photo.ts,
-│   │   │                       #   photos.ts, search.ts, history-groups.ts, auth.ts… Pure, zero imports.
+│   │   │                       #   rules and wire types: extract-photo.ts, photos.ts, search.ts,
+│   │   │                       #   history-groups.ts, auth.ts… Pure, zero imports.
 │   │   ├── inflation/          # Index engine: bucketing, relatives, chaining, coverage.
 │   │   │                       #   Pure. Imports domain/ only. The most heavily unit-tested code.
 │   │   ├── db/
@@ -574,8 +569,8 @@ segnaprezzi/
 │   │   │   └── repositories/   # One module per aggregate. Queries only, all userId-scoped.
 │   │   ├── services/           # Use cases: record-entry.ts, merge-products.ts, compute-index.ts...
 │   │   │                       #   Orchestration only — no SQL, no HTTP, no JSX.
-│   │   ├── ai/                 # Anthropic gateways: tag + receipt calls, prompts, response schemas.
-│   │   │                       #   One AiGatewayError mapping, shared by both.
+│   │   ├── ai/                 # The Anthropic gateway: the shelf-tag call, its prompt and response
+│   │   │                       #   schema, and the one AiGatewayError mapping (toAiGatewayError).
 │   │   ├── blob/               # Vercel Blob gateway: upload/delete photo.
 │   │   ├── offline/            # CLIENT-side: Dexie schema, photo queue, sync manager,
 │   │   │                       #   safe-storage.ts (localStorage that never throws).
@@ -678,10 +673,10 @@ these scripts.
 | `dev` | `next dev` | Daily development. Serwist is disabled here (§4.3). |
 | `build` | `next build --webpack` | Production build; also the only way to build the service worker. **The `--webpack` flag is load-bearing** — see §4.39. |
 | `start` | `next start` | Serve the production build locally (PWA testing). |
-| `lint` | `biome check .` | CI + pre-commit check. Formatting AND lint in one pass. |
+| `lint` | `biome check .` | The pre-commit check (there is no CI). Formatting AND lint in one pass. |
 | `lint:fix` | `biome check --write .` | Auto-fix before committing. Run it, don't hand-format. |
 | `typecheck` | `tsc --noEmit` | Always run before declaring a task done; `next build` alone is not the type gate. |
-| `test` | `vitest run` | Full unit/integration suite, single pass (CI mode). |
+| `test` | `vitest run` | Full unit/integration suite, single pass. |
 | `test:watch` | `vitest` | TDD loop while implementing (essential for the inflation engine). |
 | `test:e2e` | `playwright test` | Critical-path E2E + axe. Four projects (`mobile`, `desktop`, `offline-queue`, `pwa`); runs `pnpm build && pnpm start` itself (§4.41). `PORT=3100 pnpm test:e2e` when :3000 is taken (§4.32). |
 | `db:generate` | `drizzle-kit generate` | After every schema change: emits SQL migration into `drizzle/`. |
@@ -690,7 +685,6 @@ these scripts.
 | `db:seed` | `tsx --env-file-if-exists=.env.local scripts/seed.ts` | Populate the local DB with demo data (products, entries across months). Not `--env-file` — see §4.21. |
 | `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (§3.5, §4.2, §4.16). |
 | `icons` | `tsx scripts/generate-icons.ts` | Regenerate PWA icon set from `docs/assets/logo.svg` into `public/`. |
-| `receipt:fixture` | `tsx scripts/make-receipt-fixture.ts` | Regenerate the synthetic receipt PDF the E2E suite uploads. Changing it changes its SHA-256, which the idempotency test derives at runtime — no constant to update. |
 | `istat:update` | `tsx scripts/update-istat.ts` | Refresh `data/istat-nic.json` from ISTAT; commit the diff. |
 | `photos:prune` | `tsx --env-file-if-exists=.env.local scripts/prune-photos.ts` | Report (or `--delete`) entry photos in Blob that no entry references. Dry run by default; run it with the target deployment's env — see §4.61. |
 
@@ -830,7 +824,12 @@ rights. Fix once per shell session: `npm install -g pnpm`, then prepend
 `export PATH="$PATH:/c/Users/<user>/AppData/Roaming/npm"`). `corepack pnpm`
 also works ad hoc but does **not** put a `pnpm` binary on `PATH`, so tools
 that spawn `pnpm` as a subprocess (e.g. `create-next-app --use-pnpm`) still
-fail with `ENOENT` even when `corepack pnpm -v` succeeds.
+fail with `ENOENT` even when `corepack pnpm -v` succeeds. **The Mac has the
+same shape of problem**: `corepack enable` fails with `EACCES` on
+`/usr/local/bin`, and `corepack pnpm run <script>` dies with `spawnSync pnpm
+ENOENT` because pnpm's own `verifyDeps` re-spawns `pnpm`. Fix once:
+`corepack enable --install-directory ~/.local/bin`, then every shell (and
+every agent command) needs `export PATH="$HOME/.local/bin:$PATH"`.
 
 **4.12 Biome's CSS parser needs `tailwindDirectives: true` for Tailwind 4
 at-rules.** From Biome ~2.5, `@custom-variant` and `@theme` in
@@ -876,20 +875,18 @@ transitively, default to omitting `onDelete` (`NO ACTION`) instead of
 same-statement cascade race.
 
 **4.16 `@better-auth/cli` lags behind the `better-auth` core package's own
-versioning — pin an actual published version, and expect to patch the
-output by hand.** There is no `@better-auth/cli@^1.7.0`; the CLI package
-tops out around `1.4.22`/`1.5.0-beta.x` while `better-auth` core is at
-`1.7.1`. Two consequences, both already applied in
-`src/lib/db/schema/auth.ts` (correction note at the top of that file) and
-`package.json`'s `auth:generate` script: (1) the CLI needs explicit
-`--config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` — it does
-not autodetect either path in this project layout; (2) the CLI's schema
-output is missing an `issuer: text('issuer').notNull()` column on
-`accounts` that core 1.7.1 requires at runtime (`signUpEmail` throws "The
-field 'issuer' does not exist..." without it) — re-add that column by hand
-after every `pnpm auth:generate` until a CLI version that understands core
-1.7+ ships. Check the latest `@better-auth/cli` version whenever this comes
-up again; don't assume today's pin is still the best available.
+versioning — pin an actual published version, and diff its output by hand.**
+There is no `@better-auth/cli@^1.7.0`; the CLI tops out around
+`1.4.22`/`1.5.0-beta.x` while core is at 1.7.12. The CLI needs explicit
+`--config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` (it does
+not autodetect either path here). History worth knowing before trusting
+either side: core 1.7.0–1.7.2 required an `issuer` column on `accounts`, so
+it was added by hand on 2026-08-21; core 1.7.3 abolished it, and 1.7.12's
+Drizzle adapter refuses to *start* while a NOT NULL column it never writes
+exists (§4.69). The generated file is therefore neither fully CLI output nor
+fully hand-written: after every `pnpm auth:generate`, diff against the
+committed file and keep what the installed core actually requires. Check the
+latest `@better-auth/cli` version whenever this comes up again.
 
 **4.17 The test DB factory uses a uniquely-named temp file, never
 `:memory:` — an anonymous in-memory libSQL connection silently resets
@@ -944,11 +941,11 @@ server's module graph and the DB connection — but it is no longer load
 bearing, and a new route does not have to be added to it. The hazard itself
 remains for anything else that drives `next dev` from parallel clients.
 
-**4.21 Node's `--env-file` throws if the file is missing — CI has no
-`.env.local`, so any `tsx --env-file=...` script fails there.** Caught by
-the CI `e2e` job: `pnpm db:seed` worked locally and failed in CI with
-`.env.local: not found`, because CI injects env vars via the workflow's
-`env:` block, not a file. `drizzle-kit` doesn't hit this — `drizzle.config.ts`
+**4.21 Node's `--env-file` throws if the file is missing — any environment
+without `.env.local` (a fresh clone, a GitHub Actions job, Vercel) breaks a
+`tsx --env-file=...` script.** First caught by the former CI `e2e` job:
+`pnpm db:seed` worked locally and failed there with `.env.local: not found`,
+because the workflow injected env vars via its `env:` block, not a file. `drizzle-kit` doesn't hit this — `drizzle.config.ts`
 loads `.env.local` through the `dotenv` package's `config()`, which silently
 no-ops on a missing file. Use `--env-file-if-exists=.env.local` (Node 20.12+)
 for any `tsx` script invoked by both a local dev workflow and CI/production —
@@ -1035,7 +1032,9 @@ CRLF→LF normalization over `git status` files before `pnpm lint` — the UI
 build session lost two lint rounds to this before the pattern was clear.
 Biome's `--write` has the same effect in reverse: it rewrites a CRLF file to
 LF, so after formatting a CRLF file convert it back and check with
-`tr -cd '' | wc -c` (what `grep -c $'$'` gets wrong in Git Bash).
+`tr -cd '
+' | wc -c` (what `grep -c $'
+$'` gets wrong in Git Bash).
 
 **4.32 Playwright's `baseURL` must follow the dev server's port, and Better
 Auth must agree.** `next dev` silently moves to :3001 when :3000 is taken by
@@ -1170,18 +1169,13 @@ convention file was deleted; `generateMetadata` declares `/favicon.ico`
 explicitly.
 
 **4.49 SQLite treats NULLs as DISTINCT inside a UNIQUE index, so
-`ON CONFLICT` never fires for a nullable key column.** `product_aliases` is
-unique on `(user_id, alias, store_chain)` and `store_chain` is NULL for an
-alias learned from a receipt with no known chain — two such rows do NOT
-collide, and an `onConflictDoUpdate` upsert silently inserts a duplicate
-instead of incrementing `hit_count`.
-`src/lib/db/repositories/product-aliases.ts` therefore reads the row before
-it writes (with `isNull()`, not `eq(col, null)`, which is never true in SQL).
-Both callers run inside a transaction, so the read-then-write is atomic. The
-corollary is that `moveProductAliases`'s "sum hit_count on conflict" branch
-is only reachable for chain-less aliases brought in by a restored backup —
-its test seeds that state directly, because the repository's own upsert
-cannot produce it.
+`ON CONFLICT` never fires for a nullable key column.** Learned on the retired
+`product_aliases` table (unique on a nullable `store_chain`): two rows with
+NULL in the key do NOT collide, so an `onConflictDoUpdate` upsert silently
+inserts a duplicate. Any future unique key with a nullable column must
+either read-before-write inside a transaction (with `isNull()`, not
+`eq(col, null)`, which is never true in SQL) or replace the NULL with a
+sentinel value.
 
 **4.50 A `biome-ignore` suppression must be ONE comment node.** Four
 consecutive `//` lines are four comments, and Biome only reads the first as
@@ -1192,55 +1186,45 @@ children), and keep it directly above the node.
 
 **4.51 Don't reach for `client.withOptions()` when a gateway needs different
 SDK options — give it its own `Anthropic` instance.** `src/lib/ai/`'s test
-seam is an injected client shaped `{ messages: { parse } }`;
-a `withOptions({ timeout })` call inside the gateway means every mock must
-also implement `withOptions`, which is a lot of ceremony to express "receipts
-get 45 s instead of 30". `extract-receipt.ts` constructs its own client and
-re-uses `extract-price-tag.ts`'s exported `toAiGatewayError` for the failure
-mapping, so the classification still lives in exactly one place.
+seam is an injected client shaped `{ messages: { parse } }`; a
+`withOptions({ timeout })` call inside the gateway means every mock must also
+implement `withOptions`. When receipts had their own gateway it constructed
+its own client and re-used `extract-price-tag.ts`'s exported
+`toAiGatewayError`, so the failure classification lived in exactly one place
+— the rule a second gateway must follow again.
 
 **4.52 `test.beforeEach` in a `describe.configure({ mode: 'serial' })` group
-wipes the state the next test depends on.** The receipt E2E suite's second
-test asserts that re-uploading an already-confirmed receipt is refused — which
-only means anything if the first test's confirm is still there. Use
-`beforeAll` for the reset in a serial group: Playwright re-runs it on a retry
-of the group, so the idempotency of the fixture is preserved either way.
+wipes the state the next test depends on.** A serial group whose second test
+asserts on what the first one wrote (the retired receipt suite's "re-upload
+is refused" case) needs `beforeAll` for its reset: Playwright re-runs it on a
+retry of the group, so the fixture stays idempotent either way.
 
 **4.53 An all-ASCII binary fixture needs a `.gitattributes` entry, or
-`core.autocrlf` silently corrupts it.** The E2E receipt fixture is a
-hand-written PDF (`scripts/make-receipt-fixture.ts`) with no compressed
-streams, so git's content heuristic classifies it as *text* and rewrites its
-line endings on checkout under Windows' `core.autocrlf=true`. Every byte
-offset in the PDF's xref table then points one byte early per preceding line,
-and the file stops being a document any reader can open — while still
-*passing* the idempotency test, which derives the SHA-256 at runtime from
-whatever is on disk. `.gitattributes` declares `*.pdf` (and the image
-formats) `binary`; verify with
-`git cat-file -p :<path> | sha256sum` against the file on disk. This is the
-failure mode that looks like "the model can't read our fixture" three weeks
-later, on somebody else's clone.
+`core.autocrlf` silently corrupts it.** A hand-written PDF with no compressed
+streams is classified as *text* by git's content heuristic and gets its line
+endings rewritten on checkout under Windows' `core.autocrlf=true`; every byte
+offset in its xref table then points one byte early per preceding line, and
+the file stops being a document any reader can open — while a test that
+hashes whatever is on disk still passes. `.gitattributes` declares `*.pdf`
+and the image formats `binary`; verify with `git cat-file -p :<path> |
+sha256sum` against the file on disk. The fixture that taught this is gone;
+the attributes file stays.
 
-**4.54 A synthetic receipt fixture cannot exercise every real layout — a
-discount line that repeats the receipt's own VAT% column needs its own
-worked example, or the model treats it as a product.** The fixture and the
-first worked example in `RECEIPT_SYSTEM_PROMPT` only cover a discount printed
-as a single bare amount (`SCONTO SOCI   -0,40`). A real Coop receipt instead
-prints `SCONTO % CLIE 40.00%    4,00%    -1,92` — the VAT% column repeats on
-the discount line itself, plus the discount's own percentage sits in the
-description text. The model read that as a new, separate, zero-price
-"product" instead of folding it into the line above, exactly the kind of
-line the resolver then offers to add to the catalog as junk. Fixed with a
-second worked example in the prompt matching that shape — pure prompt text,
-no schema or resolver change, and **not** something a unit test can catch:
-prompt changes can only be verified against a real document. The same
-receipt also had the model expand "F/F" (Coop's "Fior Fiore" private-label
-marker) into "farina di frumento" — the existing "don't guess ambiguous
-abbreviations" rule was true in principle but too weak in practice to
-override a plausible-looking wrong guess; it now carries "F/F" as a named
-counter-example. Lesson: when a real-world document surfaces a prompt gap,
-add a worked example matching its *exact* shape, not a generic rule
-addition — the model follows concrete examples far more reliably than an
-abstract instruction it can still rationalize past.
+**4.54 When a real-world document surfaces a prompt gap, add a worked
+example matching its *exact* shape — and when the model still cannot be made
+reliable, look for an invariant in the document itself.** Both lessons come
+from the retired receipt pipeline and apply to the shelf-tag prompt as well.
+A generic rule ("don't guess ambiguous abbreviations") was true in principle
+and too weak in practice to override a plausible-looking wrong guess; a
+concrete counter-example in the prompt fixed it, because the model follows
+examples far more reliably than an instruction it can rationalize past.
+Prompt changes can only be verified against a real document, never by a
+unit test. And when three prompt attempts did not stop Haiku from counting
+six identical lines as seven, what worked was arithmetic on the printed
+total — deterministic, tested, and visible to the user. A self-check rule
+in a prompt ("Σ must not exceed the total") is **dangerous** without its
+legitimate exceptions spelled out: the model will delete a real line to
+satisfy it.
 
 **4.55 A `<table class="sr-only">` is not hidden from layout, and can widen
 the whole document.** `sr-only` sets `width: 1px` with `overflow: hidden`, but
@@ -1302,18 +1286,17 @@ an orphan blob is recoverable and a row whose photo is gone is not.
 `pnpm photos:prune` reports what has already leaked.
 
 **4.60 Spy words must be disjoint across E2E suites that share a seed user.**
-The receipt suite fuzzy-matches its lines against the *whole* catalog of the
-second seed user, so a product named "Fenicottero in scatola E2E", created by
-another spec running in parallel, captured a receipt line that was supposed to
-find nothing — and that suite's assertion failed in a file nobody had touched.
-Invented names keep fixtures away from real data (`WORKFLOW.md` obligation 1);
-they also have to keep fixtures away from *each other*. The delete suite
-therefore owns "vombato" and "axolotl", disjoint from the receipt suite's
-"fenicottero"/"ornitorinco"/"quokka". **The same applies inside one file**:
-a later receipt test's "Pesto narvalo 190g" was captured by an earlier test's
-"Pesto capibara 190g" — disjoint spy words are not enough when the rest of
-the name matches, so vary the noun too ("Crema narvalo 250g"). The symptom is
-a card stuck on `needs-product`, which reads like a bug in the matcher.
+Any flow that fuzzy-matches against the *whole* catalog of a seed user (the
+scan review's suggestions do) can be captured by a product another spec
+created in parallel — the retired receipt suite lost an assertion to
+"Fenicottero in scatola E2E" from a file nobody had touched. Invented names
+keep fixtures away from real data (`WORKFLOW.md` obligation 1); they also
+have to keep fixtures away from *each other*: the delete suite owns
+"vombato" and "axolotl", and a new suite picks words no other spec uses.
+**The same applies inside one file**: disjoint spy words are not enough when
+the rest of the name matches ("Pesto narvalo 190g" vs "Pesto capibara 190g"),
+so vary the noun too. The symptom is a card stuck on `needs-product`, which
+reads like a bug in the matcher.
 
 **4.61 A prune tool that compares one database against one blob store must
 refuse a mismatched pair.** `scripts/prune-photos.ts` calls a blob an orphan
@@ -1336,86 +1319,36 @@ for under "products" are split: merging duplicates lives in
 size, or the app refuses its own arithmetic.** `unit_price_milli` is an
 integer, so rounding it costs up to half a milli-euro per base unit: half a
 cent on a 1 kg pack, but **13,5 cents on a 270-piece box of tissues**
-("FAZZ.COOP 9X30PZ", 3,09 € → 0,01144 € each → storable only as 11 milli,
-which multiplies back to 2,97 €). Against a fixed one-cent slack that is a
-violation, so `confirmReceipt` threw `INVALID_PRICE` — for the whole receipt,
-over a number the app itself had derived and nobody had touched. This is the
-real cause of the "Il prezzo non è valido" report; the discount case in §4.64
-is a second, independent way to produce the same rejection.
-`isUnitPriceConsistent` therefore allows `max(10, packageSize / 2)` milli.
-Any real disagreement is worth far more than that. The lesson generalizes:
-when a stored value is quantized, a tolerance on a quantity DERIVED from it
-has to carry the quantization, not a constant somebody once found reasonable.
+(3,09 € → 0,01144 € each → storable only as 11 milli, which multiplies back
+to 2,97 €). Against a fixed one-cent slack that is a violation, so a write
+threw `INVALID_PRICE` over a number the app itself had derived.
+`isUnitPriceConsistent` (`domain/money.ts`, `UNIT_PRICE_TOLERANCE_MILLI`)
+therefore allows `max(10, packageSize / 2)` milli, and it is the ONE
+predicate the review screens, the fuel form and every write ask. Two rules
+generalize: when a stored value is quantized, a tolerance on a quantity
+DERIVED from it has to carry the quantization, not a constant somebody once
+found reasonable; and a server-side assertion the client cannot evaluate is
+a rejection nobody can act on — share the predicate or do not assert it.
 
-**4.64 A printed €/kg is the price BEFORE that line's discount, and the
-entry contract cannot hold both.** `deriveUnitPriceMilli` preferred the
-weighed line's printed unit price over the derived one — right in general (a
-50 g item rounded to the cent is 2 % off, so re-deriving invents a price) but
-wrong for a weighed product on offer: the scale prints "2,00 €/kg" next to a
-total that worked out to 1,60 €/kg, and `confirmReceipt` then refused the
-WHOLE receipt with `INVALID_PRICE`. The user saw "Il prezzo non è valido"
-under a bar that said "5 pronte · 0 da sistemare", with nothing naming the
-line. Two fixes, both of which the next comparable case wants: the printed
-value is now only *preferred* — it is used when it multiplies out to the
-paid total, and the derived one otherwise, because rounding to the cent
-never breaks the invariant and a discount always does — and the invariant
-itself moved into `domain/money.ts` (`isUnitPriceConsistent`,
-`UNIT_PRICE_TOLERANCE_MILLI`) so the derivation, the review screen and the
-confirm service all ask exactly one question. Rule of thumb: a server-side
-assertion the client cannot evaluate is a rejection nobody can act on —
-either share the predicate or do not assert it.
-
-**4.65 Σ printed lines never equals the receipt total, and that is the
-import working correctly — except when it is an invented purchase.** The extraction deliberately skips everything
-that is not a product (the bag levy, deposits, "vuoto a rendere", coupons
-and trip-level discounts printed after the subtotal), so the header's
-"Totale righe" is *supposed* to sit above or below the printed total — the
-5-cent `RECEIPT_TOTAL_TOLERANCE_CENTS` (in `domain/receipts.ts`, because the
-review screen re-asks the same question live) only decides when to say so. Reading
-the difference as "the model misread a line" costs a session; the review
-header therefore shows the signed gap next to the two totals, and the
-mismatch copy names the usual culprits. The two totals on the review screen
-answer different questions and must not be merged: the header's is the
-*transcription* (Σ of what was printed, static, comparable with the paper),
-the confirm bar's is *what will be saved* (price × quantity over the
-included lines, live under every edit and exclusion) — and the header's
-reconciliation now uses the LIVE number, because a difference that cannot
-move tells the user nothing they can act on.
-
-**4.66 Haiku miscounts a long run of identical receipt lines, and no
-per-line check can see it.** A real Coop self-scan receipt printed six
-"M-T PESTO GEN.COOP 1,64" lines (each followed by an indented "X prezzo
-tutelato" annotation); the model returned **seven** — 1,64 € of shopping
-that never happened. Every line is individually plausible, the confidences
-were 0.9, and the fold into one card with `quantity` hides the miscount
-behind a stepper. Two prompt attempts did NOT fix it (a counting rule, an
-annotation rule, and a worked example in the exact shape — all three kept,
-they are true and cheap, but verified insufficient on this document). What
-does work is deterministic: the printed total. `suggestExtraPackages`
-(pure, in `domain/receipt-lines.ts`) reports when the gap is an exact
-multiple of one line's package price and no second line explains it, and the
-review names that line — one tap on its stepper closes the gap. Two rules
-worth carrying: a self-check bullet telling the model "Σ must not exceed the
-total" is **dangerous** without the trip-level-discount carve-out (a receipt
-with a spesa-level discount legitimately has Σ > total, and the instruction
-would make the model delete a real line); and when the model cannot be made
-reliable, look for an invariant in the document itself rather than adding a
-fourth paragraph to the prompt.
+**4.64–4.66 Retired with receipt import (2026-10-27).** They covered the
+printed-€/kg-before-discount case, the Σ-lines-vs-printed-total
+reconciliation and Haiku's miscount of repeated lines; the durable parts
+moved into §4.54 and §4.63. The numbers stay reserved so older references
+in `git log` still point somewhere.
 
 ---
 
 **4.67 Every E2E suite that writes as the second seed user leaves the account
 as it found it, because the thin dashboard is a state, not a page.**
 `a11y.spec.ts` expects `dashboard-thin` for `dev2`, which `getDashboardData`
-shows only while the series has fewer than two months. The receipt suite's
-fixture is dated August, so one confirmed receipt gives the account a second
-month and the full dashboard — and with `fullyParallel` the desktop project's
-a11y run lands after the mobile project's receipt flow often enough to fail
-two tests in a file nobody touched (seen 2026-10-27; the race predates that
-session). `quick-entry` and `delete-product` already cleaned up in
-`afterAll`; `receipt-import` now does too (`resetReceiptFixtures`). A new flow
-suite owes the same `afterAll`, and a fixture dated outside the current month
-is the tell.
+shows only while the series has fewer than two months. The retired receipt
+suite's fixture was dated August, so one confirmed import gave the account a
+second month and the full dashboard — and with `fullyParallel` the desktop
+project's a11y run landed after the mobile project's flow often enough to
+fail two tests in a file nobody touched (seen 2026-10-27; the race predated
+that session). `quick-entry` and `delete-product` clean up in `afterAll`. A
+new flow suite owes the same `afterAll`, and a fixture dated outside the
+current month is the tell.
 
 **4.68 pnpm 11 reads `overrides` from `pnpm-workspace.yaml`, not from
 `package.json`.** A `"pnpm": { "overrides": … }` block in `package.json` is
@@ -1427,6 +1360,46 @@ exact `4.28.6`, drizzle-kit's `@esbuild-kit`); `docs/guide/dipendenze.md`
 says when each can go. `pnpm update --depth Infinity <name>` is enough for a
 transitive package whose parent's range already allows the fix
 (`brace-expansion`, `source-map-js`); an exact pin needs the override.
+
+**4.69 Better Auth 1.7.12 checks the Drizzle schema at startup and refuses a
+NOT NULL column it never writes — the hand-added `accounts.issuer` was one.**
+The upgrade from 1.7.1 (four advisories, one critical) did not change a line
+of app code, and the unit suite stayed green; `next start` then threw
+`BetterAuthError: Drizzle schema mismatch … Required columns Better Auth never
+writes: accounts.issuer`, and every E2E login got a 500. Core 1.7.0–1.7.2 had
+required that column (§4.16), 1.7.3 abolished it, and the official 1.7
+upgrade guide's SQLite recipe is exactly `ALTER TABLE account DROP COLUMN
+issuer` (SQLite has no `ALTER COLUMN … DROP NOT NULL`). Migration 0002
+carries that drop next to the receipt tables. Lesson: a library upgrade that
+touches auth is verified by a running server and a real sign-in, not by
+`pnpm test` — the adapter's check runs only when the app boots.
+
+**4.70 Claude Opus 5.5 rejects `temperature`, and its thinking tokens are
+paid out of `max_tokens`.** Moving `EXTRACTION_MODEL` from
+`claude-haiku-4-5` to `claude-opus-5-5` meant: delete `temperature: 0` (400
+on this model, not a warning); thinking is always on and the only control is
+`output_config.effort` (`high` here, the owner's choice for a dense image
+where a misread digit is a wrong price); raise `max_tokens` to 8000 because
+the thinking budget counts against it and a 1500 cap could truncate the
+structured answer; and give the gateway 60 s with `maxDuration = 90` on
+`/api/extract` (Fluid compute is on, so the Hobby plan's 300 s ceiling is the
+real one — `maxDuration` is ours to set, not Vercel's). The test asserts the
+absence of `temperature` on purpose: it is the one regression a careless
+revert would reintroduce. Pricing moved from $1/$5 to $4/$20 per MTok; a
+tag is still a few cents.
+
+**4.71 A GitHub Actions workflow that opens a pull request needs a
+repository setting, not a token.** `update-istat.yml` ran green through
+the refresh and the branch push, then failed in `peter-evans/create-pull-request`
+with "GitHub Actions is not permitted to create or approve pull requests" —
+twice, a month apart, while every other step was fine. The switch is
+`Settings → Actions → General → Allow GitHub Actions to create and approve
+pull requests` (`gh api -X PUT repos/<owner>/<repo>/actions/permissions/workflow
+-F can_approve_pull_request_reviews=true`), off by default on every repo.
+After enabling it the same workflow opened PR #15 unchanged. The CI workflow
+(`ci.yml`) was removed on the same day: it had been red since 2026-10-23 over
+two unformatted files and a deprecated `biome.json` key that `pnpm lint`
+reproduces locally, and the gate is the local one (§3.1).
 
 ## 5. Definition of Done
 

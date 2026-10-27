@@ -5,7 +5,7 @@
 // - messages/it.json and messages/en.json (keys under "productDetail.source")
 // - SOURCE_ICONS in src/components/entries/entry-sheet.tsx
 // Every exhaustive switch on EntrySource is checked by the compiler.
-export const ENTRY_SOURCES = ['photo', 'manual', 'fuel', 'receipt'] as const;
+export const ENTRY_SOURCES = ['photo', 'manual', 'fuel'] as const;
 export type EntrySource = (typeof ENTRY_SOURCES)[number];
 
 export const PROMO_KINDS = ['discount', 'loyalty', 'coupon', 'bundle'] as const;

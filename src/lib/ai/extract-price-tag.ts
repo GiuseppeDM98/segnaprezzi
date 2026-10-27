@@ -17,7 +17,20 @@ import { env } from '@/lib/env';
 import { EXTRACTION_SYSTEM_PROMPT } from './extraction-prompt';
 import { type ExtractionResult, extractionResultSchema } from './extraction-schema';
 
-export const EXTRACTION_MODEL = 'claude-haiku-4-5';
+/**
+ * Opus 5.5 rather than Haiku: a shelf tag is one dense image, and misread
+ * digits are the failure that costs the most downstream (a wrong price is an
+ * observation the index trusts). The per-call cost is a few cents.
+ */
+export const EXTRACTION_MODEL = 'claude-opus-5-5';
+
+/**
+ * Thinking is always on for this model and `effort` is the only control.
+ * `high` buys the careful read of a photographed tag — glare, tiny unit
+ * prices, two prices on one label — at a few extra seconds; the timeout
+ * below is sized for it.
+ */
+const EXTRACTION_EFFORT = 'high' as const;
 
 export type ExtractionFailureCode =
   | 'rate-limited'
@@ -40,13 +53,18 @@ export class AiGatewayError extends Error {
 }
 
 /**
- * One image, one tag: a short read. The receipt gateway's RECEIPT_TIMEOUT_MS
- * is longer because a receipt can span pages.
+ * One image, one tag — but a model that thinks before it answers: a read at
+ * `high` effort regularly takes 10–30 s, so the budget is a minute. The
+ * route's `maxDuration` must outlive this.
  */
-const PRICE_TAG_TIMEOUT_MS = 30_000;
+const PRICE_TAG_TIMEOUT_MS = 60_000;
 
-/** One tag is a single JSON object; the slack is for a long transcribed rawText. */
-const PRICE_TAG_MAX_TOKENS = 1500;
+/**
+ * Thinking tokens count toward max_tokens even though their text is not
+ * returned, so this is sized for the reasoning plus one JSON object with a
+ * long transcribed rawText — not for the JSON alone.
+ */
+const PRICE_TAG_MAX_TOKENS = 8000;
 
 const anthropicClient = new Anthropic({
   apiKey: env.ANTHROPIC_API_KEY,
@@ -58,7 +76,7 @@ const anthropicClient = new Anthropic({
 });
 
 export interface ExtractPriceTagInput {
-  /** The photo as uploaded; base64-encoded here, as the receipt gateway does. */
+  /** The photo as uploaded; base64-encoded here. */
   bytes: Uint8Array;
   mediaType: PhotoMediaType;
   storeKind: StoreKind | null;
@@ -81,10 +99,8 @@ export async function extractPriceTag(
     const response = await client.messages.parse({
       model: EXTRACTION_MODEL,
       max_tokens: PRICE_TAG_MAX_TOKENS,
-      // Temperature 0: this is transcription, not generation — the correct
-      // output is fully determined by the pixels, and sampling variety only
-      // adds transposed digits. It also makes retries reproducible.
-      temperature: 0,
+      // No sampling parameters: this model rejects `temperature` outright,
+      // and the prompt already frames the task as transcription.
       system: EXTRACTION_SYSTEM_PROMPT,
       messages: [
         {
@@ -102,7 +118,10 @@ export async function extractPriceTag(
           ],
         },
       ],
-      output_config: { format: zodOutputFormat(extractionResultSchema) },
+      output_config: {
+        effort: EXTRACTION_EFFORT,
+        format: zodOutputFormat(extractionResultSchema),
+      },
     });
 
     if (response.stop_reason === 'refusal') {
@@ -129,9 +148,8 @@ function buildUserInstruction(storeKind: ExtractPriceTagInput['storeKind']): str
 /**
  * Map SDK failures onto AiGatewayError. Order matters: most specific first.
  *
- * Exported for the receipt gateway, which must classify the same failures
- * the same way — the offline queue and the receipt route share one retry
- * policy precisely because they share this function.
+ * Kept as the one classification of SDK failures: any second gateway must
+ * reuse it, or the offline queue's retry policy stops meaning one thing.
  */
 export function toAiGatewayError(error: unknown): AiGatewayError {
   if (error instanceof AiGatewayError) {

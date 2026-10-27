@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import type { ReviewedExtraction } from '@/lib/domain/extract-photo';
-import { PRESELECT_SCORE_THRESHOLD } from '@/lib/domain/receipt-lines';
+import { PRESELECT_SCORE_THRESHOLD } from '@/lib/domain/extract-photo';
 import {
   applyFieldsPatch,
   applyProductPick,

@@ -7,7 +7,7 @@
  * ratio/integer and is rendered through src/lib/format.ts here — nothing is
  * formatted upstream.
  */
-import { Camera, Fuel, PencilLine, ReceiptText } from 'lucide-react';
+import { Camera, Fuel, PencilLine } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
@@ -285,10 +285,9 @@ function MoversSection({ data }: { data: ReadyData }) {
 
 /*
  * Why the layout changes shape at tablet rather than just widening: on a
- * phone these are three thumb targets and the 2+1 grid is the right block —
- * full-width buttons, no wasted gutter. On a wide page the same grid became
- * a 448 px island floating in the left half of a 1024 px column, with the
- * receipt button spanning two cells for no reason anyone could name and
+ * phone these are two thumb targets and the two-column grid is the right
+ * block — full-width buttons, no wasted gutter. On a wide page the same grid
+ * became a 448 px island floating in the left half of a 1024 px column, with
  * every label marooned in the middle of a stretched plate. A wrapped row of
  * content-sized buttons has neither problem: they sit on one line, each as
  * wide as the words it carries, aligned to the same left edge as everything
@@ -303,15 +302,6 @@ function QuickActions() {
       </Button>
       <Button href="/add/fuel" variant="secondary" icon={<Fuel className="size-4" />}>
         {t('quickAddFuel')}
-      </Button>
-      <Button
-        href="/add/receipt"
-        variant="secondary"
-        icon={<ReceiptText className="size-4" />}
-        // `col-span-2` is inert once the section is a flex row at tablet.
-        className="col-span-2"
-      >
-        {t('quickAddReceipt')}
       </Button>
     </section>
   );

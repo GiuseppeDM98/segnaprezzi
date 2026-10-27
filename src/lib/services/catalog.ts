@@ -12,7 +12,6 @@ import {
   countPriceEntriesByProduct,
   listLatestEntriesPerProduct,
 } from '@/lib/db/repositories/price-entries';
-import { deleteProductAlias as deleteProductAliasRow } from '@/lib/db/repositories/product-aliases';
 import {
   deleteProducts as deleteProductRows,
   getProductById,
@@ -222,17 +221,6 @@ export async function setProductArchived(
   if (!updated) {
     throw new ProductNotFoundError(productId);
   }
-}
-
-/**
- * Forget one learned receipt line.
- *
- * Deliberately silent when the alias is not the user's: the only way to see
- * an alias id is to have been shown it, and a "not found" here would only
- * confirm the existence of somebody else's row.
- */
-export async function deleteProductAlias(db: Db, userId: string, aliasId: string): Promise<void> {
-  await deleteProductAliasRow(db, userId, aliasId);
 }
 
 export interface ProductSearchHit {

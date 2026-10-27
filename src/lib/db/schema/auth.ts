@@ -1,17 +1,16 @@
 import { relations, sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-// Correction (2026-08-21, verified during implementation): this file is
-// normally 100% CLI-generated and read-only, but the
-// published @better-auth/cli tops out around 1.4.x/1.5-beta while the
-// installed better-auth core is 1.7.1 — the CLI can't yet emit a schema
-// matching what core 1.7 actually requires. Signup fails at runtime
-// ("The field 'issuer' does not exist in the 'accounts' Drizzle schema")
-// without the `issuer` column added below by hand, matching core's own
-// accountSchema (@better-auth/core/db/schema/account.mjs) and its
-// documented 1.7 upgrade guide ("account identity is scoped by issuer").
-// Regenerate and diff against this file once @better-auth/cli ships a
-// version that understands core 1.7+.
+// Correction history: this file is normally 100% CLI-generated and read-only,
+// but the published @better-auth/cli (1.4.x / 1.5-beta) still lags the core
+// package. On 2026-08-21, against core 1.7.1, an `issuer` column had to be
+// added to `accounts` by hand because core 1.7.0–1.7.2 required it. Core
+// 1.7.3 abolished it again (account identity is `providerId` + `accountId`,
+// as in 1.6), and from 1.7.12 the Drizzle adapter refuses to start while a
+// NOT NULL column it never writes exists — so the column was removed here
+// and dropped by migration 0002, exactly as the 1.7 upgrade guide
+// prescribes for SQLite. After any `pnpm auth:generate`, diff the output
+// against this file before committing it (AGENTS.md §4.16).
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -55,7 +54,6 @@ export const accounts = sqliteTable(
     id: text('id').primaryKey(),
     accountId: text('account_id').notNull(),
     providerId: text('provider_id').notNull(),
-    issuer: text('issuer').notNull(),
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),

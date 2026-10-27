@@ -51,16 +51,18 @@ describe('extractPriceTag', () => {
     expect(result).toEqual(VALID_EXTRACTION);
   });
 
-  test('should call the locked model with deterministic settings and the image block', async () => {
+  test('should call the locked model at high effort with the image block', async () => {
     parse.mockResolvedValue({ stop_reason: 'end_turn', parsed_output: VALID_EXTRACTION });
 
     await extractPriceTag(INPUT, mockClient);
 
     const params = parse.mock.calls[0][0];
     expect(params.model).toBe(EXTRACTION_MODEL);
-    expect(EXTRACTION_MODEL).toBe('claude-haiku-4-5');
-    expect(params.temperature).toBe(0);
-    expect(params.max_tokens).toBe(1500);
+    expect(EXTRACTION_MODEL).toBe('claude-opus-5-5');
+    // Sampling parameters are a 400 on this model: none may be sent.
+    expect(params.temperature).toBeUndefined();
+    expect(params.max_tokens).toBe(8000);
+    expect(params.output_config.effort).toBe('high');
     expect(params.output_config.format).toBeDefined();
     expect(params.messages[0].content[0]).toMatchObject({
       type: 'image',

@@ -4,9 +4,9 @@
  *
  * Design: a pick made from search names a product that is not among the
  * card's suggestions, so the screen has to remember the hits to show the
- * picked product's name. The scan review and the receipt review each carried
- * their own copy of "call searchProducts, map the hits, remember them"; this
- * is the one copy. The Server Action arrives as a parameter because
+ * picked product's name. Every review screen that lets the user search the
+ * catalog shares this one copy of "call searchProducts, map the hits,
+ * remember them". The Server Action arrives as a parameter because
  * components never import actions (AGENTS.md §1.5).
  */
 import { useCallback, useState } from 'react';

@@ -24,7 +24,7 @@ export type { ProductSuggestion };
 
 const SUGGESTION_THRESHOLD = 0.4;
 
-/** Most suggestions any card shows, for a price tag and a receipt line alike. */
+/** Most suggestions any review card shows. */
 export const MAX_SUGGESTIONS = 3;
 const EXACT_BRAND_BONUS = 0.15;
 const STORE_RECENCY_BONUS = 0.05;

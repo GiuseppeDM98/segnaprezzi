@@ -47,7 +47,7 @@ const EXTRACTION_BODY = {
     reviewReasons: [],
   },
   suggestions: [],
-  model: 'claude-haiku-4-5',
+  model: 'claude-opus-5-5',
 };
 
 /** Open the capture screen and wait until its client half is live: the

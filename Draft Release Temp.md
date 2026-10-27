@@ -5,7 +5,7 @@
 - Added user accounts — sign up with email and password, and stay signed in for up to 30 days
 - Added a way to export your complete price history and account data as a JSON file
 - Self-hosters can now close new signups on their own instance while keeping it usable for existing users
-- Added price tag scanning — photograph a shelf tag and Claude Haiku 4.5 reads the product, brand, category, price and price per kg/L for you
+- Added price tag scanning — photograph a shelf tag and Claude Opus 5.5 reads the product, brand, category, price and price per kg/L for you
 - Added a review step before anything is saved: every extracted field is editable, and prices that don't add up or that the AI wasn't sure about are flagged for you to check
 - Added offline capture — photos are compressed and queued on your phone straight away, so a supermarket with no signal never costs you a price tag
 - Added a manual entry form for items without a tag, with the price per kg/L worked out as you type and grams or millilitres accepted directly
@@ -35,23 +35,9 @@
 - The dashboard now says so when you are offline and the numbers you are looking at were computed earlier
 - When a new version of the app is available it offers to update instead of reloading under you — your half-finished review is never lost
 
-- Added receipt import — upload the digital receipt your supermarket e-mails you (PDF) or a photo of a paper one, and every product line on it becomes its own price observation, at the price you actually paid
-- Receipt lines are matched against your catalog automatically, and every correction is remembered: the next receipt from the same chain recognises "PASTA BAR SPAGH N5 500G" on its own, with nothing for you to do
-- Receipt lines that don't state a package size ask you for it — once — and then take it from your catalog forever after, so "1,09" becomes a comparable €/L
-- "2 × 1,09" is understood as one price bought twice, and goods sold by weight ("0,812 kg × 1,49") use the weight the scale printed
-- Discounts printed on their own line are folded into the product above them, and loyalty prices are recorded as such
-- Nothing from a receipt is saved until you confirm it, and you can exclude any line you don't want
-- Uploading the same receipt twice picks up where you left off instead of paying to read it again — and refuses outright once it has been imported
-- Product pages now list the receipt lines they have learned, so a mapping that went wrong can be forgotten with one tap
-
 - Added deleting a product: from its own screen, from a row in the catalog, or several at once from the selection bar. The confirmation tells you how many price observations will go with it and that your index will be recalculated without them — archiving is still there when you want to keep the history
-- Receipts that print the same article on two lines now propose it once, with the quantity added up, exactly as they already did for a line printed as "2 x"
 
 ## 🐛 Bug Fixes
-
-- Fixed the receipt review screen's "exclude" control, which showed a generic "more options" icon that didn't communicate what it did
-- Fixed receipt import misreading a discount line as its own product when the line repeats the receipt's tax-rate column next to the discount amount
-- Fixed receipt import guessing at ambiguous product abbreviations instead of keeping them as printed when unsure what they mean
 
 - Fixed the review screen refusing to confirm a photo without saying why. The card now names what is missing ("choose which product this is"), and the confirm button takes you to it instead of sitting there greyed out
 - Fixed the confirm bar being covered by the sync toast, which could swallow the tap on the button underneath it
@@ -62,9 +48,6 @@
 - Fixed the price-change badge appearing on some rows of a list and vanishing on others, and the same for the shop icon on the stores list
 - Fixed a shelf photo that fails to load leaving a blank black square instead of the "no photo" icon
 
-- Fixed a receipt refusing to save with "The price is not valid" and no clue which line it meant. A pack sold in many pieces (9×30 tissues) has a price per piece too small to store exactly, and the app was rejecting its own arithmetic — the check now allows for that, and any line that really is inconsistent says so on the card itself
-- Fixed the receipt review refusing to confirm without pointing anywhere: each card now names what it is still missing, the confirm button is no longer greyed out, and pressing it scrolls to the line that needs you
-- Fixed the price per kg of a weighed item bought on offer: receipts print the price per kg from before the discount, and the app now records what you actually paid per kg
 - Fixed the quick actions on the home screen looking stranded on a laptop or desktop window — they now sit on one line, each button as wide as its label. The phone layout is unchanged
 
 ## 🔧 Improvements
@@ -82,11 +65,8 @@
 - The demo data now spans fourteen months and two supermarkets, so a fresh install shows a real year-over-year number
 
 - Discarding a photo from the review screen is now one tap on a bin icon rather than a menu with a single entry, and the undo stays in the toast
+- Shelf tags are now read by Claude Opus 5.5 with a higher reasoning budget, so a misread digit should be rarer; a photo can take a few seconds longer to come back, and the app now waits up to a minute for it
 - A product with no price to show is quieter: no badge where there is no news to report
-
-- Each receipt line now shows its own total (price × packages), which is the number actually printed on the paper — a line bought ten times no longer shows only the price of one
-- The receipt review now reconciles against the printed total as you edit: it shows the difference in euros, and when that difference is exactly one or more packages of a single line, it names that line. Supermarket receipts that print the same article many times can be miscounted when read, and this is what catches it — one tap on that line's package count and the totals agree
-- Receipt reading is clearer about lines that are not products: an annotation printed under an article ("X prezzo tutelato") belongs to it, and a discount on the whole shop explains a total that is lower than the lines
 
 ## 🔒 Security
 
@@ -96,20 +76,18 @@
 - Importing a backup can only ever touch your own rows: ids that belong to someone else are skipped, never overwritten
 - Deleting your account asks for your password and wipes everything in one go
 
-- Receipt files are never stored. A receipt carries the shop, the date and time, often a loyalty number and the last digits of your card — so it is read, turned into prices, and dropped; only the transcribed lines are kept, as the record you can check the numbers against
-
 - Deleting your account now deletes your shelf photos too. Until now the database was wiped while the photos stayed in storage
 - Deleting a single price observation now deletes its photo as well
 - Added a maintenance command that finds and removes photos left behind by earlier versions
 
 - Updated Next.js to 16.4.2, which fixes critical remote code execution advisories in image optimization (GHSA-2464-fhr4-w9xw) and in cached functions (GHSA-673q-mjm6-r5xr), plus a denial of service in Server Actions (GHSA-p3m5-59mp-jv5r). Self-hosted instances should update
+- Updated Better Auth to 1.7.12, which fixes a critical advisory in OAuth state handling (GHSA-965c-763c-88jm) and two lesser ones; none applied to this app's email-and-password login, but self-hosted instances should update all the same
 
 ## 📚 Documentation
 
 - Added `DESIGN.md`, the recorded design system (tokens, type, layout, motion, do's and don'ts) that every UI change must follow, and `PRODUCT.md` with the product truth behind it
 - README now describes the design, the accessibility bar and how to run the end-to-end suite on a custom port
 - README and CONTRIBUTING now explain how to try the app offline or install it locally (`pnpm build && pnpm start` — the service worker is switched off in development) and document `pnpm icons` for regenerating the app icons
-- README now covers receipt import, and CONTRIBUTING documents `pnpm receipt:fixture` — the sample receipt the test suite uses is generated, never a real one
 
 ## 🏗️ Technical
 
@@ -127,8 +105,6 @@
 - Every screen passes automated accessibility checks (axe) in both themes on phone and desktop, and scores 100 on Lighthouse accessibility
 - Charts are hand-drawn SVG with a hidden data table for screen readers — no charting library
 
-- Receipts are read by Claude Haiku 4.5 directly from the PDF — no PDF library, no server-side rendering — for roughly three cents a receipt
-- Uploaded files are checked by their actual content, not just their declared type, and capped at 5 MB and 10 pages
-- A receipt already imported is recognised by a fingerprint of the file, so a re-upload can never duplicate a shopping trip; confirming one is a single transaction that either records every line or none
-- The index now counts quantities: a line bought twice weighs twice as much in what you spent, without counting as two price observations
+- The index now counts quantities: an observation that records several packages weighs that many times in what you spent, without counting as several price observations
 - Added an accessibility end-to-end suite and a desktop Playwright project alongside the mobile one
+- Self-hosters following the main branch: the latest database migration drops the receipt-import tables that briefly existed there, together with any observations they produced — export your data before applying it

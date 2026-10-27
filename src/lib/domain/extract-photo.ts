@@ -46,7 +46,15 @@ export interface ReviewedExtraction extends ExtractionResult {
   reviewReasons: ReviewReason[];
 }
 
-/** One catalog product the matcher proposes for an extraction or a receipt line. */
+/**
+ * Lowest match score (0–1) at which the top product suggestion arrives
+ * preselected on a review card; below it the card starts unresolved and the
+ * user picks. One constant for every capture path, so the same product with
+ * the same score cannot be preselected through one and not another.
+ */
+export const PRESELECT_SCORE_THRESHOLD = 0.7;
+
+/** One catalog product the matcher proposes for an extraction. */
 export interface ProductSuggestion {
   productId: string;
   name: string;

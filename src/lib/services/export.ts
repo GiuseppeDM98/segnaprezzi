@@ -4,23 +4,23 @@
  */
 import type { Db } from '@/lib/db/client';
 import { listPriceEntries, type PriceEntryWithProduct } from '@/lib/db/repositories/price-entries';
-import { listProductAliases } from '@/lib/db/repositories/product-aliases';
 import { listProducts } from '@/lib/db/repositories/products';
-import { listReceipts } from '@/lib/db/repositories/receipts';
 import { getUserSettings } from '@/lib/db/repositories/settings';
 import { listAllShoppingSessions } from '@/lib/db/repositories/shopping-sessions';
 import { listStores } from '@/lib/db/repositories/stores';
-import type { Product, ProductAlias, Receipt, ShoppingSession, Store } from '@/lib/db/schema/app';
+import type { Product, ShoppingSession, Store } from '@/lib/db/schema/app';
 import type { IndexSettings } from '@/lib/inflation';
 import { toIndexSettings } from './settings';
 
 /**
  * Payload returned by GET /api/export. Bump schemaVersion on any shape
- * change. Version 2 adds `receipts` and `productAliases`, and
- * `quantity` / `receiptId` on every entry.
+ * change. Version 2 added `quantity` on every entry together with the
+ * receipt import's tables; version 3 is version 2 without that import
+ * (`receipts`, `productAliases`, `receiptId`, `defaultPackageSize` are gone,
+ * `quantity` stays). The import accepts every published version.
  */
 export interface ExportPayload {
-  schemaVersion: 2;
+  schemaVersion: 3;
   exportedAt: string;
   settings: IndexSettings;
   stores: Array<{
@@ -39,7 +39,6 @@ export interface ExportPayload {
     category: string;
     unitKind: string;
     notes: string | null;
-    defaultPackageSize: number | null;
     isArchived: boolean;
     createdAt: string;
     updatedAt: string;
@@ -58,7 +57,6 @@ export interface ExportPayload {
     productId: string;
     storeId: string | null;
     sessionId: string | null;
-    receiptId: string | null;
     recordedAt: string;
     totalPriceCents: number;
     quantity: number;
@@ -75,34 +73,6 @@ export interface ExportPayload {
     createdAt: string;
     updatedAt: string;
   }>;
-  /**
-   * Import records, deliberately WITHOUT `aiRawJson`: it is large, it is only
-   * useful for debugging the extraction, and the entries it produced carry
-   * their own per-line copy already.
-   */
-  receipts: Array<{
-    id: string;
-    storeId: string | null;
-    status: string;
-    purchasedAt: string;
-    receiptTotalCents: number;
-    lineCount: number;
-    contentHash: string;
-    fileKind: string;
-    aiModel: string;
-    confirmedAt: string | null;
-    createdAt: string;
-    updatedAt: string;
-  }>;
-  productAliases: Array<{
-    id: string;
-    productId: string;
-    alias: string;
-    storeChain: string | null;
-    hitCount: number;
-    lastSeenAt: string;
-    createdAt: string;
-  }>;
 }
 
 /**
@@ -112,27 +82,22 @@ export interface ExportPayload {
  * listAllShoppingSessions rather than a default page size.
  */
 export async function exportUserData(db: Db, userId: string): Promise<ExportPayload> {
-  const [settings, stores, products, shoppingSessions, receipts, productAliases, entries] =
-    await Promise.all([
-      getUserSettings(db, userId),
-      listStores(db, userId),
-      listProducts(db, userId, { includeArchived: true }),
-      listAllShoppingSessions(db, userId),
-      listReceipts(db, userId),
-      listProductAliases(db, userId),
-      listAllPriceEntries(db, userId),
-    ]);
+  const [settings, stores, products, shoppingSessions, entries] = await Promise.all([
+    getUserSettings(db, userId),
+    listStores(db, userId),
+    listProducts(db, userId, { includeArchived: true }),
+    listAllShoppingSessions(db, userId),
+    listAllPriceEntries(db, userId),
+  ]);
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     exportedAt: new Date().toISOString(),
     settings: toIndexSettings(settings),
     stores: stores.map(toExportStore),
     products: products.map(toExportProduct),
     shoppingSessions: shoppingSessions.map(toExportShoppingSession),
     entries: entries.map(toExportEntry),
-    receipts: receipts.map(toExportReceipt),
-    productAliases: productAliases.map(toExportProductAlias),
   };
 }
 
@@ -172,7 +137,6 @@ function toExportProduct(product: Product): ExportPayload['products'][number] {
     category: product.category,
     unitKind: product.unitKind,
     notes: product.notes,
-    defaultPackageSize: product.defaultPackageSize,
     isArchived: product.isArchived,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
@@ -199,7 +163,6 @@ function toExportEntry(entry: PriceEntryWithProduct): ExportPayload['entries'][n
     productId: entry.productId,
     storeId: entry.storeId,
     sessionId: entry.sessionId,
-    receiptId: entry.receiptId,
     recordedAt: entry.recordedAt.toISOString(),
     totalPriceCents: entry.totalPriceCents,
     quantity: entry.quantity,
@@ -215,34 +178,5 @@ function toExportEntry(entry: PriceEntryWithProduct): ExportPayload['entries'][n
     aiRawJson: entry.aiRawJson,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
-  };
-}
-
-function toExportReceipt(receipt: Receipt): ExportPayload['receipts'][number] {
-  return {
-    id: receipt.id,
-    storeId: receipt.storeId,
-    status: receipt.status,
-    purchasedAt: receipt.purchasedAt.toISOString(),
-    receiptTotalCents: receipt.receiptTotalCents,
-    lineCount: receipt.lineCount,
-    contentHash: receipt.contentHash,
-    fileKind: receipt.fileKind,
-    aiModel: receipt.aiModel,
-    confirmedAt: receipt.confirmedAt?.toISOString() ?? null,
-    createdAt: receipt.createdAt.toISOString(),
-    updatedAt: receipt.updatedAt.toISOString(),
-  };
-}
-
-function toExportProductAlias(alias: ProductAlias): ExportPayload['productAliases'][number] {
-  return {
-    id: alias.id,
-    productId: alias.productId,
-    alias: alias.alias,
-    storeChain: alias.storeChain,
-    hitCount: alias.hitCount,
-    lastSeenAt: alias.lastSeenAt.toISOString(),
-    createdAt: alias.createdAt.toISOString(),
   };
 }

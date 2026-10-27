@@ -17,8 +17,8 @@ import type {
   ReviewedExtraction,
   ReviewReason,
 } from '@/lib/domain/extract-photo';
+import { PRESELECT_SCORE_THRESHOLD } from '@/lib/domain/extract-photo';
 import { computeDerivedUnitPriceMilli } from '@/lib/domain/money';
-import { PRESELECT_SCORE_THRESHOLD } from '@/lib/domain/receipt-lines';
 import type { UnitKind } from '@/lib/domain/units';
 import type { PendingPhoto } from '@/lib/offline/db';
 import type { ConfirmShoppingSessionInput } from './schema';

@@ -197,7 +197,7 @@ What that collaudo established about how obligation 4 works in practice here:
   look and one-handed usability of the new screens on localhost. Note this is
   a sanity check, not an aesthetic verdict — the UI keeps evolving.
 - **What could not be verified by anyone**, and must be said rather than
-  glossed over: the real `claude-haiku-4-5` call and the real Vercel Blob
+  glossed over: the real `claude-opus-5-5` call and the real Vercel Blob
   upload, which need `ANTHROPIC_API_KEY` and `BLOB_READ_WRITE_TOKEN`. In the
   collaudo `/api/extract` was intercepted; the rest of the chain was real.
 

@@ -67,7 +67,9 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
   );
   const [storeId, setStoreId] = useState<string | null>(context.defaultStationId);
   const [isStationPickerOpen, setIsStationPickerOpen] = useState(false);
-  const [recordedAtLocal, setRecordedAtLocal] = useState(() => formatDateTimeLocalValue(Date.now()));
+  const [recordedAtLocal, setRecordedAtLocal] = useState(() =>
+    formatDateTimeLocalValue(Date.now()),
+  );
   const [inputs, setInputs] = useState<Record<FuelField, number | null>>({
     unitPrice: null,
     quantity: null,

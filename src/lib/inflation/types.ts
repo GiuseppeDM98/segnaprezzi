@@ -25,7 +25,7 @@ export interface IndexEntry {
   /** Integer euro cents for ONE package, as paid/displayed. */
   totalPriceCents: number;
   /**
-   * Packages bought in this observation (receipt "2 x 1,29" → 2; always 1
+   * Packages bought in this observation (a till line "2 x 1,29" → 2; always 1
    * for every other source). Only expenditure weights use it — never the
    * price means.
    */

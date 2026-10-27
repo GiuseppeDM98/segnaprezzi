@@ -31,15 +31,7 @@ export type DomainErrorCode =
   | 'SESSION_CLOSED'
   | 'PHOTO_TOO_LARGE'
   | 'UNSUPPORTED_PHOTO_TYPE'
-  | 'EXTRACTION_UNAVAILABLE'
-  // Receipt import failures.
-  | 'RECEIPT_TOO_LARGE'
-  | 'UNSUPPORTED_RECEIPT_TYPE'
-  | 'RECEIPT_TOO_LONG'
-  | 'RECEIPT_ALREADY_IMPORTED'
-  | 'RECEIPT_NOT_FOUND'
-  | 'RECEIPT_NO_LINES'
-  | 'RECEIPT_EXTRACTION_STALE';
+  | 'EXTRACTION_UNAVAILABLE';
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -172,70 +164,6 @@ export class InvalidInputError extends DomainError {
 export class ExtractionUnavailableError extends DomainError {
   constructor(message: string, options?: { cause?: unknown }) {
     super('EXTRACTION_UNAVAILABLE', message, options);
-  }
-}
-
-/*
- * Receipt-import errors. Each one is a different instruction to the
- * user — shrink the file, convert it, pick a different one, or nothing at
- * all because the import already happened — which is why they are not one
- * INVALID_INPUT.
- */
-
-/** The uploaded receipt exceeds the upload cap (MAX_RECEIPT_BYTES in lib/domain/receipts). */
-export class ReceiptTooLargeError extends DomainError {
-  constructor(message: string) {
-    super('RECEIPT_TOO_LARGE', message);
-  }
-}
-
-/** The file's type is not one of RECEIPT_MEDIA_TYPES — by declared type or by magic bytes. */
-export class UnsupportedReceiptTypeError extends DomainError {
-  constructor(message: string) {
-    super('UNSUPPORTED_RECEIPT_TYPE', message);
-  }
-}
-
-/** A PDF with more pages than one shopping trip can plausibly need. */
-export class ReceiptTooLongError extends DomainError {
-  constructor(message: string) {
-    super('RECEIPT_TOO_LONG', message);
-  }
-}
-
-/** This exact file was already imported and confirmed. */
-export class ReceiptAlreadyImportedError extends DomainError {
-  constructor(receiptId: string) {
-    super('RECEIPT_ALREADY_IMPORTED', `Receipt ${receiptId} was already imported`);
-  }
-}
-
-/** The receipt does not exist, was discarded, or belongs to another user. */
-export class ReceiptNotFoundError extends DomainError {
-  constructor(receiptId: string) {
-    super('RECEIPT_NOT_FOUND', `Receipt ${receiptId} not found`);
-  }
-}
-
-/** The extraction succeeded but found no product line worth importing. */
-export class ReceiptNoLinesError extends DomainError {
-  constructor(message: string) {
-    super('RECEIPT_NO_LINES', message);
-  }
-}
-
-/**
- * The receipt exists, but its stored extraction no longer passes the current
- * schema (written by an older version of the app, or corrupted). Distinct
- * from RECEIPT_NOT_FOUND because the user's way out is different: the row is
- * there, and uploading the same file again re-reads it.
- */
-export class ReceiptExtractionStaleError extends DomainError {
-  constructor(receiptId: string) {
-    super(
-      'RECEIPT_EXTRACTION_STALE',
-      `Receipt ${receiptId} has a stored extraction that no longer parses`,
-    );
   }
 }
 

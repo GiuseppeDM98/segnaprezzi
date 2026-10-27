@@ -57,7 +57,7 @@ function entry(
     promoKind: null,
     photoUrl: 'https://store.public.blob.vercel-storage.com/users/u/photos/p.webp',
     aiConfidence: 0.93,
-    aiModel: 'claude-haiku-4-5',
+    aiModel: 'claude-opus-5-5',
     aiRawJson: '{"productName":"Spaghetti n.5 500g"}',
     ...overrides,
   };
@@ -91,7 +91,7 @@ describe('confirmShoppingSession', () => {
       totalPriceCents: 89,
       unitPriceMilli: 1780,
       currency: 'EUR',
-      aiModel: 'claude-haiku-4-5',
+      aiModel: 'claude-opus-5-5',
     });
 
     const [session] = await db

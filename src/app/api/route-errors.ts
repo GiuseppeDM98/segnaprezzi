@@ -9,8 +9,8 @@
  * Next only treats files named route.ts as handlers.
  *
  * Every error body has the same shape, `{ error: { code, message } }`: the
- * offline sync engine and the receipt upload screen read `error.code` and
- * translate it like any Server Action failure.
+ * offline sync engine reads `error.code` and translates it like any Server
+ * Action failure.
  */
 import { DomainError, type DomainErrorCode, ExtractionUnavailableError } from '@/lib/errors';
 
@@ -38,15 +38,6 @@ export const HTTP_STATUS_BY_CODE: Record<DomainErrorCode, number> = {
   PHOTO_TOO_LARGE: 413,
   UNSUPPORTED_PHOTO_TYPE: 415,
   EXTRACTION_UNAVAILABLE: 503,
-  RECEIPT_TOO_LARGE: 413,
-  UNSUPPORTED_RECEIPT_TYPE: 415,
-  RECEIPT_TOO_LONG: 422,
-  RECEIPT_ALREADY_IMPORTED: 409,
-  RECEIPT_NOT_FOUND: 404,
-  RECEIPT_NO_LINES: 422,
-  // A state conflict like SESSION_CLOSED: the row exists, but what it stores
-  // can no longer be used, and uploading the file again resolves it.
-  RECEIPT_EXTRACTION_STALE: 409,
 };
 
 /**

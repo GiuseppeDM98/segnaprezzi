@@ -97,7 +97,7 @@ describe('isUnitPriceConsistent', () => {
   test('should accept the only integer unit price a 270-piece pack can have', () => {
     // 3,09 EUR for 9x30 tissues is 0,01144 EUR each: 11 milli is the closest
     // an integer gets, and 11 x 270 = 2,97 EUR. The gap is the storage
-    // format's, not a disagreement, and refusing it refused the receipt.
+    // format's, not a disagreement, and refusing it refused a real purchase.
     expect(isUnitPriceConsistent(309, 270, calculateUnitPriceMilli(309, 270))).toBe(true);
   });
 

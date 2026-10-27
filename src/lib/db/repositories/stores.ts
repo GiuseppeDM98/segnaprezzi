@@ -68,7 +68,7 @@ export async function updateStore(
 }
 
 /**
- * Delete a store. Every row referencing it (entries, sessions, receipts)
+ * Delete a store. Every row referencing it (entries, sessions)
  * keeps existing with store_id = NULL (FK action). Returns false if not found.
  */
 export async function deleteStore(db: Db, userId: string, storeId: string): Promise<boolean> {

@@ -31,7 +31,7 @@ export function HistoryLoadError({ onRetry }: { onRetry: () => void }) {
 
 /**
  * The empty timeline: with filters on, an invitation to clear them;
- * without, the first-run invitation to scan or import a receipt.
+ * without, the first-run invitation to scan a tag.
  */
 export function HistoryEmpty({
   hasFilters,
@@ -58,11 +58,6 @@ export function HistoryEmpty({
       body={t('empty.body')}
       data-testid="history-empty"
       action={<Button href="/scan">{t('empty.cta')}</Button>}
-      secondaryAction={
-        <Button href="/add/receipt" variant="ghost">
-          {t('empty.receiptCta')}
-        </Button>
-      }
     />
   );
 }

@@ -29,7 +29,7 @@ function input(overrides: Record<string, unknown> = {}) {
         promoKind: null,
         photoUrl: BLOB_URL,
         aiConfidence: 0.9,
-        aiModel: 'claude-haiku-4-5',
+        aiModel: 'claude-opus-5-5',
         aiRawJson: '{}',
         ...overrides,
       },

@@ -2,9 +2,8 @@
 
 /**
  * Product-detail Server Actions: the entry sheet's edit and delete of one
- * observation (shared with the timeline) and forgetting a learned receipt
- * alias. None recomputes the index explicitly — the dashboard reads the
- * engine fresh on every request.
+ * observation (shared with the timeline). Neither recomputes the index
+ * explicitly — the dashboard reads the engine fresh on every request.
  */
 import { z } from 'zod';
 
@@ -20,7 +19,6 @@ import {
   unitPriceMilliSchema,
 } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
-import { deleteProductAlias as deleteProductAliasService } from '@/lib/services/catalog';
 import {
   deletePriceEntry as deletePriceEntryService,
   updatePriceEntry as updatePriceEntryService,
@@ -75,22 +73,5 @@ export async function deletePriceEntry(input: { entryId: string }): Promise<Acti
     return { ok: true, data: null };
   } catch (error) {
     return { ok: false, error: toLoggedActionError('deletePriceEntry', error, { userId }) };
-  }
-}
-
-/** Forget one learned receipt line for this product. */
-export async function deleteProductAlias(input: { aliasId: string }): Promise<ActionResult<null>> {
-  const parsed = z.object({ aliasId: nanoidSchema }).safeParse(input);
-  if (!parsed.success) {
-    return invalidInputResult(parsed.error);
-  }
-  let userId: string | undefined;
-  try {
-    userId = (await requireUser()).id;
-    await deleteProductAliasService(db, userId, parsed.data.aliasId);
-    revalidateAppLayout();
-    return { ok: true, data: null };
-  } catch (error) {
-    return { ok: false, error: toLoggedActionError('deleteProductAlias', error, { userId }) };
   }
 }
