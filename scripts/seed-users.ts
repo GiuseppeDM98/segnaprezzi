@@ -1,7 +1,7 @@
 /**
  * Single source of truth for the two deterministic dev seed users.
  * Imported by scripts/seed.ts and by
- * tests/e2e/fixtures/users.ts — nothing else hardcodes these credentials,
+ * tests/e2e/fixtures/users.ts — no other code hardcodes these credentials,
  * so the two can never drift apart. Pure data, no I/O.
  */
 export const SEED_USER = {

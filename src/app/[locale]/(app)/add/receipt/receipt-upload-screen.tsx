@@ -3,7 +3,7 @@
 /**
  * Client half of the receipt upload screen.
  *
- * Design: a single indeterminate "Leggo lo scontrino…" state rather than a
+ * Design: a single indeterminate "Reading the receipt…" state rather than a
  * fake progress bar. A 40-line receipt takes 6–12 s on Haiku 4.5 and the
  * response is not streamed in v1, so a bar would be decoration pretending to
  * be information — which DESIGN.md rules out explicitly.
@@ -15,19 +15,18 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { type StoreOption, StorePickerSheet } from '@/components/capture/store-picker-sheet';
+import { StorePickerSheet } from '@/components/capture/store-picker-sheet';
+import { useStoreOptions } from '@/components/capture/use-store-options';
 import { ScreenHeader } from '@/components/layout/screen-header';
 import { ReceiptDropzone } from '@/components/receipt/receipt-dropzone';
 import { Button } from '@/components/ui/button';
+import { MAX_RECEIPT_BYTES } from '@/lib/domain/receipts';
 import { type AppLocale, formatCount } from '@/lib/format';
 import { useRouter } from '@/lib/i18n/navigation';
 import { compressPhoto } from '@/lib/offline/compress';
 import { useOnlineStatus } from '@/lib/offline/use-online-status';
 import type { StoreSummary } from '@/lib/services/capture-context';
 import { createStore } from '../../stores/actions';
-
-/** Mirrors the route handler's cap so the client fails fast. */
-const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 
 const BYTES_PER_KB = 1024;
 
@@ -43,8 +42,10 @@ export function ReceiptUploadScreen({ stores, defaultStoreId }: ReceiptUploadScr
   const router = useRouter();
   const isOnline = useOnlineStatus();
 
-  const [storeOptions, setStoreOptions] = useState<StoreOption[]>(
+  const { stores: storeOptions, createStore: handleCreateStore } = useStoreOptions(
     stores.map((store) => ({ id: store.id, name: store.name, chain: store.chain })),
+    createStore,
+    'supermarket',
   );
   const [storeId, setStoreId] = useState<string | null>(defaultStoreId);
   const [isStorePickerOpen, setIsStorePickerOpen] = useState(false);
@@ -60,18 +61,6 @@ export function ReceiptUploadScreen({ stores, defaultStoreId }: ReceiptUploadScr
       return;
     }
     setFile(selected);
-  }
-
-  async function handleCreateStore(name: string): Promise<StoreOption | null> {
-    const result = await createStore({ name, chain: null, city: null, kind: 'supermarket' });
-    if (!result.ok) {
-      return null;
-    }
-    const created = { id: result.data.id, name, chain: null };
-    setStoreOptions((current) =>
-      [...current, created].sort((a, b) => a.name.localeCompare(b.name)),
-    );
-    return created;
   }
 
   async function handleSubmit(): Promise<void> {

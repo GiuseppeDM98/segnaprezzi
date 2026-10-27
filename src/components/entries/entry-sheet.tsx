@@ -10,6 +10,7 @@ import { Camera, Fuel, PencilLine, ReceiptText, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 
+import { PromoFields } from '@/components/entries/promo-fields';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
 import { DecimalInput } from '@/components/ui/decimal-input';
@@ -17,13 +18,14 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Sheet } from '@/components/ui/sheet';
-import { Toggle } from '@/components/ui/toggle';
-import { type EntrySource, PROMO_KINDS, type PromoKind } from '@/lib/domain/entries';
+import { useToast } from '@/components/ui/toast';
+import type { EntrySource, PromoKind } from '@/lib/domain/entries';
 import { centsToEuros, milliToEuros, toCents, toMilli } from '@/lib/domain/money';
-import type { UnitKind } from '@/lib/domain/units';
+import { SIZE_UNIT_KEY, type UnitKind } from '@/lib/domain/units';
 import {
   type AppLocale,
   formatDateTime,
+  formatDateTimeLocalValue,
   formatMoney,
   formatPackageSize,
   formatUnitPrice,
@@ -74,6 +76,7 @@ export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySh
   const tReview = useTranslations('review');
   const tUnits = useTranslations('units');
   const locale = useLocale() as AppLocale;
+  const { toast } = useToast();
 
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -99,28 +102,43 @@ export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySh
     );
   }, [entry]);
 
+  /**
+   * Runs a save or a delete with the pending flag held, and closes the sheet
+   * when the callback reports success. The callbacks toast their own expected
+   * failures and resolve to false; a rejection is unexpected, so it is logged
+   * and gets the same "not saved" toast instead of leaving the button spinning.
+   */
+  async function runPending(
+    operation: 'save' | 'delete',
+    action: () => Promise<boolean>,
+  ): Promise<void> {
+    setIsPending(true);
+    let hasSucceeded = false;
+    try {
+      hasSucceeded = await action();
+    } catch (cause) {
+      console.error('Entry sheet action failed', { operation, entryId: entry?.id, cause });
+      toast({ kind: 'error', message: t('saveError') });
+    } finally {
+      setIsPending(false);
+    }
+    if (hasSucceeded) {
+      onClose();
+    }
+  }
+
   async function handleSave(): Promise<void> {
     if (!entry || !draft) {
       return;
     }
-    setIsPending(true);
-    const ok = await onSave(entry.id, draft);
-    setIsPending(false);
-    if (ok) {
-      onClose();
-    }
+    await runPending('save', () => onSave(entry.id, draft));
   }
 
   async function handleDelete(): Promise<void> {
     if (!entry) {
       return;
     }
-    setIsPending(true);
-    const ok = await onDelete(entry.id);
-    setIsPending(false);
-    if (ok) {
-      onClose();
-    }
+    await runPending('delete', () => onDelete(entry.id));
   }
 
   const SourceIcon = entry ? SOURCE_ICONS[entry.source] : null;
@@ -223,7 +241,7 @@ export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySh
                   <Input
                     {...controlProps}
                     type="datetime-local"
-                    value={toLocalDateTimeValue(new Date(draft.recordedAt))}
+                    value={formatDateTimeLocalValue(draft.recordedAt)}
                     onChange={(event) =>
                       setDraft({ ...draft, recordedAt: new Date(event.target.value).getTime() })
                     }
@@ -262,13 +280,7 @@ export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySh
                   {(controlProps) => (
                     <DecimalInput
                       {...controlProps}
-                      suffix={tUnits(
-                        entry.product.unitKind === 'weight'
-                          ? 'kg'
-                          : entry.product.unitKind === 'volume'
-                            ? 'liter'
-                            : 'piece',
-                      )}
+                      suffix={tUnits(SIZE_UNIT_KEY[entry.product.unitKind])}
                       value={draft.packageSize > 0 ? draft.packageSize : null}
                       onValueChange={(value) => setDraft({ ...draft, packageSize: value ?? 0 })}
                     />
@@ -287,31 +299,13 @@ export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySh
                   )}
                 </Field>
               </div>
-              <Toggle
-                label={t('entry.isPromo')}
-                isChecked={draft.isPromo}
-                onChange={(isPromo) =>
-                  setDraft({ ...draft, isPromo, promoKind: isPromo ? draft.promoKind : null })
-                }
+              <PromoFields
+                isPromo={draft.isPromo}
+                promoKind={draft.promoKind}
+                onChange={(patch) => setDraft({ ...draft, ...patch })}
+                toggleLabel={t('entry.isPromo')}
+                kindLabel={t('entry.promoKind')}
               />
-              {draft.isPromo && (
-                <div
-                  className="flex flex-wrap gap-2"
-                  role="radiogroup"
-                  aria-label={t('entry.promoKind')}
-                >
-                  {PROMO_KINDS.map((kind) => (
-                    <Chip
-                      key={kind}
-                      variant="filter"
-                      isSelected={draft.promoKind === kind}
-                      onClick={() => setDraft({ ...draft, promoKind: kind })}
-                    >
-                      {tReview(`promoKinds.${kind}`)}
-                    </Chip>
-                  ))}
-                </div>
-              )}
               <div className="flex gap-2 pt-1">
                 <Button variant="secondary" className="flex-1" onClick={() => setIsEditing(false)}>
                   {tCommon('cancel')}
@@ -345,10 +339,4 @@ function Row({ label, value }: { label: string; value: string }) {
       <dd className="text-right text-text">{value}</dd>
     </div>
   );
-}
-
-/** The value a `datetime-local` input expects: local wall clock, no timezone. */
-function toLocalDateTimeValue(date: Date): string {
-  const offsetMs = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
 }

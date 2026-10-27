@@ -1,5 +1,5 @@
 /**
- * Settings use cases: the two index options the user may
+ * Settings use cases: the index options the user may
  * change and the backup import that restores a previous /api/export file.
  */
 import { z } from 'zod';
@@ -20,19 +20,25 @@ import { nanoidSchema } from '@/lib/domain/schemas';
 import { STORE_KINDS } from '@/lib/domain/stores';
 import { UNIT_KINDS } from '@/lib/domain/units';
 import { ValidationError } from '@/lib/errors';
+import { type IndexSettings, MAX_CARRY_FORWARD_MONTHS } from '@/lib/inflation';
 
-export interface IndexSettings {
-  includePromosInIndex: boolean;
-  carryForwardMonths: number;
+export type { IndexSettings };
+
+/**
+ * Project a settings row (or anything carrying its index columns) onto the
+ * index options alone. The row also holds the user id and timestamps, which
+ * must not travel to the engine, the export or a Client Component.
+ */
+export function toIndexSettings(row: IndexSettings): IndexSettings {
+  return {
+    includePromosInIndex: row.includePromosInIndex,
+    carryForwardMonths: row.carryForwardMonths,
+  };
 }
 
-/** The two index options, healed to defaults if the row is missing. */
+/** The index options, healed to defaults if the row is missing. */
 export async function getIndexSettings(db: Db, userId: string): Promise<IndexSettings> {
-  const settings = await getUserSettings(db, userId);
-  return {
-    includePromosInIndex: settings.includePromosInIndex,
-    carryForwardMonths: settings.carryForwardMonths,
-  };
+  return toIndexSettings(await getUserSettings(db, userId));
 }
 
 /** Persist a partial change to the index options. */
@@ -41,11 +47,7 @@ export async function updateIndexSettings(
   userId: string,
   patch: Partial<IndexSettings>,
 ): Promise<IndexSettings> {
-  const updated = await updateUserSettings(db, userId, patch);
-  return {
-    includePromosInIndex: updated.includePromosInIndex,
-    carryForwardMonths: updated.carryForwardMonths,
-  };
+  return toIndexSettings(await updateUserSettings(db, userId, patch));
 }
 
 /*
@@ -54,7 +56,7 @@ export async function updateIndexSettings(
  * nanoid(21) so a hand-edited file cannot smuggle arbitrary keys into the
  * tables.
  *
- * Both schema versions are accepted: a v1 backup predates receipt import and simply
+ * Every published schema version is accepted: a v1 backup predates receipt import and simply
  * carries no quantity, so it defaults to 1. What a v2 backup does NOT restore
  * is the `receipts` import records — they hold no observation (the entries
  * do) and their `ai_raw_json` is deliberately absent from the export, so a
@@ -70,7 +72,7 @@ export const exportPayloadSchema = z.object({
   schemaVersion: z.union([z.literal(1), z.literal(2)]),
   settings: z.object({
     includePromosInIndex: z.boolean(),
-    carryForwardMonths: z.number().int().min(0).max(6),
+    carryForwardMonths: z.number().int().min(0).max(MAX_CARRY_FORWARD_MONTHS),
   }),
   stores: z.array(
     z.object({

@@ -4,6 +4,7 @@ import {
   addMonthsToYm,
   bucketEntries,
   buildMonthGrid,
+  computeMonthlyMeans,
   computeObservedMeans,
   countMonthsBetween,
   imputeCarryForward,
@@ -138,6 +139,44 @@ describe('computeObservedMeans', () => {
     const means = computeObservedMeans(bucketEntries(entries), true);
 
     expect(means.get('pasta')?.get('2026-03')).toBe(2280);
+  });
+});
+
+describe('computeMonthlyMeans', () => {
+  it('should average every entry of a month and order the months oldest first', () => {
+    const entries = [
+      buildEntry({ recordedAt: midMonth('2026-04'), unitPriceMilli: 3000 }),
+      buildEntry({ recordedAt: atTenUtc('2026-03-02'), unitPriceMilli: 2000 }),
+      buildEntry({ recordedAt: atTenUtc('2026-03-20'), unitPriceMilli: 2500 }),
+    ];
+
+    expect(computeMonthlyMeans(entries)).toEqual([
+      { month: '2026-03', value: 2250 },
+      { month: '2026-04', value: 3000 },
+    ]);
+  });
+
+  it('should keep only the entries the filter accepts and omit emptied months', () => {
+    const entries = [
+      buildEntry({ recordedAt: midMonth('2026-03'), unitPriceMilli: 2000, isPromo: true }),
+      buildEntry({ recordedAt: midMonth('2026-03'), unitPriceMilli: 2600 }),
+      buildEntry({ recordedAt: midMonth('2026-04'), unitPriceMilli: 2700 }),
+    ];
+
+    expect(computeMonthlyMeans(entries, (entry) => entry.isPromo)).toEqual([
+      { month: '2026-03', value: 2000 },
+    ]);
+  });
+
+  it('should bucket by the Rome month, not the UTC one', () => {
+    // 22:30Z on 31 March is 00:30 on 1 April in Rome.
+    const entries = [buildEntry({ recordedAt: Date.parse('2026-03-31T22:30:00Z') })];
+
+    expect(computeMonthlyMeans(entries).map((point) => point.month)).toEqual(['2026-04']);
+  });
+
+  it('should return an empty series for no entries', () => {
+    expect(computeMonthlyMeans([])).toEqual([]);
   });
 });
 

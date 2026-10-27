@@ -7,7 +7,7 @@
  * getting "PASTA BAR SPAGH N5 500G" onto the product row where the package
  * size lives, so that 1,29 € becomes 2,58 €/kg and joins a price history.
  *
- * Three ways to get there, in order of confidence: an alias the user taught
+ * The ways to get there, in order of confidence: an alias the user taught
  * the app on a previous receipt, a fuzzy match against the catalog, or a new
  * product. Only the first needs no human at all, which is why alias learning
  * is what makes the second import of a chain fast.
@@ -18,24 +18,21 @@ import type { ReceiptLine } from '@/lib/ai/receipt-schema';
 import type { CategoryId } from '@/lib/domain/categories';
 import type { PromoKind } from '@/lib/domain/entries';
 import {
+  computeReceiptLineStatus,
   deriveUnitPriceMilli,
   normalizeAlias,
+  PRESELECT_SCORE_THRESHOLD,
   type ReceiptLineStatus,
   type SizeSource,
 } from '@/lib/domain/receipt-lines';
 import type { UnitKind } from '@/lib/domain/units';
 import {
+  MAX_SUGGESTIONS,
   type MatchCandidate,
   normalizeProductName,
   type ProductSuggestion,
   suggestProductMatches,
 } from './match-products';
-
-/** Above this score the top suggestion is safe to preselect. */
-const PRESELECT_SCORE_THRESHOLD = 0.7;
-
-/** Only the first three suggestions ever reach a card. */
-const MAX_SUGGESTIONS = 3;
 
 export interface ResolveCandidateProduct extends MatchCandidate {
   category: CategoryId;
@@ -177,7 +174,15 @@ export function resolveReceiptLines(input: ResolveReceiptLinesInput): ResolvedRe
         category: matchedProduct?.category ?? line.category,
         unitKind,
       },
-      status: resolveStatus(derived.packageSize, match, selectedProduct, reviewReasons),
+      status: computeReceiptLineStatus(
+        {
+          packageSize: derived.packageSize,
+          totalPriceCents: derived.totalPriceCents,
+          unitPriceMilli: derived.unitPriceMilli,
+          needsProductDecision: selectedProduct === null && match.kind === 'suggested',
+        },
+        reviewReasons.length > 0,
+      ),
       reviewReasons,
       mergedLineIndexes: [],
     };
@@ -198,14 +203,15 @@ export function resolveReceiptLines(input: ResolveReceiptLinesInput): ResolvedRe
  * it. So this is a correctness fix wearing a UI request's clothes: two
  * separate rows would double that product's weight in the month's mean.
  *
- * Identical is read strictly, and deliberately so — same printed description,
- * same price for one package, same size, same promo, same resolved product.
+ * Identical is read strictly, and deliberately so — every field of
+ * identityKeyOf must agree: printed description, price for one package,
+ * size, unit kind, promo, resolved product.
  * Two "pesto" lines at different prices are two different observations (one
  * was on offer, or a different jar) and stay apart, which is also what a user
  * checking the receipt against the screen expects to see.
  *
- * Review reasons are unioned: if either line wanted a human, the survivor
- * does too.
+ * Review reasons are unioned: if any folded line wanted a human, the
+ * survivor does too.
  */
 export function collapseIdenticalLines(lines: ResolvedReceiptLine[]): ResolvedReceiptLine[] {
   const survivors: ResolvedReceiptLine[] = [];
@@ -252,50 +258,13 @@ function identityKeyOf(line: ResolvedReceiptLine): string {
   ].join('|');
 }
 
-/**
- * Status precedence: a missing size blocks harder than an
- * undecided product, which blocks harder than a flag the user only has to
- * look at.
- *
- * Deliberate design choice, not the naive rule: a line with NO candidate does
- * NOT block — it becomes a genuinely new product, and `resolveProductPicks`
- * still dedupes it against the catalog by normalized name — while an
- * ambiguous one (a suggestion scoring 0.5, below the 0.7 preselect bar)
- * becomes `needs-product` and blocks. That looks backwards until you
- * consider the only failure that actually costs something: whereas a line
- * the matcher *half* recognised is exactly the one that silently creates a
- * duplicate of an existing product, and a duplicate removes that product
- * from every month-over-month relative it should have contributed to.
- *
- * So: undecided means "the matcher found candidates but none convincing".
- * Blocking every unmatched line instead would make the first receipt from a
- * chain thirty mandatory taps, which is a different way of losing the user.
- */
-function resolveStatus(
-  packageSize: number | null,
-  match: ReceiptLineMatch,
-  selectedProduct: ResolvedProductPick | null,
-  reviewReasons: LineReviewReason[],
-): ReceiptLineStatus {
-  if (packageSize === null) {
-    return 'needs-size';
-  }
-  if (selectedProduct === null && match.kind === 'suggested') {
-    return 'needs-product';
-  }
-  if (reviewReasons.length > 0) {
-    return 'needs-review';
-  }
-  return 'ready';
-}
-
 type AliasIndex = {
   byChain: Map<string, string>;
   byAliasOnly: Map<string, string>;
   anyChain: Map<string, string>;
 };
 
-/** Three lookup tables so alias precedence is three Map.get calls. */
+/** One lookup table per precedence level, so alias precedence is one Map.get per level. */
 function buildAliasIndex(aliases: ResolveAlias[]): AliasIndex {
   const byChain = new Map<string, string>();
   const byAliasOnly = new Map<string, string>();
@@ -388,7 +357,7 @@ function suggestReceiptMatches(
     .slice(0, MAX_SUGGESTIONS);
 }
 
-/** An alias is certain; a suggestion only preselects itself above 0.7. */
+/** An alias is certain; a suggestion preselects itself only from PRESELECT_SCORE_THRESHOLD up. */
 function pickPreselectedProductId(match: ReceiptLineMatch): string | null {
   if (match.kind === 'alias') {
     return match.productId;

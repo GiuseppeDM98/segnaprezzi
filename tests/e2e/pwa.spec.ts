@@ -1,7 +1,7 @@
 import { expect, type Page, test } from '@playwright/test';
 
 /*
- * Service worker E2E suite (scenarios 5–6).
+ * Service worker E2E suite.
  *
  * This project runs with the worker ENABLED and no route mocks — the whole
  * point is what the worker does on its own. It therefore asserts nothing
@@ -77,7 +77,7 @@ test('should keep every /api response out of the caches', async ({ page }) => {
   await installServiceWorker(page, '/');
 
   // Authenticated, per-user data. A cached copy would survive into the next
-  // person's session on a shared device — hence NetworkOnly (§2.3).
+  // person's session on a shared device — hence NetworkOnly (src/app/sw.ts).
   const exportResponse = await page.request.get('/api/export');
   expect(exportResponse.status()).toBe(200);
   await page.goto('/history');

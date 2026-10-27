@@ -10,7 +10,7 @@ import { ImageOff, Trash2, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { Chip } from '@/components/ui/chip';
+import { PromoFields } from '@/components/entries/promo-fields';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { Field } from '@/components/ui/field';
 import { IconButton } from '@/components/ui/icon-button';
@@ -18,14 +18,12 @@ import { Input } from '@/components/ui/input';
 import { Segmented } from '@/components/ui/segmented';
 import { Select } from '@/components/ui/select';
 import { Sheet } from '@/components/ui/sheet';
-import { Toggle } from '@/components/ui/toggle';
-import type { ExtractionResult } from '@/lib/ai/extraction-schema';
-import type { ReviewReason } from '@/lib/ai/flag-extraction';
 import { cx } from '@/lib/cx';
 import { CATEGORY_IDS, type CategoryId } from '@/lib/domain/categories';
-import { PROMO_KINDS, type PromoKind } from '@/lib/domain/entries';
+import type { ExtractionResult, ReviewReason } from '@/lib/domain/extract-photo';
 import { centsToEuros, milliToEuros, toCents, toMilli } from '@/lib/domain/money';
-import { UNIT_KINDS, type UnitKind } from '@/lib/domain/units';
+import { SIZE_UNIT_KEY, UNIT_KINDS, type UnitKind } from '@/lib/domain/units';
+import { formatProductLabel } from '@/lib/format';
 
 /** What a card is still missing before the batch can be confirmed. */
 export type BlockingReason = 'product' | 'values';
@@ -83,9 +81,7 @@ export function ExtractionCard({
   const hasThumbnail = blobUrl !== '' && !hasThumbnailFailed;
 
   const unitSymbol = tUnits(`perBase.${fields.unitKind}`);
-  const sizeSymbol = tUnits(
-    fields.unitKind === 'weight' ? 'kg' : fields.unitKind === 'volume' ? 'liter' : 'piece',
-  );
+  const sizeSymbol = tUnits(SIZE_UNIT_KEY[fields.unitKind]);
 
   return (
     <article
@@ -266,31 +262,13 @@ export function ExtractionCard({
       </div>
 
       <div className="flex flex-col gap-2 px-3 pt-3">
-        <Toggle
-          label={t('fields.isPromo')}
-          isChecked={fields.isPromo}
-          onChange={(isPromo) =>
-            onChange({ isPromo, promoKind: isPromo ? fields.promoKind : null })
-          }
+        <PromoFields
+          isPromo={fields.isPromo}
+          promoKind={fields.promoKind}
+          onChange={onChange}
+          toggleLabel={t('fields.isPromo')}
+          kindLabel={t('fields.promoKind')}
         />
-        {fields.isPromo && (
-          <div
-            className="flex flex-wrap gap-2"
-            role="radiogroup"
-            aria-label={t('fields.promoKind')}
-          >
-            {PROMO_KINDS.map((kind) => (
-              <Chip
-                key={kind}
-                variant="filter"
-                isSelected={fields.promoKind === kind}
-                onClick={() => onChange({ promoKind: kind as PromoKind })}
-              >
-                {t(`promoKinds.${kind}`)}
-              </Chip>
-            ))}
-          </div>
-        )}
       </div>
 
       <button
@@ -312,7 +290,7 @@ export function ExtractionCard({
             {match
               ? match.kind === 'new'
                 ? t('matchNew', { name: match.label })
-                : `${match.brand ? `${match.brand} ` : ''}${match.label}`
+                : formatProductLabel(match.brand, match.label)
               : t('matchPick')}
           </span>
         </span>

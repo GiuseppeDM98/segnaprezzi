@@ -15,6 +15,7 @@
  * personal images); switching to signed private URLs is a v1.1 roadmap item.
  */
 import { del, list, put } from '@vercel/blob';
+import type { PhotoMediaType } from '@/lib/domain/photos';
 
 /** The Blob pathname prefix owning every photo of one user. */
 export function buildUserPhotoPrefix(userId: string): string {
@@ -31,7 +32,7 @@ export async function uploadEntryPhoto(input: {
   userId: string;
   entryId: string;
   body: ArrayBuffer;
-  contentType: 'image/webp' | 'image/jpeg';
+  contentType: PhotoMediaType;
 }): Promise<string> {
   // The .webp extension is kept even for the Safari JPEG fallback: the stored
   // contentType (passed explicitly) is what browsers and the Anthropic call
@@ -49,7 +50,10 @@ export async function uploadEntryPhoto(input: {
   return url;
 }
 
-/** Best-effort bulk delete — callers must pre-filter URLs to the user's prefix. */
+/**
+ * Bulk delete that throws on failure. Callers must pre-filter URLs to the
+ * user's prefix; deleteOwnedPhotos is the filtered, best-effort wrapper.
+ */
 export async function deleteEntryPhotos(urls: string[]): Promise<void> {
   await del(urls);
 }
@@ -89,6 +93,12 @@ export async function deleteOwnedPhotos(userId: string, urls: string[]): Promise
 }
 
 /**
+ * Blobs per list() page: Vercel Blob's default and maximum, so an account
+ * deletion takes as few round trips as the store allows.
+ */
+const BLOB_LIST_PAGE_SIZE = 1000;
+
+/**
  * Delete every photo stored under a user's prefix.
  *
  * Used when the account itself is deleted: the database cascades from
@@ -108,7 +118,7 @@ export async function deleteAllUserPhotos(userId: string): Promise<void> {
   try {
     let cursor: string | undefined;
     do {
-      const page = await list({ prefix, cursor, limit: 1000 });
+      const page = await list({ prefix, cursor, limit: BLOB_LIST_PAGE_SIZE });
       if (page.blobs.length > 0) {
         await del(page.blobs.map((blob) => blob.url));
       }

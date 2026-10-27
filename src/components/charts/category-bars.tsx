@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl';
 import { cx } from '@/lib/cx';
 import type { CategoryId } from '@/lib/domain/categories';
 import { useAppMotion } from '@/lib/motion';
-import { priceDirectionOf } from './trend-badge';
+import { calculatePriceDirection, PRICE_DIRECTION_TEXT_CLASSES } from './scale';
 
 export interface CategoryBarItem {
   category: CategoryId;
@@ -38,7 +38,7 @@ export function CategoryBars({ items, formatValue, ariaSummary, className }: Cat
     <div className={className}>
       <ol className="zebra" aria-hidden="true">
         {items.map((item) => {
-          const direction = priceDirectionOf(item.ratio);
+          const direction = calculatePriceDirection(item.ratio);
           const widthPct = (Math.abs(item.ratio) / maxAbs) * 50;
           return (
             <li key={item.category} className="flex h-12 items-center gap-3 px-3">
@@ -62,9 +62,7 @@ export function CategoryBars({ items, formatValue, ariaSummary, className }: Cat
               <span
                 className={cx(
                   'w-16 shrink-0 text-right font-mono font-semibold text-[14px] tabular-nums',
-                  direction === 'up' && 'text-negative',
-                  direction === 'down' && 'text-positive',
-                  direction === 'flat' && 'text-text-muted',
+                  PRICE_DIRECTION_TEXT_CLASSES[direction],
                 )}
               >
                 {formatValue(item.ratio)}

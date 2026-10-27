@@ -34,7 +34,7 @@ async function savePwaAuthState(baseURL: string | undefined, outFile: string): P
 }
 
 /**
- * Hit every route once, serially, before the parallel run starts.
+ * Hit the main routes once, serially, before the parallel run starts.
  *
  * Originally a workaround for `next dev` compiling a route on its first
  * request, which made parallel workers race to be that request and

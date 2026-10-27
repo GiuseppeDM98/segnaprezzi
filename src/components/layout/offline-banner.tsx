@@ -35,14 +35,14 @@ export function OfflineBanner() {
 
   // "Synced" is only worth saying to someone who watched it sync — not to
   // someone who never had a queue in the first place.
-  const wasSyncing = useRef(false);
+  const hasBeenSyncing = useRef(false);
   useEffect(() => {
     if (state === 'syncing') {
-      wasSyncing.current = true;
+      hasBeenSyncing.current = true;
       return;
     }
-    if (state === 'online' && wasSyncing.current) {
-      wasSyncing.current = false;
+    if (state === 'online' && hasBeenSyncing.current) {
+      hasBeenSyncing.current = false;
       toast({ kind: 'success', message: t('synced') });
     }
   }, [state, t, toast]);
@@ -64,6 +64,9 @@ export function OfflineBanner() {
             {state === 'offline' ? (
               <CloudOff aria-hidden="true" className="size-4 shrink-0 text-warning" />
             ) : (
+              // The sync icon is one of the app's spinners by owner decision
+              // (DESIGN.md, Buttons): it says work is moving, not that a
+              // screen is loading, which stays skeleton rows.
               <RefreshCw
                 aria-hidden="true"
                 className="size-4 shrink-0 animate-spin text-warning motion-reduce:animate-none"

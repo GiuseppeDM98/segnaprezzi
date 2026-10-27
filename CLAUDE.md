@@ -54,7 +54,7 @@ mapping) → services (`src/lib/services/`, use cases) → repositories
 `src/lib/blob/`). The inflation engine (`src/lib/inflation/`) is pure — zero
 I/O, no imports from db/ai/next, heavily unit-tested. The offline photo queue
 (`src/lib/offline/`, Dexie/IndexedDB) is client-side with a sync manager.
-Layer/naming/error-handling rules: `docs/DEVELOPMENT_GUIDELINES.md`.
+Layer/naming/error-handling rules: `DEVELOPMENT_GUIDELINES.md`.
 
 ---
 
@@ -137,8 +137,49 @@ phone layout is byte-for-byte what it was. Measured, not eyeballed: four
 viewports (390 / 820 / 1088 / 1440), both dashboard states, screenshots plus
 the `scrollWidth > clientWidth` check.
 
+**The code now answers to its own documents.** `COMMENTS.md` and
+`DEVELOPMENT_GUIDELINES.md` moved from `docs/` to the repository root (where
+the claude-config standard keeps them, so the weekly check-up realigns them
+by itself) and were brought up to the 2026-10-26 standard; then the whole
+tree was read against both. Comments: every counting or closed-list comment
+was checked, the false ones corrected, the rest reopened. Guidelines, in four
+passes: structural extractions (named limits, `domain/receipt-lines`,
+`domain/photos`, `theme.ts`, the `format.ts` date helpers, shared
+`useStoreOptions` / `PromoFields` / `useProductSearch`), error handling
+(`callAction` / `describeActionError`, `action-results.ts`,
+`api/route-errors.ts` as the one code→status table,
+`RECEIPT_EXTRACTION_STALE` with its own page state, the history retry,
+`sanitizeRedirectPath`, every logged action error carrying the user id), the
+seven large screens split into thin orchestrators plus colocated sections and
+pure, tested derivations (`AGENTS.md` §2.1 lists them), and the naming pass
+of AGENTS §1.14 (services and actions now agree: `updatePriceEntry`,
+`updateProduct`, `deleteProductAlias`, `getOrCreateShoppingSession`; booleans
+read as questions). Behaviour that changed on purpose, each small and each
+asserted: the export carries every shopping session (it stopped at 100); a
+flat price direction is anything under 0,05 %, so "0,0 %" is never an arrow;
+the receipt server rejects an empty product name and non-positive sizes or
+prices; an ambiguous match keeps the product choice open; discarding a scan
+offline no longer wipes the local queue when the server fails; a stale
+extraction is a 409 with its own screen, not a 404; stores sort
+case-insensitively; the fuel form uses the same `isUnitPriceConsistent` as
+everything else; the sheets' focus trap no longer snaps back on every
+re-render and the catalog's bulk bar publishes its height (AGENTS §4.57);
+an unparsable date is refused on the client in the manual and fuel forms.
+Dependencies (`docs/guide/dipendenze.md`): the dev-only audit findings were
+upgraded in the same session at the owner's call, three of them through
+overrides in `pnpm-workspace.yaml` (AGENTS §4.68); `zod` and `undici` remain,
+with their decisions recorded. Still saying "edit", left for a later pass:
+`EditEntryInput`, `editEntrySchema`, `EditProductInput`, `editProductSchema`.
+Verification of this pass: lint, typecheck, 532 unit tests, the production
+build and the 96 Playwright tests, all green on 2026-10-27; the owner closed
+it on that suite and no guided tour was walked, so the four user-visible
+changes (the stale-extraction page, the focus trap, the bulk bar's height,
+the shared promo fields on the manual form) have no tour behind them, and
+the four-viewport screenshot audit was not run either (the split screens
+keep a byte-identical DOM; the stale-extraction page is new and unmeasured).
+
 **Verified:** `typecheck` / `build` green and Biome clean on every touched
-file; **377** unit/integration tests (40 files) and **96** Playwright tests,
+file; **532** unit/integration tests (50 files) and **96** Playwright tests,
 the latter including the whole capture and receipt flows asserted against
 `/api/export`, a product delete that must leave no orphaned entry behind, two
 identical receipt lines landing as one observation bought twice, a receipt
@@ -155,8 +196,8 @@ checks out LF, is unaffected.
 
 ## 5. Session protocol
 
-1. **Before any coding**, read: `AGENTS.md`, `docs/DEVELOPMENT_GUIDELINES.md`,
-   and `docs/COMMENTS.md`.
+1. **Before any coding**, read: `AGENTS.md`, `DEVELOPMENT_GUIDELINES.md`,
+   and `COMMENTS.md`.
 2. Canonical table/column/route/env names live in the code (Drizzle schema,
    Zod schemas, domain enums) — use them exactly. Money is integer only:
    `total_price_cents` (euro cents), `unit_price_milli` (milli-euros per base

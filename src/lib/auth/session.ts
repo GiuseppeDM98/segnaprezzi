@@ -16,7 +16,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
  * Return the current session user or throw UnauthorizedError.
  * Use in every Server Action, route handler, and service entry point that
  * touches user data — this is the real auth check (middleware is only
- * an optimistic cookie-presence filter, see §5.6).
+ * an optimistic cookie-presence filter, see src/middleware.ts).
  */
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();

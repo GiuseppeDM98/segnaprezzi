@@ -21,6 +21,7 @@ import { type ChangeEvent, type ReactNode, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
+import { useToast } from '@/components/ui/toast';
 import { cx } from '@/lib/cx';
 import { useAppMotion } from '@/lib/motion';
 import { FramingGuide } from './framing-guide';
@@ -53,6 +54,7 @@ export function CameraView({
 }: CameraViewProps) {
   const t = useTranslations('scan');
   const { isReduced, spring, fade } = useAppMotion();
+  const { toast } = useToast();
   const {
     state,
     videoRef,
@@ -65,27 +67,42 @@ export function CameraView({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
 
-  async function handleShutter(): Promise<void> {
-    const frame = await capturePhoto();
-    if (!frame) {
-      return;
+  // Why the catch: both handlers are fired from DOM events that nobody
+  // awaits, so a rejection (a frame that will not compress, a full IndexedDB)
+  // would otherwise surface nowhere and the user would believe the photo was
+  // taken. The toast says it was not; the camera stays ready for another shot.
+  async function captureOrReport(source: () => Promise<Blob | null>): Promise<void> {
+    try {
+      const frame = await source();
+      if (frame) {
+        await onCapture(frame);
+      }
+    } catch (error) {
+      console.error('Photo capture failed', { error });
+      toast({ kind: 'error', message: t('camera.captureFailed') });
     }
-    // Feedback fires before the (awaited) handler so the shutter feels
-    // instant even while the photo is still being compressed and queued.
-    setIsFlashing(true);
-    navigator.vibrate?.(SHUTTER_VIBRATION_MS);
-    setTimeout(() => setIsFlashing(false), FLASH_DURATION_MS);
-    await onCapture(frame);
+  }
+
+  async function handleShutter(): Promise<void> {
+    await captureOrReport(async () => {
+      const frame = await capturePhoto();
+      if (frame) {
+        // Feedback fires before the (awaited) handler so the shutter feels
+        // instant even while the photo is still being compressed and queued.
+        setIsFlashing(true);
+        navigator.vibrate?.(SHUTTER_VIBRATION_MS);
+        setTimeout(() => setIsFlashing(false), FLASH_DURATION_MS);
+      }
+      return frame;
+    });
   }
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const file = event.target.files?.[0];
+    const file = event.target.files?.[0] ?? null;
     // Reset first: picking the same file twice in a row fires no change
     // event otherwise, and a retake of the same shot is a normal thing to do.
     event.target.value = '';
-    if (file) {
-      await onCapture(file);
-    }
+    await captureOrReport(async () => file);
   }
 
   const fileInput = (

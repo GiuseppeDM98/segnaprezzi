@@ -7,9 +7,9 @@
  * photo path it does not queue offline. No idempotency key is needed either —
  * the form is single-shot and the UI disables submit while it is pending.
  */
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { fieldErrorResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { PROMO_KINDS } from '@/lib/domain/entries';
@@ -18,7 +18,6 @@ import {
   nanoidSchema,
   packageSizeSchema,
   productPickSchema,
-  toFieldErrorCode,
   totalPriceCentsSchema,
   unitPriceMilliSchema,
 } from '@/lib/domain/schemas';
@@ -48,21 +47,19 @@ export async function createManualEntry(
 ): Promise<ActionResult<{ entryId: string; productId: string }>> {
   const parsed = createManualEntrySchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: { code: toFieldErrorCode(parsed.error), message: parsed.error.message },
-    };
+    return fieldErrorResult(parsed.error);
   }
 
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const { entryId, productId } = await createPriceEntry(db, user.id, {
+    userId = (await requireUser()).id;
+    const { entryId, productId } = await createPriceEntry(db, userId, {
       ...parsed.data,
       source: 'manual',
     });
-    revalidatePath('/[locale]', 'layout');
+    revalidateAppLayout();
     return { ok: true, data: { entryId, productId } };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('createManualEntry', error) };
+    return { ok: false, error: toLoggedActionError('createManualEntry', error, { userId }) };
   }
 }

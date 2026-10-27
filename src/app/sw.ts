@@ -26,6 +26,8 @@ import {
   StaleWhileRevalidate,
 } from 'serwist';
 
+import { BLOB_PUBLIC_HOSTNAME_SUFFIX } from '@/lib/domain/photos';
+import { routing } from '@/lib/i18n/routing';
 import { drainPendingPhotos, PHOTO_SYNC_TAG } from '@/lib/offline/sync';
 
 declare global {
@@ -46,11 +48,10 @@ const serwist = new Serwist({
       matcher: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/api/'),
       handler: new NetworkOnly(),
     },
-    // Photo thumbnails from Vercel Blob: sub-hosts follow the pattern
-    // <store-id>.public.blob.vercel-storage.com. LRU 50 keeps the cache
-    // near ~2 MB (thumbnails, not originals).
+    // Photo thumbnails from Vercel Blob. LRU 50 keeps the cache near ~2 MB
+    // (thumbnails, not originals).
     {
-      matcher: ({ url }) => url.hostname.endsWith('.public.blob.vercel-storage.com'),
+      matcher: ({ url }) => url.hostname.endsWith(BLOB_PUBLIC_HOSTNAME_SUFFIX),
       handler: new StaleWhileRevalidate({
         cacheName: 'segnaprezzi-photos-v1',
         plugins: [
@@ -78,24 +79,26 @@ const serwist = new Serwist({
     ...defaultCache,
   ],
   // Serwist precaches fallback entry URLs automatically. Entries are matched
-  // in order: the /en check must precede the catch-all Italian default,
-  // which is served UNPREFIXED at /offline (localePrefix "as-needed").
-  // WARNING: adding a locale requires adding a fallback entry here AND
-  // creating its /[locale]/offline page.
+  // in order: every prefixed locale must precede the catch-all default
+  // locale, which is served UNPREFIXED at /offline (localePrefix
+  // "as-needed"). The list follows routing.locales, as the [locale]/offline
+  // page does; the precache list in next.config.ts still names each URL.
   fallbacks: {
     entries: [
-      {
-        url: '/en/offline',
-        matcher: ({ request }) => {
-          // The fallback matcher is handed the failed request, not a parsed
-          // URL, so the locale prefix has to be read off it here.
-          const { pathname } = new URL(request.url);
-          return (
-            request.destination === 'document' &&
-            (pathname === '/en' || pathname.startsWith('/en/'))
-          );
-        },
-      },
+      ...routing.locales
+        .filter((locale) => locale !== routing.defaultLocale)
+        .map((locale) => ({
+          url: `/${locale}/offline`,
+          matcher: ({ request }: { request: Request }) => {
+            // The fallback matcher is handed the failed request, not a parsed
+            // URL, so the locale prefix has to be read off it here.
+            const { pathname } = new URL(request.url);
+            return (
+              request.destination === 'document' &&
+              (pathname === `/${locale}` || pathname.startsWith(`/${locale}/`))
+            );
+          },
+        })),
       {
         url: '/offline',
         matcher: ({ request }) => request.destination === 'document',
@@ -104,8 +107,8 @@ const serwist = new Serwist({
   },
 });
 
-// Update flow: the page posts SKIP_WAITING only after the user taps
-// "Aggiorna" in the update toast (never automatically).
+// Update flow: the page posts SKIP_WAITING only after the user accepts the
+// update toast (never automatically).
 self.addEventListener('message', (event) => {
   if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') {
     void self.skipWaiting();

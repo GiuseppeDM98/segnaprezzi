@@ -24,11 +24,17 @@ import { updateDefaultPackageSizes } from '@/lib/db/repositories/products';
 import { getReceiptById, updateReceipt } from '@/lib/db/repositories/receipts';
 import { createStore, getStoreById } from '@/lib/db/repositories/stores';
 import type { PromoKind } from '@/lib/domain/entries';
-import { isUnitPriceConsistent } from '@/lib/domain/money';
-import { normalizeAlias } from '@/lib/domain/receipt-lines';
+import { getReceiptLineBlockingReason, normalizeAlias } from '@/lib/domain/receipt-lines';
 import type { ProductPick } from '@/lib/domain/schemas';
 import type { StoreKind } from '@/lib/domain/stores';
-import { InvalidPriceError, ReceiptNotFoundError, StoreNotFoundError } from '@/lib/errors';
+import {
+  InvalidInputError,
+  InvalidPriceError,
+  InvalidSizeError,
+  ReceiptExtractionStaleError,
+  ReceiptNotFoundError,
+  StoreNotFoundError,
+} from '@/lib/errors';
 import { resolveProductPicks } from './create-price-entry';
 import { parseReceiptExtraction } from './import-receipt';
 
@@ -44,7 +50,7 @@ export interface ConfirmReceiptLineInput {
   isPromo: boolean;
   promoKind: PromoKind | null;
   /** Remember this line's abbreviation for the next receipt. */
-  learnAlias: boolean;
+  shouldLearnAlias: boolean;
 }
 
 export interface ConfirmReceiptInput {
@@ -70,7 +76,10 @@ export interface ConfirmReceiptResult {
  * @param userId - Always from the server session
  * @returns The receipt id, the entry ids, and anything created on the way
  * @throws ReceiptNotFoundError when the receipt is not the user's, or discarded
+ * @throws ReceiptExtractionStaleError when its stored extraction no longer parses
+ * @throws InvalidInputError when a line index is not on the stored receipt, or repeats
  * @throws InvalidPriceError when a line's three money numbers cannot all be true
+ * @throws InvalidSizeError, InvalidInputError when a line is otherwise not confirmable
  * @throws StoreNotFoundError, ProductNotFoundError on a foreign reference
  */
 export async function confirmReceipt(
@@ -95,13 +104,14 @@ export async function confirmReceipt(
       };
     }
 
-    const extraction = parseReceiptExtraction(receipt.aiRawJson);
+    const extraction = parseReceiptExtraction(receipt.aiRawJson, receipt.id);
     if (!extraction) {
-      throw new ReceiptNotFoundError(input.receiptId);
+      throw new ReceiptExtractionStaleError(receipt.id);
     }
 
+    assertLineIndexesValid(input.lines, extraction.lines.length);
     for (const line of input.lines) {
-      assertPriceInvariant(line);
+      assertLineConfirmable(line);
     }
 
     const store = await resolveStore(tx, userId, input);
@@ -174,16 +184,76 @@ export async function confirmReceipt(
 }
 
 /**
- * The invariant every price entry satisfies: both sides are the
- * milli-euro price of one whole package. A client that edited one field
- * without the others would otherwise write a unit price that contradicts
- * its own total — and the index reads the unit price.
+ * Refuse a line the review screen would have refused: the same
+ * getReceiptLineBlockingReason, so the server never stores what the screen
+ * calls blocked. The unit-price check is the one that matters most — both
+ * sides of the invariant are the milli-euro price of one whole package, and
+ * a client that edited one field without the others would otherwise write a
+ * unit price that contradicts its own total, while the index reads the unit
+ * price.
+ *
+ * Why needsProductDecision is false: the confirm request carries the pick
+ * itself, so the decision has been made by the time it arrives.
+ *
+ * @throws InvalidInputError when a new product's name is blank
+ * @throws InvalidSizeError when the package size is not positive
+ * @throws InvalidPriceError when a price is not positive or the three disagree
  */
-function assertPriceInvariant(line: ConfirmReceiptLineInput): void {
-  if (!isUnitPriceConsistent(line.totalPriceCents, line.packageSize, line.unitPriceMilli)) {
-    throw new InvalidPriceError(
-      `Line ${line.index}: unitPriceMilli x packageSize (${line.unitPriceMilli * line.packageSize}) does not match totalPriceCents (${line.totalPriceCents * 10})`,
-    );
+function assertLineConfirmable(line: ConfirmReceiptLineInput): void {
+  const reason = getReceiptLineBlockingReason(
+    {
+      packageSize: line.packageSize,
+      totalPriceCents: line.totalPriceCents,
+      unitPriceMilli: line.unitPriceMilli,
+      needsProductDecision: false,
+    },
+    line.product.kind === 'new' ? line.product.name : null,
+  );
+  switch (reason) {
+    case null:
+      return;
+    case 'product':
+      throw new InvalidInputError(`Line ${line.index}: the new product has no name`);
+    case 'size':
+      throw new InvalidSizeError(
+        `Line ${line.index}: packageSize ${line.packageSize} is not positive`,
+      );
+    case 'price':
+      throw new InvalidPriceError(`Line ${line.index}: a price is not positive`);
+    case 'unit-price':
+      throw new InvalidPriceError(
+        `Line ${line.index}: unitPriceMilli x packageSize (${line.unitPriceMilli * line.packageSize}) does not match totalPriceCents (${line.totalPriceCents * 10})`,
+      );
+  }
+}
+
+/**
+ * Refuse a line index the stored extraction does not have, or one sent twice.
+ *
+ * Why it matters: the index is client-sent, and it is what ties an entry to
+ * its printed line. An index past the end would write an entry with no
+ * aiRawJson, no confidence and no alias; a repeated one would record the
+ * same printed line twice. Lines may be absent (the user skipped them), so
+ * only membership and uniqueness are checked, not completeness.
+ *
+ * @param extractedLineCount - Number of lines in the stored extraction
+ * @throws InvalidInputError naming the first offending index
+ */
+function assertLineIndexesValid(
+  lines: ConfirmReceiptLineInput[],
+  extractedLineCount: number,
+): void {
+  const seen = new Set<number>();
+  for (const line of lines) {
+    if (!Number.isInteger(line.index) || line.index < 0 || line.index >= extractedLineCount) {
+      throw new InvalidInputError(
+        `Line ${line.index} is not on the stored receipt (${extractedLineCount} lines)`,
+      );
+    }
+    if (seen.has(line.index)) {
+      throw new InvalidInputError(`Line ${line.index} is sent more than once`);
+    }
+    seen.add(line.index);
   }
 }
 
@@ -235,7 +305,7 @@ async function learnAliases(
 ): Promise<void> {
   const learnable = input.lines.flatMap((line, position) => {
     const extracted = input.extraction.lines[line.index];
-    if (!line.learnAlias || !extracted) {
+    if (!line.shouldLearnAlias || !extracted) {
       return [];
     }
     const alias = normalizeAlias(extracted.rawLine);

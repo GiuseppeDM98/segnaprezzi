@@ -3,8 +3,8 @@
 /**
  * The one place the PWA machinery is switched on.
  *
- * Mounted once by the locale layout, above every route, because all three
- * jobs it owns must outlive any single screen: the service worker
+ * Mounted once by the locale layout, above every route, because every job
+ * it owns must outlive any single screen: the service worker
  * registration and its update handshake, the sync engine's page-side
  * triggers, and the capture of `beforeinstallprompt` (which fires early and
  * is lost forever if nobody claims it).

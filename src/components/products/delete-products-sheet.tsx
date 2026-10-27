@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * Confirmation for the one action in the app that destroys price history.
+ * Confirmation for deleting products: the action that destroys a product's
+ * whole price history at once.
  *
  * Design: the weight of the decision is carried by the count, not by the
  * wording. A product with no observations says so and is a trivial delete; a
@@ -40,15 +41,15 @@ export function DeleteProductsSheet({
   const tCommon = useTranslations('common');
 
   const entryCount = products.reduce((total, product) => total + product.entryCount, 0);
-  const only = products.length === 1 ? products[0] : null;
+  const singleProduct = products.length === 1 ? products[0] : null;
 
   return (
     <Sheet
       isOpen={isOpen}
       onClose={onClose}
       title={
-        only
-          ? t('deleteTitleOne', { name: only.name })
+        singleProduct
+          ? t('deleteTitleOne', { name: singleProduct.name })
           : t('deleteTitleMany', { count: products.length })
       }
     >

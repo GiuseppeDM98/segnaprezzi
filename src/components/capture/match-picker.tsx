@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Product match sheet: the top-3 suggestions from the
- * matcher, a catalog search, and "create new" prefilled from the
+ * Product match sheet: the matcher's top suggestions, a
+ * catalog search, and "create new" prefilled from the
  * extraction. Search is delegated through `onSearch` so the component never
  * imports a Server Action.
  */
@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { cx } from '@/lib/cx';
+import { MIN_QUERY_LENGTH } from '@/lib/domain/search';
 
 export interface MatchOption {
   productId: string;
@@ -32,6 +33,7 @@ export interface MatchPickerProps {
   /** Name the "create new" row will use. */
   newProductName: string;
   onPick: (pick: { productId: string } | 'new') => void;
+  /** Catalog search; rejects when the search itself failed, which the sheet says so. */
   onSearch: (query: string) => Promise<MatchOption[]>;
 }
 
@@ -51,20 +53,42 @@ export function MatchPicker({
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<MatchOption[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearchError, setHasSearchError] = useState(false);
 
   useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < MIN_QUERY_LENGTH) {
       setHits([]);
+      setHasSearchError(false);
+      setIsSearching(false);
       return;
     }
+    // Why the flag: an answer that arrives after the query moved on must not
+    // overwrite the newer query's hits, nor clear its busy state.
+    let isCurrent = true;
     setIsSearching(true);
     const handle = window.setTimeout(async () => {
-      const results = await onSearch(trimmed);
-      setHits(results);
-      setIsSearching(false);
+      try {
+        const results = await onSearch(trimmed);
+        if (isCurrent) {
+          setHits(results);
+          setHasSearchError(false);
+        }
+      } catch {
+        if (isCurrent) {
+          setHits([]);
+          setHasSearchError(true);
+        }
+      } finally {
+        if (isCurrent) {
+          setIsSearching(false);
+        }
+      }
     }, SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(handle);
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(handle);
+    };
   }, [query, onSearch]);
 
   function pick(choice: { productId: string } | 'new'): void {
@@ -73,7 +97,7 @@ export function MatchPicker({
     onClose();
   }
 
-  const isQuerying = query.trim().length >= 2;
+  const isQuerying = query.trim().length >= MIN_QUERY_LENGTH;
   const rows = isQuerying ? hits : suggestions;
 
   return (
@@ -139,7 +163,12 @@ export function MatchPicker({
               </li>
             );
           })}
-          {isQuerying && !isSearching && hits.length === 0 && (
+          {isQuerying && !isSearching && hasSearchError && (
+            <li role="alert" className="px-3 py-3 font-sans text-[14px] text-negative">
+              {t('matchSearchError')}
+            </li>
+          )}
+          {isQuerying && !isSearching && !hasSearchError && hits.length === 0 && (
             <li className="px-3 py-3 font-sans text-[14px] text-text-muted">
               {t('matchNoResults', { query: query.trim() })}
             </li>

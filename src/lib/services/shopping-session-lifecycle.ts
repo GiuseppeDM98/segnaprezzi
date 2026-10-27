@@ -4,7 +4,7 @@
  * Design: a spesa starts on a phone with no connectivity, so the client mints
  * the session id at the first shutter press and the server materializes the
  * row lazily, the first time anything reaches it. Every entry point therefore
- * goes through findOrCreateShoppingSession, which is also where ownership and
+ * goes through getOrCreateShoppingSession, which is also where ownership and
  * "still open" are enforced — a session id from another user is reported as
  * not-found, never as forbidden, so the API never confirms that a foreign id
  * exists.
@@ -15,7 +15,6 @@ import type { Db, DbTransaction } from '@/lib/db/client';
 import {
   createShoppingSession,
   discardOtherOpenShoppingSessions,
-  getResumableShoppingSession,
   getShoppingSessionById,
   isShoppingSessionIdTaken,
   updateShoppingSession,
@@ -40,7 +39,7 @@ const CLOSED_STATUSES = new Set(['completed', 'discarded']);
  * @throws SessionClosedError when the session is completed or discarded
  * @throws StoreNotFoundError when storeId does not belong to the user
  */
-export async function findOrCreateShoppingSession(
+export async function getOrCreateShoppingSession(
   db: Db | DbTransaction,
   userId: string,
   sessionId: string,
@@ -86,17 +85,12 @@ export async function beginSessionReview(
   userId: string,
   sessionId: string,
 ): Promise<ShoppingSession> {
-  const session = await findOrCreateShoppingSession(db, userId, sessionId);
+  const session = await getOrCreateShoppingSession(db, userId, sessionId);
   if (session.status === 'reviewing') {
     return session;
   }
   const updated = await updateShoppingSession(db, userId, sessionId, { status: 'reviewing' });
   return updated ?? session;
-}
-
-/** The newest session the user could still resume, or null. */
-export async function getResumableSession(db: Db, userId: string): Promise<ShoppingSession | null> {
-  return getResumableShoppingSession(db, userId);
 }
 
 export interface DiscardShoppingSessionInput {

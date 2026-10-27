@@ -22,7 +22,7 @@ hard-won lessons into rules you can apply without re-deriving them.
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
 commit, and guided-collaudo discipline) → this file (conventions) →
-`docs/DEVELOPMENT_GUIDELINES.md` and `docs/COMMENTS.md` (general discipline)
+`DEVELOPMENT_GUIDELINES.md` and `COMMENTS.md` (general discipline)
 → **`DESIGN.md`** whenever the session touches anything under
 `src/components/` or a `*.tsx` in `src/app/`.
 
@@ -228,7 +228,7 @@ route handlers own the code→status mapping:
 
 // WARNING: adding a code here requires updating:
 // - the `errors` namespace in messages/it.json and messages/en.json
-// - the code→HTTP-status mapping in route handlers
+// - HTTP_STATUS_BY_CODE in src/app/api/route-errors.ts
 export type DomainErrorCode =
   | 'NOT_FOUND'
   | 'VALIDATION_FAILED'
@@ -241,12 +241,12 @@ export type DomainErrorCode =
 // PRODUCT_NOT_FOUND, SESSION_CLOSED, PHOTO_TOO_LARGE,
 // UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE for capture, and
 // RECEIPT_TOO_LARGE, UNSUPPORTED_RECEIPT_TYPE, RECEIPT_TOO_LONG,
-// RECEIPT_ALREADY_IMPORTED, RECEIPT_NOT_FOUND and RECEIPT_NO_LINES for
-// receipt import — both via the checklist above.
-// The code→HTTP mapping is duplicated in BOTH route handlers
-// (src/app/api/extract/route.ts and src/app/api/extract-receipt/route.ts) as
-// an exhaustive Record<DomainErrorCode, number> — which is what makes the
-// compiler, not a reviewer, catch a code added without a status.
+// RECEIPT_ALREADY_IMPORTED, RECEIPT_NOT_FOUND, RECEIPT_NO_LINES and
+// RECEIPT_EXTRACTION_STALE for receipt import — both via the checklist above.
+// The code→HTTP mapping lives once, as HTTP_STATUS_BY_CODE in
+// src/app/api/route-errors.ts, shared by every route handler: an exhaustive
+// Record<DomainErrorCode, number> — which is what makes the compiler, not a
+// reviewer, catch a code added without a status.
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -454,7 +454,7 @@ Namespace map **[decided]** — top-level keys of both message files:
   is `font-mono` (tabular by the base stylesheet); every list of rows is a
   `zebra` list of 48 px rows.
 
-### 1.13 Comments discipline (digest of docs/COMMENTS.md)
+### 1.13 Comments discipline (digest of COMMENTS.md)
 
 Six allowed comment types — each shown with a project-specific example:
 
@@ -509,9 +509,7 @@ never appear there:
 ```
 segnaprezzi/
 ├── docs/
-│   ├── assets/                 # Logo, favicon source SVG (build inputs, not served).
-│   ├── COMMENTS.md
-│   └── DEVELOPMENT_GUIDELINES.md
+│   └── assets/                 # Logo, favicon source SVG (build inputs, not served).
 ├── data/
 │   └── istat-nic.json          # Committed ISTAT NIC monthly series. Only scripts/update-istat.ts writes it.
 ├── drizzle/                    # Generated SQL migrations + meta. Never hand-edited; always committed.
@@ -526,22 +524,48 @@ segnaprezzi/
 │   ├── app/                    # App Router. [locale]/(app)/... pages, colocated actions.ts,
 │   │   │                       #   api/ route handlers, globals.css (@theme tokens), layout.
 │   │   │                       #   NEVER: business logic, Drizzle queries, fetch to Anthropic.
-│   │   └── api/                # Only the three handlers in §1.10.
+│   │   ├── [locale]/(app)/     # The signed-in routes. A screen too long for one file keeps its parts
+│   │   │                       #   colocated in its route folder, beside page.tsx and actions.ts:
+│   │   │                       #   scan/review/: review-derivations (pure, tested), use-review-drafts,
+│   │   │                       #     review-card-list, review-confirm-bar, review-match-sheet,
+│   │   │                       #     success-overlay.
+│   │   │                       #   add/receipt/review/: receipt-review-derivations (pure, tested),
+│   │   │                       #     receipt-review-header, receipt-store-date-rows, receipt-line-list.
+│   │   │                       #   add/manual/: use-manual-entry-form, manual-entry-derivations
+│   │   │                       #     (pure, tested), manual-product-section, manual-price-section,
+│   │   │                       #     manual-details-section, manual-submit-bar.
+│   │   │                       #   history/: history-filter-bar, history-timeline, history-list-states.
+│   │   │                       #   products/: catalog-view (pure, tested), catalog-header, product-list,
+│   │   │                       #     selection-action-bar, merge-products-sheet.
+│   │   │                       #   products/[id]/: chart-window (pure, tested), price-overview,
+│   │   │                       #     store-comparison-section, price-history-list, alias-section,
+│   │   │                       #     product-menu-sheet, edit-product-sheet.
+│   │   │                       #   settings/: index-settings-section, preferences-section, data-section,
+│   │   │                       #     delete-account-sheet.
+│   │   └── api/                # Only the handlers listed in §1.10, plus route-errors.ts: the one
+│   │                           #   DomainErrorCode→HTTP status table and error body they all share.
 │   ├── components/
-│   │   ├── ui/                 # Primitives (button, sheet, field, input, chip, toast, tab-bar, fab…).
+│   │   ├── ui/                 # Primitives (button, sheet, field, input, chip, toast, tab-bar, fab…)
+│   │   │                       #   + use-focus-trap (focus in/out and Tab cycling for sheets).
 │   │   ├── pwa/               # sw-provider, sw-registration, sw-update-toast, install-sheet,
 │   │   │                       #   ios-install-sheet, install-row. Client-only.
 │   │   ├── charts/             # Hand-rolled SVG: area-chart, category-bars, sparkline, trend-badge,
-│   │   │                       #   number-ticker + scale.ts (pure, tested).
-│   │   ├── capture/            # camera-view, photo-tray, extraction-card, match-picker, store-picker-sheet.
+│   │   │                       #   number-ticker + scale.ts (pure, tested: the scales and the
+│   │   │                       #   area chart geometry).
+│   │   ├── capture/            # The capture screens' parts: camera-view, photo-tray, extraction-card,
+│   │   │                       #   match-picker, store-picker-sheet + its use-store-options hook,
+│   │   │                       #   use-product-search (the match sheet's catalog search)…
 │   │   ├── receipt/            # receipt-dropzone, receipt-line-card, receipt-summary-bar.
-│   │   ├── entries/            # entry-sheet (view/edit/delete one observation; detail + timeline).
+│   │   ├── entries/            # entry-sheet (view/edit/delete one observation; detail + timeline),
+│   │   │                       #   promo-fields (the promo toggle + kind chips every entry form shares).
 │   │   ├── auth/               # auth-form (progressive-reveal login/signup form).
 │   │   └── layout/             # app-shell, nav-rail, screen-header, offline-banner.
 │   │                           #   components/ NEVER imports db/, services/, ai/, blob/, env,
 │   │                           #   nor Server Actions — screens pass actions down as callbacks.
 │   ├── lib/
-│   │   ├── domain/             # categories.ts, units.ts, money.ts, schemas.ts. Pure, zero imports.
+│   │   ├── domain/             # categories.ts, units.ts, money.ts, schemas.ts and the other shared
+│   │   │                       #   rules and wire types: receipt-lines.ts, extract-photo.ts,
+│   │   │                       #   photos.ts, search.ts, history-groups.ts, auth.ts… Pure, zero imports.
 │   │   ├── inflation/          # Index engine: bucketing, relatives, chaining, coverage.
 │   │   │                       #   Pure. Imports domain/ only. The most heavily unit-tested code.
 │   │   ├── db/
@@ -553,13 +577,19 @@ segnaprezzi/
 │   │   ├── ai/                 # Anthropic gateways: tag + receipt calls, prompts, response schemas.
 │   │   │                       #   One AiGatewayError mapping, shared by both.
 │   │   ├── blob/               # Vercel Blob gateway: upload/delete photo.
-│   │   ├── offline/            # CLIENT-side: Dexie schema, photo queue, sync manager.
+│   │   ├── offline/            # CLIENT-side: Dexie schema, photo queue, sync manager,
+│   │   │                       #   safe-storage.ts (localStorage that never throws).
 │   │   │                       #   Never imported by server code.
 │   │   ├── auth/               # auth.ts (Better Auth config), client.ts, session.ts (requireUser).
 │   │   ├── i18n/               # routing.ts, navigation.ts (wrapped Link/router), request config.
 │   │   ├── env.ts              # Zod-validated env access. The ONLY file reading process.env.
 │   │   ├── format.ts           # ALL Intl display formatting (money, dates, units) + input parsing.
-│   │   ├── motion.ts           # houseSpring, quickFade, useAppMotion() — the only motion constants.
+│   │   ├── motion.ts           # houseSpring, quickFade, chartDraw…, useAppMotion() — the only place
+│   │   │                       #   springs, durations and easings are declared.
+│   │   ├── theme.ts            # The theme cookie name + read/apply helpers (Settings, root layout).
+│   │   ├── call-action.ts      # Client guard: a rejected Server Action call becomes ok: false.
+│   │   ├── action-results.ts   # Server-only: the failure results + revalidation every action shares.
+│   │   ├── redirects.ts        # Validates the post-login redirectTo (no open redirect).
 │   │   ├── cx.ts               # Class-name joiner (no clsx dependency).
 │   │   ├── use-media-query.ts  # tablet:/rail: queries for components that branch on width.
 │   │   ├── use-container-width.ts # ResizeObserver width for the SVG charts.
@@ -567,7 +597,7 @@ segnaprezzi/
 │   └── middleware.ts           # next-intl locale routing + auth guard.
 ├── tests/
 │   └── e2e/                    # Playwright specs (*.spec.ts). Critical paths only.
-├── AGENTS.md · CLAUDE.md · DESIGN.md · PRODUCT.md · README.md · CONTRIBUTING.md
+├── AGENTS.md · CLAUDE.md · DESIGN.md · PRODUCT.md · README.md · CONTRIBUTING.md · COMMENTS.md · DEVELOPMENT_GUIDELINES.md
 ├── LICENSE (MIT) · biome.json · drizzle.config.ts · next.config.ts · package.json
 ```
 
@@ -604,7 +634,8 @@ export const categories = [ /* ... the category taxonomy ... */ ] as const;
 
 **Adding a `DomainErrorCode`** (`src/lib/errors.ts`): extend the union, add
 the matching `errors.<CODE>` message to **both** `messages/it.json` and
-`messages/en.json`, and update the code→HTTP-status mapping in route handlers.
+`messages/en.json`, and give it a status in `HTTP_STATUS_BY_CODE`
+(`src/app/api/route-errors.ts`).
 
 **Adding an enum value** (e.g. `promo_kind`, `source`, `store.kind`): update
 the Zod schema at every boundary that accepts it, both message files if it is
@@ -1002,6 +1033,9 @@ then fails every touched file ("Formatter would have printed…") while the diff
 looks unchanged. Either open with `newline=''`, write bytes, or run a
 CRLF→LF normalization over `git status` files before `pnpm lint` — the UI
 build session lost two lint rounds to this before the pattern was clear.
+Biome's `--write` has the same effect in reverse: it rewrites a CRLF file to
+LF, so after formatting a CRLF file convert it back and check with
+`tr -cd '' | wc -c` (what `grep -c $'$'` gets wrong in Git Bash).
 
 **4.32 Playwright's `baseURL` must follow the dev server's port, and Better
 Auth must agree.** `next dev` silently moves to :3001 when :3000 is taken by
@@ -1239,8 +1273,12 @@ also ate the tap. CSS custom properties only inherit downwards and the toast is
 a sibling of the whole app, so the bar publishes its measured height onto
 `document.documentElement` as `--sticky-action-bar-height` and the outlet adds
 it to its own offset. Use `StickyActionBar` (or `STICKY_ACTION_BAR_CLASSES` +
-`useStickyActionBarHeight()` when the bar must be a `motion.div`) — never a
-sixth hand-copy of the class string.
+`useStickyActionBarHeight()` when the bar must be a `motion.div`) — never
+another hand-copy of the class string. The hook hands back a callback ref, not
+a ref object, and that is load-bearing: the catalog's bulk bar exists only
+while selecting, so an effect run when the screen mounted found no element and
+the bar never published its height. Measuring when the element itself attaches
+covers a bar that mounts late.
 
 **4.58 A message that is true in two places at once breaks a `getByText`
 locator.** Naming the blocking reason on the review card meant "1 da
@@ -1366,6 +1404,30 @@ fourth paragraph to the prompt.
 
 ---
 
+**4.67 Every E2E suite that writes as the second seed user leaves the account
+as it found it, because the thin dashboard is a state, not a page.**
+`a11y.spec.ts` expects `dashboard-thin` for `dev2`, which `getDashboardData`
+shows only while the series has fewer than two months. The receipt suite's
+fixture is dated August, so one confirmed receipt gives the account a second
+month and the full dashboard — and with `fullyParallel` the desktop project's
+a11y run lands after the mobile project's receipt flow often enough to fail
+two tests in a file nobody touched (seen 2026-10-27; the race predates that
+session). `quick-entry` and `delete-product` already cleaned up in
+`afterAll`; `receipt-import` now does too (`resetReceiptFixtures`). A new flow
+suite owes the same `afterAll`, and a fixture dated outside the current month
+is the tell.
+
+**4.68 pnpm 11 reads `overrides` from `pnpm-workspace.yaml`, not from
+`package.json`.** A `"pnpm": { "overrides": … }` block in `package.json` is
+accepted silently and does nothing: `pnpm install` finishes in half a second
+and `pnpm why` still shows the old version. The overrides in
+`pnpm-workspace.yaml` (`vite`, `browserslist`, `esbuild@<0.24.3`) exist
+because a parent pins a vulnerable version (vitest, `@serwist/utils` with an
+exact `4.28.6`, drizzle-kit's `@esbuild-kit`); `docs/guide/dipendenze.md`
+says when each can go. `pnpm update --depth Infinity <name>` is enough for a
+transitive package whose parent's range already allows the fix
+(`brace-expansion`, `source-map-js`); an exact pin needs the override.
+
 ## 5. Definition of Done
 
 Every task, not just a large feature, is done only when:
@@ -1384,8 +1446,8 @@ Every task, not just a large feature, is done only when:
 
 | Document | What it governs | When to read |
 |---|---|---|
-| `docs/DEVELOPMENT_GUIDELINES.md` | Layers, naming, errors, testing, security, performance | Once fully; re-check when unsure |
-| `docs/COMMENTS.md` | Comment types and discipline | Before writing any code with comments |
+| `DEVELOPMENT_GUIDELINES.md` | Layers, naming, errors, testing, security, performance | Once fully; re-check when unsure |
+| `COMMENTS.md` | Comment types and discipline | Before writing any code with comments |
 | `DESIGN.md` | Tokens, typography, layout vocabulary, animation, anti-patterns — generated by the impeccable documenter from the shipped UI build | **Mandatory before any UI work** |
 | `PRODUCT.md` | Product truth for the impeccable skill (users, positioning, constraints, brand commitments) | Before any impeccable command or a new surface |
 | `CLAUDE.md` | Current implementation status + working notes | First thing, every session |

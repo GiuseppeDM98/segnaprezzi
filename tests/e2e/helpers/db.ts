@@ -3,7 +3,7 @@ import { type Client, createClient } from '@libsql/client';
 /**
  * Open the local file database with the same busy timeout the app client
  * sets (AGENTS.md §4.18): these helpers run from parallel Playwright workers
- * while the dev server writes, and a raw client without it surfaces
+ * while the app server writes, and a raw client without it surfaces
  * SQLITE_BUSY as a 13 ms test failure that passes on retry.
  */
 async function openLocalClient(): Promise<Client> {
@@ -17,15 +17,30 @@ async function openLocalClient(): Promise<Client> {
 }
 
 /**
- * Delete a throwaway E2E signup user by email. Playwright tests assert
- * through HTTP/DB responses, never by reaching into the DB for behavior —
- * this is the one exception, and only for cleanup, so repeated local/CI runs
+ * Run `work` on a fresh local client and close it whatever happens: a helper
+ * whose statement throws must not leak its handle, or the file stays open for
+ * the rest of the Playwright worker.
+ */
+async function withLocalClient(work: (client: Client) => Promise<void>): Promise<void> {
+  const client = await openLocalClient();
+  try {
+    await work(client);
+  } finally {
+    client.close();
+  }
+}
+
+/**
+ * Delete a throwaway E2E signup user by email, so repeated local/CI runs
  * don't accumulate signup-test users that scripts/seed.ts doesn't know about.
+ * Playwright tests assert through HTTP responses, never by reaching into the
+ * DB for behavior; the helpers in this file touch it only to clean up after a
+ * suite or, in seedExtractedReceipt, to stand in for the model call.
  */
 export async function deleteUserByEmail(email: string): Promise<void> {
-  const client = await openLocalClient();
-  await client.execute({ sql: 'DELETE FROM users WHERE email = ?', args: [email] });
-  client.close();
+  await withLocalClient(async (client) => {
+    await client.execute({ sql: 'DELETE FROM users WHERE email = ?', args: [email] });
+  });
 }
 
 /**
@@ -38,23 +53,23 @@ export async function deleteUserByEmail(email: string): Promise<void> {
  * idempotent no matter how the previous run ended.
  */
 export async function resetCaptureFixtures(email: string): Promise<void> {
-  const client = await openLocalClient();
-  await client.execute({
-    sql: `DELETE FROM price_entries
-          WHERE source = 'photo'
-            AND user_id IN (SELECT id FROM users WHERE email = ?)`,
-    args: [email],
+  await withLocalClient(async (client) => {
+    await client.execute({
+      sql: `DELETE FROM price_entries
+            WHERE source = 'photo'
+              AND user_id IN (SELECT id FROM users WHERE email = ?)`,
+      args: [email],
+    });
+    await client.execute({
+      sql: `DELETE FROM shopping_sessions
+            WHERE user_id IN (SELECT id FROM users WHERE email = ?)`,
+      args: [email],
+    });
   });
-  await client.execute({
-    sql: `DELETE FROM shopping_sessions
-          WHERE user_id IN (SELECT id FROM users WHERE email = ?)`,
-    args: [email],
-  });
-  client.close();
 }
 
 /**
- * Remove the products a quick-entry E2E test creates, and the entries that
+ * Remove the products an E2E suite created, by name, and the entries that
  * reference them.
  *
  * Order matters: price_entries.product_id blocks deleting a product that
@@ -65,31 +80,33 @@ export async function deleteProductsByName(email: string, names: string[]): Prom
   if (names.length === 0) {
     return;
   }
-  const client = await openLocalClient();
   const placeholders = names.map(() => '?').join(', ');
   const selectProducts = `SELECT id FROM products
      WHERE name IN (${placeholders})
        AND user_id IN (SELECT id FROM users WHERE email = ?)`;
-  await client.execute({
-    sql: `DELETE FROM price_entries WHERE product_id IN (${selectProducts})`,
-    args: [...names, email],
+  await withLocalClient(async (client) => {
+    await client.execute({
+      sql: `DELETE FROM price_entries WHERE product_id IN (${selectProducts})`,
+      args: [...names, email],
+    });
+    await client.execute({
+      sql: `DELETE FROM products WHERE id IN (${selectProducts})`,
+      args: [...names, email],
+    });
   });
-  await client.execute({
-    sql: `DELETE FROM products WHERE id IN (${selectProducts})`,
-    args: [...names, email],
-  });
-  client.close();
 }
 
 /**
- * The products the receipt fixture's lines create when confirmed. Invented
- * names ("parole spia") so cleanup can never touch seeded or real data.
+ * The products the receipt-import suite's confirms create. Invented names
+ * (spy words, "parole spia") so cleanup can never touch seeded or real data;
+ * a test that adds a spy word adds its product here.
  */
 const RECEIPT_FIXTURE_PRODUCT_NAMES = [
   'Pasta fenicottero n.5 500g',
   'Latte ornitorinco 1L',
   'Quokka fresco',
   'Pesto capibara 190g',
+  'Crema narvalo 250g',
 ];
 
 /**
@@ -105,33 +122,33 @@ const RECEIPT_FIXTURE_PRODUCT_NAMES = [
  * halfway cannot make the next attempt fail for the wrong reason.
  */
 export async function resetReceiptFixtures(email: string): Promise<void> {
-  const client = await openLocalClient();
   const owner = 'SELECT id FROM users WHERE email = ?';
-  await client.execute({
-    sql: `DELETE FROM price_entries
-          WHERE source = 'receipt' AND user_id IN (${owner})`,
-    args: [email],
+  await withLocalClient(async (client) => {
+    await client.execute({
+      sql: `DELETE FROM price_entries
+            WHERE source = 'receipt' AND user_id IN (${owner})`,
+      args: [email],
+    });
+    await client.execute({
+      sql: `DELETE FROM product_aliases WHERE user_id IN (${owner})`,
+      args: [email],
+    });
+    await client.execute({
+      sql: `DELETE FROM receipts WHERE user_id IN (${owner})`,
+      args: [email],
+    });
+    // The products the confirm created. Guarded on "no entries left" so this
+    // can never take a product that some other suite is still using, and
+    // matched by the fixture's invented names so it can never take a real one.
+    const placeholders = RECEIPT_FIXTURE_PRODUCT_NAMES.map(() => '?').join(', ');
+    await client.execute({
+      sql: `DELETE FROM products
+            WHERE user_id IN (${owner})
+              AND name IN (${placeholders})
+              AND id NOT IN (SELECT product_id FROM price_entries)`,
+      args: [email, ...RECEIPT_FIXTURE_PRODUCT_NAMES],
+    });
   });
-  await client.execute({
-    sql: `DELETE FROM product_aliases WHERE user_id IN (${owner})`,
-    args: [email],
-  });
-  await client.execute({
-    sql: `DELETE FROM receipts WHERE user_id IN (${owner})`,
-    args: [email],
-  });
-  // The products the confirm created. Guarded on "no entries left" so this
-  // can never take a product that some other suite is still using, and
-  // matched by the fixture's invented names so it can never take a real one.
-  const placeholders = RECEIPT_FIXTURE_PRODUCT_NAMES.map(() => '?').join(', ');
-  await client.execute({
-    sql: `DELETE FROM products
-          WHERE user_id IN (${owner})
-            AND name IN (${placeholders})
-            AND id NOT IN (SELECT product_id FROM price_entries)`,
-    args: [email, ...RECEIPT_FIXTURE_PRODUCT_NAMES],
-  });
-  client.close();
 }
 
 export interface SeedReceiptInput {
@@ -153,25 +170,25 @@ export interface SeedReceiptInput {
  * learning — is then exercised for real against the real database.
  */
 export async function seedExtractedReceipt(email: string, input: SeedReceiptInput): Promise<void> {
-  const client = await openLocalClient();
   const now = Date.now();
-  await client.execute({
-    sql: `INSERT INTO receipts
-            (id, user_id, store_id, status, purchased_at, receipt_total_cents, line_count,
-             content_hash, file_kind, ai_model, ai_raw_json, confirmed_at, created_at, updated_at)
-          SELECT ?, id, NULL, 'extracted', ?, ?, ?, ?, 'pdf', 'claude-haiku-4-5', ?, NULL, ?, ?
-          FROM users WHERE email = ?`,
-    args: [
-      input.id,
-      input.purchasedAt,
-      input.receiptTotalCents,
-      (input.extraction as { lines: unknown[] }).lines.length,
-      input.contentHash,
-      JSON.stringify(input.extraction),
-      now,
-      now,
-      email,
-    ],
+  await withLocalClient(async (client) => {
+    await client.execute({
+      sql: `INSERT INTO receipts
+              (id, user_id, store_id, status, purchased_at, receipt_total_cents, line_count,
+               content_hash, file_kind, ai_model, ai_raw_json, confirmed_at, created_at, updated_at)
+            SELECT ?, id, NULL, 'extracted', ?, ?, ?, ?, 'pdf', 'claude-haiku-4-5', ?, NULL, ?, ?
+            FROM users WHERE email = ?`,
+      args: [
+        input.id,
+        input.purchasedAt,
+        input.receiptTotalCents,
+        (input.extraction as { lines: unknown[] }).lines.length,
+        input.contentHash,
+        JSON.stringify(input.extraction),
+        now,
+        now,
+        email,
+      ],
+    });
   });
-  client.close();
 }

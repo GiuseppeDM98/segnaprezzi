@@ -4,7 +4,7 @@ import { PWA_E2E_USER } from './fixtures/users';
 import { resetCaptureFixtures } from './helpers/db';
 
 /*
- * Offline queue + sync engine E2E suite (scenarios 1–4).
+ * Offline queue + sync engine E2E suite.
  *
  * This project runs with `serviceWorkers: "block"` because Playwright cannot
  * intercept a request issued *through* an active worker, and every scenario
@@ -164,7 +164,10 @@ test('should give up after five failures and recover through manual retry', asyn
   await page.route('**/api/extract', async (route) => {
     uploadedPhotoIds.push(readPhotoId(route.request().postDataBuffer()));
     if (shouldFail) {
-      await route.fulfill({ status: 500, json: { error: { code: 'INTERNAL' } } });
+      await route.fulfill({
+        status: 500,
+        json: { error: { code: 'INTERNAL', message: 'Unexpected error' } },
+      });
       return;
     }
     await route.fulfill({ status: 200, json: EXTRACTION_BODY });

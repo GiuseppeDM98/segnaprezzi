@@ -11,7 +11,7 @@
  */
 import Dexie, { type EntityTable } from 'dexie';
 
-import type { ExtractPhotoResponse } from '@/lib/services/extract-photo-entry';
+import type { ExtractPhotoResponse } from '@/lib/domain/extract-photo';
 
 export type PendingPhotoStatus = 'queued' | 'uploading' | 'extracted' | 'failed';
 

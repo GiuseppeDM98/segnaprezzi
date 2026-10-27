@@ -4,8 +4,8 @@
  * Design: everything the model needs to be *decisive* is stated as a rule,
  * not left to judgement — what counts as a product line, what a discount
  * line attaches to, how Italian comma decimals become integer cents, and
- * what a package-size hint may and may not be invented from. The three
- * worked examples at the end each match the exact shape of a real receipt
+ * what a package-size hint may and may not be invented from. The worked
+ * examples at the end each match the exact shape of a real receipt
  * that went wrong: a compact Coop layout with all three line shapes, a
  * discount line repeating the VAT% column, and a repeated article with an
  * annotation between its lines (AGENTS.md §4.54 — the model follows a
@@ -14,7 +14,7 @@
 
 // WARNING: the category list in this prompt must stay in sync with
 // CATEGORY_IDS in src/lib/domain/categories.ts, with the extraction prompt
-// in src/lib/ai/extraction-prompt.ts, and with both message files.
+// in src/lib/ai/extraction-prompt.ts, and with every message file.
 export const RECEIPT_SYSTEM_PROMPT = `You read Italian supermarket receipts (scontrini) — digital PDF receipts or
 photos of paper receipts — and extract EVERY product line as structured data.
 The goal is the price of each single item, never the trip total.

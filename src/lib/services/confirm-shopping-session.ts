@@ -22,7 +22,7 @@ import {
 import type { PromoKind } from '@/lib/domain/entries';
 import type { ProductPick } from '@/lib/domain/schemas';
 import { resolveProductPicks } from './create-price-entry';
-import { findOrCreateShoppingSession } from './shopping-session-lifecycle';
+import { getOrCreateShoppingSession } from './shopping-session-lifecycle';
 
 export interface ConfirmEntryInput {
   /** The client photo id — becomes price_entries.id and is the idempotency key. */
@@ -81,7 +81,7 @@ export async function confirmShoppingSession(
       };
     }
 
-    await findOrCreateShoppingSession(tx, userId, input.sessionId, input.storeId);
+    await getOrCreateShoppingSession(tx, userId, input.sessionId, input.storeId);
 
     const { productIds, createdProductIds } = await resolveProductPicks(
       tx,

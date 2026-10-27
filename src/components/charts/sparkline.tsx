@@ -4,24 +4,27 @@
  * Stroke color follows the price-direction mapping (up = negative family).
  */
 import { cx } from '@/lib/cx';
-import { buildLinePath, createLinearScale, padDomain, trendOf } from './scale';
+import {
+  buildLinePath,
+  calculatePriceDirection,
+  calculateSeriesChangeRatio,
+  createLinearScale,
+  PRICE_DIRECTION_TEXT_CLASSES,
+  type PriceDirection,
+  padDomain,
+} from './scale';
 
 export interface SparklineProps {
   points: number[];
-  trend?: 'up' | 'down' | 'flat';
+  /** Overrides the direction read off the points (first vs last). */
+  trend?: PriceDirection;
   width?: number;
   height?: number;
   className?: string;
 }
 
-const TREND_CLASSES = {
-  up: 'text-negative',
-  down: 'text-positive',
-  flat: 'text-text-muted',
-} as const;
-
 export function Sparkline({ points, trend, width = 72, height = 24, className }: SparklineProps) {
-  const direction = trend ?? trendOf(points);
+  const direction = trend ?? calculatePriceDirection(calculateSeriesChangeRatio(points));
   const x = createLinearScale([0, Math.max(1, points.length - 1)], [2, width - 2]);
   const y = createLinearScale(padDomain(points, 0.15), [height - 2, 2]);
   const path = buildLinePath(points.map((value, index) => ({ x: x(index), y: y(value) })));
@@ -33,7 +36,11 @@ export function Sparkline({ points, trend, width = 72, height = 24, className }:
       viewBox={`0 0 ${width} ${height}`}
       width={width}
       height={height}
-      className={cx('shrink-0 overflow-visible', TREND_CLASSES[direction], className)}
+      className={cx(
+        'shrink-0 overflow-visible',
+        PRICE_DIRECTION_TEXT_CLASSES[direction],
+        className,
+      )}
     >
       <path
         d={path}

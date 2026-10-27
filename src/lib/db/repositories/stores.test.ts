@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '@/lib/db/client';
 import { priceEntries, products } from '@/lib/db/schema/app';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
-import { createStore, deleteStore, getStoreById, updateStore } from './stores';
+import { createStore, deleteStore, getStoreById, listStores, updateStore } from './stores';
 
 describe('stores repository', () => {
   let db: Db;
@@ -15,6 +15,16 @@ describe('stores repository', () => {
     ({ db } = await createTestDb());
     userId = (await createTestUser(db)).id;
     otherUserId = (await createTestUser(db)).id;
+  });
+
+  it('should list stores by name ignoring case', async () => {
+    await createStore(db, userId, { name: 'Zara', kind: 'other' });
+    await createStore(db, userId, { name: 'esselunga', kind: 'supermarket' });
+    await createStore(db, userId, { name: 'Coop', kind: 'supermarket' });
+
+    const listed = await listStores(db, userId);
+
+    expect(listed.map((store) => store.name)).toEqual(['Coop', 'esselunga', 'Zara']);
   });
 
   it('should create a store and read it back by id', async () => {

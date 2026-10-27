@@ -1,8 +1,9 @@
 'use client';
 
 /**
- * Desktop left rail (≥ 1024 px): the same five destinations,
- * vertical, the logo mark on top, Scan as a prominent accent button. Drawn
+ * Desktop left rail (≥ 1024 px): the tab bar's destinations (keep `items`
+ * in step with tab-bar.tsx), vertical, the logo mark on top, Scan as a
+ * prominent accent button. Drawn
  * as the sprocket margin of the sheet — the perforated strip the paper feeds
  * through — so the chrome is part of the print, not a panel beside it.
  */

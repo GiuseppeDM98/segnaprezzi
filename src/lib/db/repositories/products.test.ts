@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { Db } from '@/lib/db/client';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
-import { NotFoundError } from '@/lib/errors';
+import { ProductNotFoundError } from '@/lib/errors';
 import { countPriceEntriesByProduct, createPriceEntry } from './price-entries';
 import {
   createProduct,
@@ -71,6 +71,35 @@ describe('products repository', () => {
 
     const bySearchName = await listProducts(db, userId, { search: 'SPAGHETTI' });
     expect(bySearchName.map((p) => p.name)).toEqual(['Spaghetti n.5']);
+  });
+
+  it('should match LIKE wildcards in the search literally', async () => {
+    await createProduct(db, userId, {
+      name: 'Yogurt magro 0,1%',
+      category: 'food',
+      unitKind: 'weight',
+    });
+    await createProduct(db, userId, {
+      name: 'Yogurt intero 10 vasetti',
+      category: 'food',
+      unitKind: 'weight',
+    });
+    await createProduct(db, userId, {
+      name: 'Detersivo_piatti',
+      category: 'household',
+      unitKind: 'volume',
+    });
+    await createProduct(db, userId, {
+      name: 'Detersivo piatti',
+      category: 'household',
+      unitKind: 'volume',
+    });
+
+    const byPercent = await listProducts(db, userId, { search: '%' });
+    expect(byPercent.map((p) => p.name)).toEqual(['Yogurt magro 0,1%']);
+
+    const byUnderscore = await listProducts(db, userId, { search: 'detersivo_' });
+    expect(byUnderscore.map((p) => p.name)).toEqual(['Detersivo_piatti']);
   });
 
   it('should move all entries to the target when merging products', async () => {
@@ -142,7 +171,7 @@ describe('products repository', () => {
     });
 
     await expect(mergeProducts(db, userId, source.id, 'missing-product-id')).rejects.toThrow(
-      NotFoundError,
+      ProductNotFoundError,
     );
 
     const reloadedSource = await getProductById(db, userId, source.id);
@@ -161,7 +190,9 @@ describe('products repository', () => {
       unitKind: 'weight',
     });
 
-    await expect(mergeProducts(db, userId, source.id, target.id)).rejects.toThrow(NotFoundError);
+    await expect(mergeProducts(db, userId, source.id, target.id)).rejects.toThrow(
+      ProductNotFoundError,
+    );
 
     const reloadedSource = await getProductById(db, userId, source.id);
     expect(reloadedSource?.isArchived).toBe(false);
@@ -174,7 +205,9 @@ describe('products repository', () => {
       unitKind: 'weight',
     });
 
-    await expect(mergeProducts(db, userId, product.id, product.id)).rejects.toThrow(NotFoundError);
+    await expect(mergeProducts(db, userId, product.id, product.id)).rejects.toThrow(
+      ProductNotFoundError,
+    );
   });
 
   it('should return the minimal index projection for every product, archived included', async () => {
@@ -290,7 +323,9 @@ describe('products repository', () => {
       unitKind: 'weight',
     });
 
-    await expect(deleteProducts(db, userId, [mine.id, theirs.id])).rejects.toThrow(NotFoundError);
+    await expect(deleteProducts(db, userId, [mine.id, theirs.id])).rejects.toThrow(
+      ProductNotFoundError,
+    );
 
     // The whole call is one transaction: my own product must survive it too.
     expect(await getProductById(db, userId, mine.id)).not.toBeNull();

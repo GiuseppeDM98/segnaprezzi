@@ -2,8 +2,9 @@
 
 /**
  * Toast provider + useToast(). Toasts stack above the tab
- * bar, auto-dismiss after 4 s, and may carry one action (Undo). The outlet is
- * rendered once by AppShell; anything inside the provider can toast.
+ * bar and auto-dismiss after 4 s unless `isPersistent`; each may carry an
+ * action (Undo) and a quieter secondary one. The outlet is rendered once by
+ * AppShell; anything inside the provider can toast.
  */
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations } from 'next-intl';

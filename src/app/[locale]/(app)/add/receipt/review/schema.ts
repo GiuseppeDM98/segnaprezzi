@@ -2,8 +2,8 @@
  * Boundary schemas for the receipt review's Server Actions.
  *
  * They live beside `actions.ts` rather than inside it because a `"use server"`
- * module may only export async functions (AGENTS.md §4.22) — and both the
- * action and its tests need these shapes.
+ * module may only export async functions (AGENTS.md §4.22) — and modules
+ * other than the action need these shapes too, the review screen among them.
  */
 import { z } from 'zod';
 

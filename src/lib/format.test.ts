@@ -1,16 +1,22 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  buildUnitPriceFormatter,
   calendarDaysBetween,
   formatDate,
+  formatDateInputValue,
+  formatDateTimeLocalValue,
   formatIndexValue,
   formatInputDecimal,
   formatMoney,
   formatMonth,
   formatPackageSize,
   formatPct,
+  formatProductLabel,
   formatRelativeDate,
   formatUnitPrice,
+  parseDateInputValue,
+  parseDateTimeLocalValue,
   parseDecimalInput,
 } from './format';
 
@@ -48,6 +54,15 @@ describe('formatUnitPrice', () => {
   test('should localize the piece symbol', () => {
     expect(formatUnitPrice(448, 'count', 'it')).toBe(`0,448${NBSP}€/pz`);
     expect(formatUnitPrice(450, 'count', 'en')).toBe('€0.45/pc');
+  });
+});
+
+describe('buildUnitPriceFormatter', () => {
+  test('should format every price with the bound unit kind and locale', () => {
+    const format = buildUnitPriceFormatter('volume', 'en');
+
+    expect(format(1799)).toBe(formatUnitPrice(1799, 'volume', 'en'));
+    expect(format(2340)).toBe(formatUnitPrice(2340, 'volume', 'en'));
   });
 });
 
@@ -174,5 +189,69 @@ describe('formatInputDecimal', () => {
   test('should round-trip through parseDecimalInput in either locale', () => {
     expect(parseDecimalInput(formatInputDecimal(1.34, 'it'))).toBe(1.34);
     expect(parseDecimalInput(formatInputDecimal(1.34, 'en'))).toBe(1.34);
+  });
+});
+
+describe('formatProductLabel', () => {
+  test('should put the brand before the name', () => {
+    expect(formatProductLabel('Mutti', 'Passata')).toBe('Mutti Passata');
+  });
+
+  test('should show the name alone when there is no brand', () => {
+    expect(formatProductLabel(null, 'Passata')).toBe('Passata');
+  });
+});
+
+/*
+ * The date-input values read the device's local clock, so these build their
+ * instants from local components too: the expectations hold in any timezone
+ * the suite runs in.
+ */
+describe('formatDateInputValue', () => {
+  test('should render the local calendar day zero-padded', () => {
+    expect(formatDateInputValue(new Date(2026, 0, 5, 23, 59).getTime())).toBe('2026-01-05');
+  });
+});
+
+describe('formatDateTimeLocalValue', () => {
+  test('should render the local wall clock to the minute', () => {
+    expect(formatDateTimeLocalValue(new Date(2026, 7, 19, 18, 42, 31).getTime())).toBe(
+      '2026-08-19T18:42',
+    );
+  });
+
+  test('should zero-pad single-digit months, days, hours and minutes', () => {
+    expect(formatDateTimeLocalValue(new Date(2026, 2, 1, 7, 5).getTime())).toBe('2026-03-01T07:05');
+  });
+});
+
+describe('parseDateInputValue', () => {
+  test('should read the day at local noon', () => {
+    expect(parseDateInputValue('2026-01-05')).toBe(new Date(2026, 0, 5, 12, 0).getTime());
+  });
+
+  test('should give back the day formatDateInputValue wrote', () => {
+    const epochMs = new Date(2026, 7, 19, 23, 30).getTime();
+
+    const parsed = parseDateInputValue(formatDateInputValue(epochMs));
+
+    expect(parsed).not.toBeNull();
+    expect(formatDateInputValue(parsed as number)).toBe('2026-08-19');
+  });
+
+  test('should return null for an emptied input', () => {
+    expect(parseDateInputValue('')).toBeNull();
+  });
+});
+
+describe('parseDateTimeLocalValue', () => {
+  test('should read the local wall clock to the minute', () => {
+    expect(parseDateTimeLocalValue('2026-08-19T18:42')).toBe(
+      new Date(2026, 7, 19, 18, 42).getTime(),
+    );
+  });
+
+  test('should return null for an emptied input', () => {
+    expect(parseDateTimeLocalValue('')).toBeNull();
   });
 });

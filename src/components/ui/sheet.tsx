@@ -17,13 +17,11 @@ import { createPortal } from 'react-dom';
 import { cx } from '@/lib/cx';
 import { useAppMotion } from '@/lib/motion';
 import { TABLET_QUERY, useMediaQuery } from '@/lib/use-media-query';
+import { useFocusTrap } from './use-focus-trap';
 
 /** Drag distance (px) or velocity (px/s) past which a swipe closes the sheet. */
 const DISMISS_OFFSET_PX = 96;
 const DISMISS_VELOCITY = 600;
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export interface SheetProps {
   isOpen: boolean;
@@ -42,7 +40,6 @@ export function Sheet({ isOpen, onClose, title, description, children, className
   const { isReduced, spring, fade } = useAppMotion();
   const isTablet = useMediaQuery(TABLET_QUERY);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const openerRef = useRef<Element | null>(null);
   const titleId = useId();
   const descriptionId = useId();
 
@@ -50,58 +47,19 @@ export function Sheet({ isOpen, onClose, title, description, children, className
     setIsMounted(true);
   }, []);
 
-  // Focus management + body scroll lock for the lifetime of an open sheet.
+  useFocusTrap(panelRef, isOpen, onClose);
+
+  // Body scroll lock for the lifetime of an open sheet.
   useEffect(() => {
     if (!isOpen) {
       return;
     }
-    openerRef.current = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-
-    // Defer so Motion has mounted the panel before we look for focusables.
-    const frame = requestAnimationFrame(() => {
-      const first = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-      (first ?? panelRef.current)?.focus();
-    });
-
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== 'Tab' || !panelRef.current) {
-        return;
-      }
-      const focusables = Array.from(
-        panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      );
-      if (focusables.length === 0) {
-        event.preventDefault();
-        return;
-      }
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
     return () => {
-      cancelAnimationFrame(frame);
-      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      if (openerRef.current instanceof HTMLElement) {
-        openerRef.current.focus();
-      }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   function handleDragEnd(_event: unknown, info: PanInfo): void {
     if (info.offset.y > DISMISS_OFFSET_PX || info.velocity.y > DISMISS_VELOCITY) {

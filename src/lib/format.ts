@@ -15,7 +15,7 @@ import type { UnitKind } from '@/lib/domain/units';
 
 export type AppLocale = 'it' | 'en';
 
-/** Intl locale tags behind the two app locales. */
+/** The Intl locale tag behind each app locale. */
 const INTL_LOCALES: Record<AppLocale, string> = { it: 'it-IT', en: 'en-US' };
 
 /** Unit symbols per base unit, per locale ("pz" is the Italian "pezzo"). */
@@ -85,6 +85,18 @@ export function formatUnitPrice(milli: number, unitKind: UnitKind, locale: AppLo
     maximumFractionDigits: decimals,
   }).format(milliToEuros(milli));
   return `${withTrueMinus(amount)}/${UNIT_SYMBOLS[locale][unitKind]}`;
+}
+
+/**
+ * formatUnitPrice bound to one unit kind and locale, for a screen that prints
+ * many prices of the same product (the chart's axis and tooltip, the stat
+ * tiles, the store and history rows).
+ */
+export function buildUnitPriceFormatter(
+  unitKind: UnitKind,
+  locale: AppLocale,
+): (milli: number) => string {
+  return (milli) => formatUnitPrice(milli, unitKind, locale);
 }
 
 /**
@@ -219,6 +231,60 @@ export function formatRelativeDate(epochMs: number, nowMs: number, locale: AppLo
     return relative.format(-Math.floor(days / 30), 'month');
   }
   return formatDate(epochMs, locale);
+}
+
+/**
+ * A product as one line of text: "Mutti Passata", or just "Passata" when the
+ * product has no brand.
+ */
+export function formatProductLabel(brand: string | null, name: string): string {
+  return brand ? `${brand} ${name}` : name;
+}
+
+/*
+ * Values for native date inputs, written and read back. These are machine
+ * formats, not display strings: the browser renders them in its own locale.
+ * Every helper here works on the DEVICE's local wall clock, because that is
+ * the clock the input shows and gives back — the Europe/Rome bucketing
+ * happens later, on the epoch ms.
+ */
+
+const padTwoDigits = (value: number): string => String(value).padStart(2, '0');
+
+/** The value a `date` input expects ("2026-08-19"): local calendar day, no timezone. */
+export function formatDateInputValue(epochMs: number): string {
+  const date = new Date(epochMs);
+  return `${date.getFullYear()}-${padTwoDigits(date.getMonth() + 1)}-${padTwoDigits(date.getDate())}`;
+}
+
+/** The value a `datetime-local` input expects ("2026-08-19T18:42"): local wall clock, no timezone. */
+export function formatDateTimeLocalValue(epochMs: number): string {
+  const date = new Date(epochMs);
+  return `${formatDateInputValue(epochMs)}T${padTwoDigits(date.getHours())}:${padTwoDigits(date.getMinutes())}`;
+}
+
+/**
+ * Read a `date` input's value ("2026-08-19") back as epoch ms, at local noon.
+ *
+ * Why noon: the input carries a date only, and local midnight falls on the
+ * previous Europe/Rome day on a device east of Rome; midday keeps the date
+ * it shows.
+ *
+ * @returns null when the value is not a date (an emptied input).
+ */
+export function parseDateInputValue(value: string): number | null {
+  const epochMs = Date.parse(`${value}T12:00:00`);
+  return Number.isFinite(epochMs) ? epochMs : null;
+}
+
+/**
+ * Read a `datetime-local` input's value ("2026-08-19T18:42") back as epoch ms.
+ *
+ * @returns null when the value is not a date-time (an emptied input).
+ */
+export function parseDateTimeLocalValue(value: string): number | null {
+  const epochMs = new Date(value).getTime();
+  return Number.isFinite(epochMs) ? epochMs : null;
 }
 
 /**

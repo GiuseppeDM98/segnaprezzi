@@ -2,9 +2,12 @@ import { describe, expect, test } from 'vitest';
 
 import { isUnitPriceConsistent } from './money';
 import {
+  computeReceiptLineStatus,
   type DeriveUnitPriceInput,
   deriveUnitPriceMilli,
+  getReceiptLineBlockingReason,
   normalizeAlias,
+  type ReceiptLineCheck,
   suggestExtraPackages,
 } from './receipt-lines';
 
@@ -252,5 +255,100 @@ describe('suggestExtraPackages', () => {
   test('should say nothing when the lines total LESS than the receipt', () => {
     // The normal case: a bag levy or a deposit the import is right to skip.
     expect(suggestExtraPackages(3, lines)).toBeNull();
+  });
+});
+
+/** A line nothing is wrong with: 0,5 kg for 1,29 EUR at 2,58 EUR/kg. */
+const READY_LINE: ReceiptLineCheck = {
+  packageSize: 0.5,
+  totalPriceCents: 129,
+  unitPriceMilli: 2580,
+  needsProductDecision: false,
+};
+
+describe('computeReceiptLineStatus', () => {
+  test('should call a complete, unflagged line ready', () => {
+    expect(computeReceiptLineStatus(READY_LINE, false)).toBe('ready');
+  });
+
+  test.each([
+    ['unknown', null],
+    ['zero', 0],
+    ['negative', -1],
+  ])('should ask for the size when it is %s', (_label, packageSize) => {
+    expect(computeReceiptLineStatus({ ...READY_LINE, packageSize }, false)).toBe('needs-size');
+  });
+
+  test('should rank needs-size above needs-product', () => {
+    const line = { ...READY_LINE, packageSize: null, needsProductDecision: true };
+    expect(computeReceiptLineStatus(line, true)).toBe('needs-size');
+  });
+
+  test('should rank needs-product above needs-review', () => {
+    expect(computeReceiptLineStatus({ ...READY_LINE, needsProductDecision: true }, true)).toBe(
+      'needs-product',
+    );
+  });
+
+  test('should ask for a review when the extraction flagged the line', () => {
+    expect(computeReceiptLineStatus(READY_LINE, true)).toBe('needs-review');
+  });
+
+  test('should ask for a review when the total is not positive', () => {
+    expect(computeReceiptLineStatus({ ...READY_LINE, totalPriceCents: 0 }, false)).toBe(
+      'needs-review',
+    );
+  });
+
+  test('should ask for a review when the unit price is unknown', () => {
+    expect(computeReceiptLineStatus({ ...READY_LINE, unitPriceMilli: null }, false)).toBe(
+      'needs-review',
+    );
+  });
+});
+
+describe('getReceiptLineBlockingReason', () => {
+  test('should find nothing to fix on a complete line', () => {
+    expect(getReceiptLineBlockingReason(READY_LINE, 'Spaghetti n.5')).toBeNull();
+  });
+
+  test('should find nothing to fix on an existing product the caller cannot name', () => {
+    expect(getReceiptLineBlockingReason(READY_LINE, null)).toBeNull();
+  });
+
+  test('should block on an undecided product before anything else', () => {
+    const line = { ...READY_LINE, needsProductDecision: true, packageSize: null };
+    expect(getReceiptLineBlockingReason(line, 'Spaghetti n.5')).toBe('product');
+  });
+
+  test('should block on a blank product name', () => {
+    expect(getReceiptLineBlockingReason(READY_LINE, '   ')).toBe('product');
+  });
+
+  test.each([
+    ['unknown', null],
+    ['zero', 0],
+  ])('should block on a size that is %s', (_label, packageSize) => {
+    expect(getReceiptLineBlockingReason({ ...READY_LINE, packageSize }, 'Pasta')).toBe('size');
+  });
+
+  test.each([
+    ['a zero total', { totalPriceCents: 0 }],
+    ['an unknown unit price', { unitPriceMilli: null }],
+    ['a zero unit price', { unitPriceMilli: 0 }],
+  ])('should block on the price with %s', (_label, patch) => {
+    expect(getReceiptLineBlockingReason({ ...READY_LINE, ...patch }, 'Pasta')).toBe('price');
+  });
+
+  test('should block on a unit price that contradicts the total and the size', () => {
+    // 2,00 EUR/kg x 0,5 kg is 1,00 EUR, not the 1,29 EUR paid.
+    expect(getReceiptLineBlockingReason({ ...READY_LINE, unitPriceMilli: 2000 }, 'Pasta')).toBe(
+      'unit-price',
+    );
+  });
+
+  test('should block on the size before the price', () => {
+    const line = { ...READY_LINE, packageSize: null, totalPriceCents: 0 };
+    expect(getReceiptLineBlockingReason(line, 'Pasta')).toBe('size');
   });
 });

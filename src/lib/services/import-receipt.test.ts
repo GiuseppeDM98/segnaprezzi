@@ -22,9 +22,12 @@ vi.mock('@/lib/ai/extract-receipt', async (importOriginal) => {
 
 const { importReceipt, getReceiptForReview } = await import('./import-receipt');
 const { confirmReceipt } = await import('./confirm-receipt');
-const { ReceiptAlreadyImportedError, ReceiptNoLinesError, ReceiptNotFoundError } = await import(
-  '@/lib/errors'
-);
+const {
+  ReceiptAlreadyImportedError,
+  ReceiptExtractionStaleError,
+  ReceiptNoLinesError,
+  ReceiptNotFoundError,
+} = await import('@/lib/errors');
 
 /** 19 August 2026 — the fixture receipt's day, inside every plausibility window. */
 const NOW = Date.UTC(2026, 7, 19, 18, 0);
@@ -261,7 +264,7 @@ describe('the second receipt from a chain', () => {
           unitPriceMilli: 2580,
           isPromo: false,
           promoKind: null,
-          learnAlias: true,
+          shouldLearnAlias: true,
         },
       ],
     });
@@ -334,7 +337,8 @@ describe('getReceiptForReview', () => {
     );
   });
 
-  test('should refuse a receipt whose stored extraction no longer parses', async () => {
+  test('should report and log a stale stored extraction rather than "not found"', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const receipt = await createReceipt(db, userId, {
       status: 'extracted',
       storeId: null,
@@ -348,7 +352,12 @@ describe('getReceiptForReview', () => {
     });
 
     await expect(getReceiptForReview(db, userId, receipt.id, NOW)).rejects.toBeInstanceOf(
-      ReceiptNotFoundError,
+      ReceiptExtractionStaleError,
     );
+    expect(consoleError).toHaveBeenCalledWith(
+      'Stored receipt extraction fails the current schema',
+      expect.objectContaining({ receiptId: receipt.id }),
+    );
+    consoleError.mockRestore();
   });
 });

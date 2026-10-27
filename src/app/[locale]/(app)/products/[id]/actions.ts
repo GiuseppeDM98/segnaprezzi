@@ -1,13 +1,14 @@
 'use server';
 
 /**
- * Price-entry Server Actions (entry sheet, shared with the
- * timeline): edit and delete one observation. Both recompute the index
- * implicitly — the dashboard reads the engine fresh on every request.
+ * Product-detail Server Actions: the entry sheet's edit and delete of one
+ * observation (shared with the timeline) and forgetting a learned receipt
+ * alias. None recomputes the index explicitly — the dashboard reads the
+ * engine fresh on every request.
  */
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { fieldErrorResult, invalidInputResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { PROMO_KINDS } from '@/lib/domain/entries';
@@ -15,15 +16,14 @@ import {
   epochMsSchema,
   nanoidSchema,
   packageSizeSchema,
-  toFieldErrorCode,
   totalPriceCentsSchema,
   unitPriceMilliSchema,
 } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
-import { forgetProductAlias } from '@/lib/services/catalog';
+import { deleteProductAlias as deleteProductAliasService } from '@/lib/services/catalog';
 import {
-  editPriceEntry as editPriceEntryService,
-  removePriceEntry,
+  deletePriceEntry as deletePriceEntryService,
+  updatePriceEntry as updatePriceEntryService,
 } from '@/lib/services/product-detail';
 
 const editEntrySchema = z
@@ -44,22 +44,20 @@ const editEntrySchema = z
 export type EditEntryActionInput = z.infer<typeof editEntrySchema>;
 
 /** Correct one observation. */
-export async function editPriceEntry(input: EditEntryActionInput): Promise<ActionResult<null>> {
+export async function updatePriceEntry(input: EditEntryActionInput): Promise<ActionResult<null>> {
   const parsed = editEntrySchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      ok: false,
-      error: { code: toFieldErrorCode(parsed.error), message: parsed.error.message },
-    };
+    return fieldErrorResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
+    userId = (await requireUser()).id;
     const { entryId, ...patch } = parsed.data;
-    await editPriceEntryService(db, user.id, entryId, patch);
-    revalidatePath('/[locale]', 'layout');
+    await updatePriceEntryService(db, userId, entryId, patch);
+    revalidateAppLayout();
     return { ok: true, data: null };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('editPriceEntry', error) };
+    return { ok: false, error: toLoggedActionError('updatePriceEntry', error, { userId }) };
   }
 }
 
@@ -67,15 +65,16 @@ export async function editPriceEntry(input: EditEntryActionInput): Promise<Actio
 export async function deletePriceEntry(input: { entryId: string }): Promise<ActionResult<null>> {
   const parsed = z.object({ entryId: nanoidSchema }).safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    await removePriceEntry(db, user.id, parsed.data.entryId);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    await deletePriceEntryService(db, userId, parsed.data.entryId);
+    revalidateAppLayout();
     return { ok: true, data: null };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('deletePriceEntry', error) };
+    return { ok: false, error: toLoggedActionError('deletePriceEntry', error, { userId }) };
   }
 }
 
@@ -83,14 +82,15 @@ export async function deletePriceEntry(input: { entryId: string }): Promise<Acti
 export async function deleteProductAlias(input: { aliasId: string }): Promise<ActionResult<null>> {
   const parsed = z.object({ aliasId: nanoidSchema }).safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    await forgetProductAlias(db, user.id, parsed.data.aliasId);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    await deleteProductAliasService(db, userId, parsed.data.aliasId);
+    revalidateAppLayout();
     return { ok: true, data: null };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('deleteProductAlias', error) };
+    return { ok: false, error: toLoggedActionError('deleteProductAlias', error, { userId }) };
   }
 }

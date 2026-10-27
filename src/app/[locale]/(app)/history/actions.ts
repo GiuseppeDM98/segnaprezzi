@@ -7,6 +7,7 @@
  */
 import { z } from 'zod';
 
+import { invalidInputResult } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { CATEGORY_IDS } from '@/lib/domain/categories';
@@ -31,13 +32,14 @@ export type HistoryPageInput = z.infer<typeof historyPageSchema>;
 export async function loadHistoryPage(input: HistoryPageInput): Promise<ActionResult<HistoryPage>> {
   const parsed = historyPageSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await listHistoryPage(db, user.id, parsed.data.filters, parsed.data.cursor);
+    userId = (await requireUser()).id;
+    const data = await listHistoryPage(db, userId, parsed.data.filters, parsed.data.cursor);
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('loadHistoryPage', error) };
+    return { ok: false, error: toLoggedActionError('loadHistoryPage', error, { userId }) };
   }
 }

@@ -1,6 +1,6 @@
 /**
- * Receipt-level enums and the one piece of calendar arithmetic the import
- * needs. Pure — no I/O, no framework imports.
+ * Receipt-level enums and the Europe/Rome calendar arithmetic that receipt
+ * import and review need. Pure — no I/O, no framework imports.
  */
 
 export const RECEIPT_STATUSES = ['extracted', 'confirmed', 'discarded'] as const;
@@ -9,9 +9,22 @@ export type ReceiptStatus = (typeof RECEIPT_STATUSES)[number];
 export const RECEIPT_FILE_KINDS = ['pdf', 'image'] as const;
 export type ReceiptFileKind = (typeof RECEIPT_FILE_KINDS)[number];
 
-/** Media types POST /api/extract-receipt accepts. */
+/**
+ * Media types POST /api/extract-receipt accepts.
+ *
+ * Why not PDF plus PHOTO_MEDIA_TYPES (domain/photos.ts): the receipt route
+ * checks each type's leading bytes one by one, so an image type added for
+ * shelf photos must not reach receipt import before it has a signature check
+ * there.
+ */
 export const RECEIPT_MEDIA_TYPES = ['application/pdf', 'image/webp', 'image/jpeg'] as const;
 export type ReceiptMediaType = (typeof RECEIPT_MEDIA_TYPES)[number];
+
+/**
+ * Hard cap on one receipt upload. The route handler enforces it; the upload
+ * screen checks it first, so an oversized file fails before it is sent.
+ */
+export const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 
 /**
  * Slack between the printed receipt total and the sum of its lines: five

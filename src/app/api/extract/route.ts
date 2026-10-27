@@ -3,28 +3,24 @@
  *
  * A route handler rather than a Server Action because the caller is the
  * offline sync manager posting a binary body, not a form.
- * Thin by contract: parse, delegate to the service, map domain errors to the
- * status table below. This handler owns the code→status mapping; services
- * and repositories never know HTTP exists.
+ * Thin by contract: parse, guard, delegate to the service, map domain errors
+ * through the shared status table in ../route-errors.ts. Services and
+ * repositories never know HTTP exists.
  */
 
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth/session';
+import { db } from '@/lib/db/client';
+import { PHOTO_MEDIA_TYPES, type PhotoMediaType } from '@/lib/domain/photos';
 import { nanoidSchema } from '@/lib/domain/schemas';
 import { STORE_KINDS } from '@/lib/domain/stores';
-import {
-  DomainError,
-  type DomainErrorCode,
-  ExtractionUnavailableError,
-  UnauthorizedError,
-} from '@/lib/errors';
 import { extractPhotoEntry } from '@/lib/services/extract-photo-entry';
+import { errorResponse, toErrorResponse } from '../route-errors';
+
+const BYTES_PER_MB = 1024 * 1024;
 
 /** Hard cap on the upload; compression (§4) should keep photos far below it. */
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-
-/** How long a client should wait before retrying a temporarily unavailable upstream. */
-const RETRY_AFTER_SECONDS = 30;
+const MAX_PHOTO_BYTES = 5 * BYTES_PER_MB;
 
 const extractRequestSchema = z.object({
   photoId: nanoidSchema,
@@ -33,38 +29,10 @@ const extractRequestSchema = z.object({
   storeKind: z.enum(STORE_KINDS).optional(),
 });
 
-// WARNING: extending DomainErrorCode requires a row here and an
-// `errors.<CODE>` message in both message files (AGENTS.md §2.3).
-const HTTP_STATUS_BY_CODE: Record<DomainErrorCode, number> = {
-  NOT_FOUND: 404,
-  VALIDATION_FAILED: 400,
-  UNAUTHORIZED: 401,
-  EXTRACTION_FAILED: 422,
-  INTERNAL: 500,
-  INVALID_INPUT: 400,
-  INVALID_DATE: 400,
-  INVALID_PRICE: 400,
-  INVALID_SIZE: 400,
-  INVALID_STORE_KIND: 400,
-  INCONSISTENT_FUEL_PRICES: 400,
-  SESSION_NOT_FOUND: 404,
-  STORE_NOT_FOUND: 404,
-  PRODUCT_NOT_FOUND: 404,
-  SESSION_CLOSED: 409,
-  PHOTO_TOO_LARGE: 413,
-  UNSUPPORTED_PHOTO_TYPE: 415,
-  EXTRACTION_UNAVAILABLE: 503,
-  RECEIPT_TOO_LARGE: 413,
-  UNSUPPORTED_RECEIPT_TYPE: 415,
-  RECEIPT_TOO_LONG: 422,
-  RECEIPT_ALREADY_IMPORTED: 409,
-  RECEIPT_NOT_FOUND: 404,
-  RECEIPT_NO_LINES: 422,
-};
-
 export async function POST(request: Request): Promise<Response> {
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
+    userId = (await requireUser()).id;
 
     const formData = await request.formData();
     const fields = extractRequestSchema.safeParse({
@@ -74,66 +42,50 @@ export async function POST(request: Request): Promise<Response> {
       storeKind: formData.get('storeKind') ?? undefined,
     });
     if (!fields.success) {
-      return errorResponse(400, 'INVALID_INPUT', fields.error.message);
+      return errorResponse('INVALID_INPUT', fields.error.message);
     }
 
-    const photo = formData.get('photo');
-    if (!(photo instanceof File)) {
-      return errorResponse(400, 'INVALID_INPUT', 'Missing photo file');
-    }
-    if (photo.size > MAX_PHOTO_BYTES) {
-      return errorResponse(413, 'PHOTO_TOO_LARGE', 'Photo exceeds 5 MB');
-    }
-    if (photo.type !== 'image/webp' && photo.type !== 'image/jpeg') {
-      return errorResponse(415, 'UNSUPPORTED_PHOTO_TYPE', `Got ${photo.type}`);
+    const photo = checkPhotoUpload(formData.get('photo'));
+    if (photo instanceof Response) {
+      return photo;
     }
 
-    const result = await extractPhotoEntry({
-      userId: user.id,
+    const result = await extractPhotoEntry(db, {
+      userId,
       photoId: fields.data.photoId,
       sessionId: fields.data.sessionId,
       storeId: fields.data.storeId ?? null,
       storeKind: fields.data.storeKind ?? null,
-      photoBytes: await photo.arrayBuffer(),
-      photoContentType: photo.type,
+      photoBytes: await photo.file.arrayBuffer(),
+      photoContentType: photo.mediaType,
     });
     return Response.json(result);
   } catch (error) {
-    return mapExtractError(error);
+    return toErrorResponse(error, { route: 'POST /api/extract', userId });
   }
-}
-
-/** Uniform error body shape for this endpoint (§6.2). */
-function errorResponse(
-  status: number,
-  code: DomainErrorCode,
-  message: string,
-  headers?: HeadersInit,
-): Response {
-  return Response.json({ error: { code, message } }, { status, headers });
 }
 
 /**
- * Translate a thrown value into the §6.6 response table.
+ * Check the uploaded photo before anything is read or stored.
  *
- * Unknown errors collapse to 500 with a generic message and a full log entry:
- * a stack trace or a libSQL message must never reach the client.
+ * @param photo - The multipart `photo` field
+ * @returns The file with its narrowed media type, or the error response to send
  */
-function mapExtractError(error: unknown): Response {
-  if (error instanceof UnauthorizedError) {
-    return errorResponse(401, 'UNAUTHORIZED', error.message);
+function checkPhotoUpload(
+  photo: FormDataEntryValue | null,
+): { file: File; mediaType: PhotoMediaType } | Response {
+  if (!(photo instanceof File)) {
+    return errorResponse('INVALID_INPUT', 'Missing photo file');
   }
-  if (error instanceof ExtractionUnavailableError) {
-    // Retry-After tells the queue how long to hold off; §5.4 classifies 503
-    // as retryable regardless.
-    return errorResponse(503, 'EXTRACTION_UNAVAILABLE', error.message, {
-      'Retry-After': String(RETRY_AFTER_SECONDS),
-    });
+  if (photo.size > MAX_PHOTO_BYTES) {
+    return errorResponse('PHOTO_TOO_LARGE', `Photo exceeds ${MAX_PHOTO_BYTES / BYTES_PER_MB} MB`);
   }
-  if (error instanceof DomainError) {
-    return errorResponse(HTTP_STATUS_BY_CODE[error.code], error.code, error.message);
+  if (!isPhotoMediaType(photo.type)) {
+    return errorResponse('UNSUPPORTED_PHOTO_TYPE', `Got ${photo.type}`);
   }
+  return { file: photo, mediaType: photo.type };
+}
 
-  console.error('Unhandled error in POST /api/extract', { cause: error });
-  return errorResponse(500, 'INTERNAL', 'Unexpected error');
+function isPhotoMediaType(type: string): type is PhotoMediaType {
+  return (PHOTO_MEDIA_TYPES as readonly string[]).includes(type);
 }

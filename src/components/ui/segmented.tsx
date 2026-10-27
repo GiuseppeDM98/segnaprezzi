@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Segmented control for short single-choice sets (unit kind, theme,
- * language, store kind). Native radios under styled labels: arrow-key
+ * Segmented control for short single-choice sets (e.g. unit kind, theme,
+ * language). Native radios under styled labels: arrow-key
  * navigation and form semantics come for free; the highlighter wash slides
  * between segments with the house spring.
  */

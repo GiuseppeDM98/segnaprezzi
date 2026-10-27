@@ -22,7 +22,7 @@ const client =
     authToken: env.TURSO_AUTH_TOKEN || undefined,
   });
 
-if (process.env.NODE_ENV !== 'production') {
+if (env.NODE_ENV !== 'production') {
   globalForDb.libsqlClient = client;
 }
 
@@ -40,7 +40,7 @@ if (process.env.NODE_ENV !== 'production') {
 // Not awaited (top-level await breaks tsx's CJS transform for scripts/*
 // that import this module): safe because @libsql/client's local driver
 // executes synchronously under the hood (a native binding, not real async
-// I/O), so these two calls run to completion before this module finishes
+// I/O), so these calls run to completion before this module finishes
 // evaluating and control returns to any caller — before any other query
 // on this client can be issued. journal_mode=WAL is also persisted in the
 // database file itself, so even in the worst case this races, the file is

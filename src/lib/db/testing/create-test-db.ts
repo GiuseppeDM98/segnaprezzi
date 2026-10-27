@@ -19,7 +19,7 @@
  * problem, breaking "fresh isolated DB per test". @libsql/client also
  * rejects the usual SQLite named-memory-db escape hatch
  * (`file:name?mode=memory&cache=shared` — "Unsupported URL query parameter
- * 'mode'"). A uniquely-named temp file per call sidesteps all three issues
+ * 'mode'"). A uniquely-named temp file per call sidesteps all of them
  * while keeping the same fresh-migrated-DB-per-test contract; the temp
  * directory is removed on process exit.
  */
@@ -37,14 +37,14 @@ import * as schema from '@/lib/db/schema';
 import { users } from '@/lib/db/schema/auth';
 
 let testDbRoot: string | undefined;
-let cleanupRegistered = false;
+let isCleanupRegistered = false;
 
 function getTestDbRoot(): string {
   if (!testDbRoot) {
     testDbRoot = mkdtempSync(join(tmpdir(), 'segnaprezzi-test-db-'));
   }
-  if (!cleanupRegistered) {
-    cleanupRegistered = true;
+  if (!isCleanupRegistered) {
+    isCleanupRegistered = true;
     process.on('exit', () => {
       if (testDbRoot && existsSync(testDbRoot)) {
         rmSync(testDbRoot, { recursive: true, force: true });

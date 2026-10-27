@@ -9,7 +9,7 @@ next-env.d.ts
 # Production
 build/
 
-# Environment — never commit secrets (see docs/DEVELOPMENT_GUIDELINES.md)
+# Environment — never commit secrets (see DEVELOPMENT_GUIDELINES.md)
 .env
 .env.*
 !.env.example

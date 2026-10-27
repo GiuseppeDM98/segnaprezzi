@@ -11,7 +11,7 @@
 
 // WARNING: adding a code here requires updating:
 // - the `errors` namespace in messages/it.json and messages/en.json
-// - the code→HTTP-status mapping in route handlers
+// - HTTP_STATUS_BY_CODE in src/app/api/route-errors.ts
 export type DomainErrorCode =
   | 'NOT_FOUND'
   | 'VALIDATION_FAILED'
@@ -38,7 +38,8 @@ export type DomainErrorCode =
   | 'RECEIPT_TOO_LONG'
   | 'RECEIPT_ALREADY_IMPORTED'
   | 'RECEIPT_NOT_FOUND'
-  | 'RECEIPT_NO_LINES';
+  | 'RECEIPT_NO_LINES'
+  | 'RECEIPT_EXTRACTION_STALE';
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
@@ -126,7 +127,10 @@ export class InvalidStoreKindError extends DomainError {
   }
 }
 
-/** unitPriceMilli x liters and totalPriceCents disagree beyond pump rounding. */
+/**
+ * unitPriceMilli x liters and totalPriceCents disagree beyond the rounding
+ * slack isUnitPriceConsistent allows.
+ */
 export class InconsistentFuelPricesError extends DomainError {
   constructor(message: string) {
     super('INCONSISTENT_FUEL_PRICES', message);
@@ -178,14 +182,14 @@ export class ExtractionUnavailableError extends DomainError {
  * INVALID_INPUT.
  */
 
-/** The uploaded receipt exceeds the 5 MB cap. */
+/** The uploaded receipt exceeds the upload cap (MAX_RECEIPT_BYTES in lib/domain/receipts). */
 export class ReceiptTooLargeError extends DomainError {
   constructor(message: string) {
     super('RECEIPT_TOO_LARGE', message);
   }
 }
 
-/** The file is not a PDF, WebP or JPEG — by declared type or by magic bytes. */
+/** The file's type is not one of RECEIPT_MEDIA_TYPES — by declared type or by magic bytes. */
 export class UnsupportedReceiptTypeError extends DomainError {
   constructor(message: string) {
     super('UNSUPPORTED_RECEIPT_TYPE', message);
@@ -220,6 +224,21 @@ export class ReceiptNoLinesError extends DomainError {
   }
 }
 
+/**
+ * The receipt exists, but its stored extraction no longer passes the current
+ * schema (written by an older version of the app, or corrupted). Distinct
+ * from RECEIPT_NOT_FOUND because the user's way out is different: the row is
+ * there, and uploading the same file again re-reads it.
+ */
+export class ReceiptExtractionStaleError extends DomainError {
+  constructor(receiptId: string) {
+    super(
+      'RECEIPT_EXTRACTION_STALE',
+      `Receipt ${receiptId} has a stored extraction that no longer parses`,
+    );
+  }
+}
+
 /** Serializable error shape returned by Server Actions. */
 export type ActionError = {
   code: DomainErrorCode;
@@ -230,10 +249,10 @@ export type ActionError = {
 /**
  * Map any thrown value to the serializable ActionError shape.
  *
- * DomainError instances keep their code and message; ValidationError also
- * carries its issues. Anything else collapses to a generic INTERNAL error —
- * unknown errors may contain connection strings, SQL, or stack details that
- * must never reach the client.
+ * DomainError instances keep their code and message; ValidationError and
+ * InvalidInputError also carry their issues. Anything else collapses to a
+ * generic INTERNAL error — unknown errors may contain connection strings,
+ * SQL, or stack details that must never reach the client.
  */
 export function toActionError(error: unknown): ActionError {
   if (error instanceof ValidationError || error instanceof InvalidInputError) {

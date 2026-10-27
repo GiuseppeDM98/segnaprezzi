@@ -12,13 +12,13 @@ import {
   countPriceEntriesByProduct,
   listLatestEntriesPerProduct,
 } from '@/lib/db/repositories/price-entries';
-import { deleteProductAlias } from '@/lib/db/repositories/product-aliases';
+import { deleteProductAlias as deleteProductAliasRow } from '@/lib/db/repositories/product-aliases';
 import {
   deleteProducts as deleteProductRows,
   getProductById,
   listProducts,
   mergeProducts as mergeProductPair,
-  updateProduct,
+  updateProduct as updateProductRow,
 } from '@/lib/db/repositories/products';
 import type { CategoryId } from '@/lib/domain/categories';
 import type { UnitKind } from '@/lib/domain/units';
@@ -51,6 +51,13 @@ export interface Catalog {
   categoriesWithData: CategoryId[];
 }
 
+// Why: a catalog row shows the newest unit price and a trend badge against
+// the observation before it, so those two ranks are all it ever reads of a
+// product's history — fetching more would only grow the window query.
+const LAST_RANK = 1;
+const PREVIOUS_RANK = 2;
+const OBSERVATIONS_PER_PRODUCT = PREVIOUS_RANK;
+
 /** The catalog list plus the categories worth a filter chip. */
 export async function listCatalog(
   db: Db,
@@ -60,7 +67,7 @@ export async function listCatalog(
   const [products, allProducts, latest, entryCounts] = await Promise.all([
     listProducts(db, userId, options),
     options.category || options.search ? listProducts(db, userId, {}) : null,
-    listLatestEntriesPerProduct(db, userId, 2),
+    listLatestEntriesPerProduct(db, userId, OBSERVATIONS_PER_PRODUCT),
     countPriceEntriesByProduct(db, userId),
   ]);
 
@@ -70,9 +77,9 @@ export async function listCatalog(
   >();
   for (const row of latest) {
     const slot = latestByProduct.get(row.productId) ?? {};
-    if (row.rank === 1) {
+    if (row.rank === LAST_RANK) {
       slot.last = row;
-    } else if (row.rank === 2) {
+    } else if (row.rank === PREVIOUS_RANK) {
       slot.previous = row;
     }
     latestByProduct.set(row.productId, slot);
@@ -111,6 +118,7 @@ export interface MergeProductsInput {
 
 export interface MergeProductsResult {
   movedEntriesCount: number;
+  /** Products actually merged into the survivor (the survivor itself never counts). */
   mergedCount: number;
 }
 
@@ -120,7 +128,11 @@ export interface MergeProductsResult {
  * already-merged pairs merged, which is safe — every intermediate state is
  * a valid catalog, and the index simply recomputes from it.
  *
- * @throws ProductNotFoundError when any id is not the user's
+ * A merged id equal to the survivor is skipped, and a repeated id is merged
+ * once.
+ *
+ * @throws ProductNotFoundError when the survivor or a merged id is not the
+ *   user's
  */
 export async function mergeProducts(
   db: Db,
@@ -131,15 +143,15 @@ export async function mergeProducts(
   if (!survivor) {
     throw new ProductNotFoundError(input.survivorId);
   }
+  // Why a Set: a repeated id would be merged a second time as an
+  // already-archived product, moving nothing but counting twice.
+  const mergedIds = [...new Set(input.mergedIds)].filter((id) => id !== input.survivorId);
   let movedEntriesCount = 0;
-  for (const mergedId of input.mergedIds) {
-    if (mergedId === input.survivorId) {
-      continue;
-    }
+  for (const mergedId of mergedIds) {
     const result = await mergeProductPair(db, userId, mergedId, input.survivorId);
     movedEntriesCount += result.movedEntriesCount;
   }
-  return { movedEntriesCount, mergedCount: input.mergedIds.length };
+  return { movedEntriesCount, mergedCount: mergedIds.length };
 }
 
 export interface EditProductInput {
@@ -148,14 +160,14 @@ export interface EditProductInput {
   category: CategoryId;
 }
 
-/** Rename / re-brand / re-categorize a product ("Modifica"). */
-export async function editProduct(
+/** Rename / re-brand / re-categorize a product (the "Edit" action). */
+export async function updateProduct(
   db: Db,
   userId: string,
   productId: string,
   input: EditProductInput,
 ): Promise<void> {
-  const updated = await updateProduct(db, userId, productId, input);
+  const updated = await updateProductRow(db, userId, productId, input);
   if (!updated) {
     throw new ProductNotFoundError(productId);
   }
@@ -169,8 +181,8 @@ export interface DeleteProductsResult {
 /**
  * Delete products and every observation they carry.
  *
- * This is the one operation in the app that destroys price history on
- * purpose, so two things are deliberate. The database work is a single
+ * This destroys price history in bulk and on purpose, so two things are
+ * deliberate. The database work is a single
  * transaction — deleting "3 products" either removes all three with their
  * entries or none of them. And the photos are dropped only *after* it
  * commits: blobs cannot participate in a transaction, so cleaning them up
@@ -206,7 +218,7 @@ export async function setProductArchived(
   productId: string,
   isArchived: boolean,
 ): Promise<void> {
-  const updated = await updateProduct(db, userId, productId, { isArchived });
+  const updated = await updateProductRow(db, userId, productId, { isArchived });
   if (!updated) {
     throw new ProductNotFoundError(productId);
   }
@@ -219,8 +231,8 @@ export async function setProductArchived(
  * an alias id is to have been shown it, and a "not found" here would only
  * confirm the existence of somebody else's row.
  */
-export async function forgetProductAlias(db: Db, userId: string, aliasId: string): Promise<void> {
-  await deleteProductAlias(db, userId, aliasId);
+export async function deleteProductAlias(db: Db, userId: string, aliasId: string): Promise<void> {
+  await deleteProductAliasRow(db, userId, aliasId);
 }
 
 export interface ProductSearchHit {

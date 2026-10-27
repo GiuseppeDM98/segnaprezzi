@@ -1,13 +1,14 @@
 'use server';
 
 /**
- * Catalog Server Actions: merge, edit, archive, delete.
+ * Catalog Server Actions: merge, edit, archive, delete, and the catalog
+ * search every product picker shares.
  * Thin by contract: authenticate, validate with Zod, call the service, map
  * domain errors.
  */
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { invalidInputResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { CATEGORY_IDS } from '@/lib/domain/categories';
@@ -16,10 +17,12 @@ import { type ActionResult, toLoggedActionError } from '@/lib/errors';
 import {
   type DeleteProductsResult,
   deleteProducts as deleteProductsService,
-  editProduct as editProductService,
   type MergeProductsResult,
   mergeProducts as mergeProductsService,
+  type ProductSearchHit,
+  searchProducts as searchProductsService,
   setProductArchived as setProductArchivedService,
+  updateProduct as updateProductService,
 } from '@/lib/services/catalog';
 
 const mergeProductsSchema = z.object({
@@ -34,15 +37,16 @@ export async function mergeProducts(input: {
 }): Promise<ActionResult<MergeProductsResult>> {
   const parsed = mergeProductsSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await mergeProductsService(db, user.id, parsed.data);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    const data = await mergeProductsService(db, userId, parsed.data);
+    revalidateAppLayout();
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('mergeProducts', error) };
+    return { ok: false, error: toLoggedActionError('mergeProducts', error, { userId }) };
   }
 }
 
@@ -54,7 +58,7 @@ const editProductSchema = z.object({
 });
 
 /** Rename / re-brand / re-categorize a product. */
-export async function editProduct(input: {
+export async function updateProduct(input: {
   productId: string;
   name: string;
   brand: string | null;
@@ -62,16 +66,17 @@ export async function editProduct(input: {
 }): Promise<ActionResult<null>> {
   const parsed = editProductSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
+    userId = (await requireUser()).id;
     const { productId, ...patch } = parsed.data;
-    await editProductService(db, user.id, productId, { ...patch, brand: patch.brand || null });
-    revalidatePath('/[locale]', 'layout');
+    await updateProductService(db, userId, productId, { ...patch, brand: patch.brand || null });
+    revalidateAppLayout();
     return { ok: true, data: null };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('editProduct', error) };
+    return { ok: false, error: toLoggedActionError('updateProduct', error, { userId }) };
   }
 }
 
@@ -84,38 +89,60 @@ export async function setProductArchived(input: {
 }): Promise<ActionResult<null>> {
   const parsed = archiveSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    await setProductArchivedService(db, user.id, parsed.data.productId, parsed.data.isArchived);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    await setProductArchivedService(db, userId, parsed.data.productId, parsed.data.isArchived);
+    revalidateAppLayout();
     return { ok: true, data: null };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('setProductArchived', error) };
+    return { ok: false, error: toLoggedActionError('setProductArchived', error, { userId }) };
   }
 }
 
 const deleteProductsSchema = z.object({ productIds: z.array(nanoidSchema).min(1).max(50) });
 
 /**
- * Delete products and every observation they carry. Irreversible, and the
- * only action in the app that destroys price history — the caller is
- * responsible for having asked first, with the entry count in hand.
+ * Delete products and every observation they carry. Irreversible — whole
+ * price histories go with them — so the caller is responsible for having
+ * asked first, with the entry count in hand.
  */
 export async function deleteProducts(input: {
   productIds: string[];
 }): Promise<ActionResult<DeleteProductsResult>> {
   const parsed = deleteProductsSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: { code: 'INVALID_INPUT', message: parsed.error.message } };
+    return invalidInputResult(parsed.error);
   }
+  let userId: string | undefined;
   try {
-    const user = await requireUser();
-    const data = await deleteProductsService(db, user.id, parsed.data.productIds);
-    revalidatePath('/[locale]', 'layout');
+    userId = (await requireUser()).id;
+    const data = await deleteProductsService(db, userId, parsed.data.productIds);
+    revalidateAppLayout();
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error: toLoggedActionError('deleteProducts', error) };
+    return { ok: false, error: toLoggedActionError('deleteProducts', error, { userId }) };
+  }
+}
+
+const searchProductsSchema = z.object({ query: z.string().trim().max(100) });
+
+/** Catalog search (name or brand, non-archived products) for every product picker. */
+export async function searchProducts(input: {
+  query: string;
+}): Promise<ActionResult<ProductSearchHit[]>> {
+  const parsed = searchProductsSchema.safeParse(input);
+  if (!parsed.success) {
+    return invalidInputResult(parsed.error);
+  }
+  let userId: string | undefined;
+  try {
+    userId = (await requireUser()).id;
+    const data = await searchProductsService(db, userId, parsed.data.query);
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: toLoggedActionError('searchProducts', error, { userId }) };
   }
 }

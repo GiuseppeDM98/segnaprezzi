@@ -13,7 +13,7 @@
  */
 
 // WARNING: the category list in this prompt must stay in sync with
-// CATEGORY_IDS in src/lib/domain/categories.ts and with both message files.
+// CATEGORY_IDS in src/lib/domain/categories.ts and with every message file.
 export const EXTRACTION_SYSTEM_PROMPT = `You read photos of Italian supermarket shelf price tags (segnaprezzi /
 cartellini) and extract structured pricing data. Each photo shows ONE price
 tag; if several tags are visible, extract the one most centered and in focus.

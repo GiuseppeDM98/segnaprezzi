@@ -14,7 +14,7 @@ export interface InputProps extends Omit<ComponentProps<'input'>, 'prefix' | 'si
   suffix?: ReactNode;
   /** Right-aligned tabular decimal entry for money and quantities. */
   isMoney?: boolean;
-  /** Larger keypad-friendly variant for the fuel form. */
+  /** Larger keypad-friendly variant for a form's headline figures (e.g. the fuel form). */
   size?: 'md' | 'lg';
   /** Briefly tints the frame to show the value was just derived. */
   isHighlighted?: boolean;

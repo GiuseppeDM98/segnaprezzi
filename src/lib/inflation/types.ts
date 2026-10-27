@@ -26,7 +26,7 @@ export interface IndexEntry {
   totalPriceCents: number;
   /**
    * Packages bought in this observation (receipt "2 x 1,29" → 2; always 1
-   * for photo/manual/fuel). Only expenditure weights use it — never the
+   * for every other source). Only expenditure weights use it — never the
    * price means.
    */
   quantity: number;

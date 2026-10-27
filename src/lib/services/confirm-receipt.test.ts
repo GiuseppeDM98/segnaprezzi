@@ -1,6 +1,6 @@
 import type { Client } from '@libsql/client';
 import { nanoid } from 'nanoid';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { ReceiptExtraction } from '@/lib/ai/receipt-schema';
 import type { Db } from '@/lib/db/client';
@@ -14,7 +14,13 @@ import { createProduct, getProductById, mergeProducts } from '@/lib/db/repositor
 import { createReceipt, getReceiptById } from '@/lib/db/repositories/receipts';
 import { createStore } from '@/lib/db/repositories/stores';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
-import { InvalidPriceError, ProductNotFoundError, ReceiptNotFoundError } from '@/lib/errors';
+import {
+  InvalidInputError,
+  InvalidPriceError,
+  ProductNotFoundError,
+  ReceiptExtractionStaleError,
+  ReceiptNotFoundError,
+} from '@/lib/errors';
 import { type ConfirmReceiptLineInput, confirmReceipt } from './confirm-receipt';
 
 /** 19 August 2026, 18:42 Rome. */
@@ -78,7 +84,7 @@ function spaghettiLine(overrides: Partial<ConfirmReceiptLineInput> = {}): Confir
     unitPriceMilli: 2580,
     isPromo: false,
     promoKind: null,
-    learnAlias: true,
+    shouldLearnAlias: true,
     ...overrides,
   };
 }
@@ -99,7 +105,7 @@ function latteLine(overrides: Partial<ConfirmReceiptLineInput> = {}): ConfirmRec
     unitPriceMilli: 890,
     isPromo: true,
     promoKind: 'loyalty',
-    learnAlias: true,
+    shouldLearnAlias: true,
     ...overrides,
   };
 }
@@ -218,7 +224,7 @@ describe('confirmReceipt', () => {
       storeId,
       newStore: null,
       purchasedAt: PURCHASED_AT,
-      lines: [spaghettiLine(), latteLine({ learnAlias: false })],
+      lines: [spaghettiLine(), latteLine({ shouldLearnAlias: false })],
     });
 
     const aliases = await listProductAliases(db, userId);
@@ -344,6 +350,51 @@ describe('confirmReceipt', () => {
     expect(page.entries).toHaveLength(0);
     expect(await listProductAliases(db, userId)).toHaveLength(0);
     expect(await getReceiptById(db, userId, receiptId)).toMatchObject({ status: 'extracted' });
+  });
+
+  test('should reject a line index the stored extraction does not have, writing nothing', async () => {
+    await expect(
+      confirmReceipt(db, userId, {
+        receiptId,
+        storeId,
+        newStore: null,
+        purchasedAt: PURCHASED_AT,
+        lines: [spaghettiLine(), latteLine({ index: EXTRACTION.lines.length })],
+      }),
+    ).rejects.toBeInstanceOf(InvalidInputError);
+
+    expect((await listPriceEntries(db, userId, {})).entries).toHaveLength(0);
+    expect(await getReceiptById(db, userId, receiptId)).toMatchObject({ status: 'extracted' });
+  });
+
+  test('should reject a line index sent twice, writing nothing', async () => {
+    await expect(
+      confirmReceipt(db, userId, {
+        receiptId,
+        storeId,
+        newStore: null,
+        purchasedAt: PURCHASED_AT,
+        lines: [spaghettiLine(), spaghettiLine()],
+      }),
+    ).rejects.toBeInstanceOf(InvalidInputError);
+
+    expect((await listPriceEntries(db, userId, {})).entries).toHaveLength(0);
+  });
+
+  test('should report a stale stored extraction as stale rather than not found', async () => {
+    await db.run(`UPDATE receipts SET ai_raw_json = '{"lines": 3}' WHERE id = '${receiptId}'`);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(
+      confirmReceipt(db, userId, {
+        receiptId,
+        storeId,
+        newStore: null,
+        purchasedAt: PURCHASED_AT,
+        lines: [spaghettiLine()],
+      }),
+    ).rejects.toBeInstanceOf(ReceiptExtractionStaleError);
+    consoleError.mockRestore();
   });
 
   test('should refuse another user receipt', async () => {

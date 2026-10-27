@@ -186,6 +186,17 @@ describe('createFuelEntry', () => {
     ).resolves.toBeDefined();
   });
 
+  test('should scale the rounding slack with the litres, as every other write does', async () => {
+    // 1799 x 50 = 89_950 milli. The slack is max(10, 50 / 2) = 25 milli, so
+    // 8997 cents (20 apart) passes and 8998 cents (30 apart) does not.
+    await expect(
+      createFuelEntry(db, userId, { ...fuelInput, quantity: 50, totalPriceCents: 8997 }),
+    ).resolves.toBeDefined();
+    await expect(
+      createFuelEntry(db, userId, { ...fuelInput, quantity: 50, totalPriceCents: 8998 }),
+    ).rejects.toBeInstanceOf(InconsistentFuelPricesError);
+  });
+
   test('should reject a triple that cannot all be true', async () => {
     await expect(
       createFuelEntry(db, userId, { ...fuelInput, totalPriceCents: 5000 }),

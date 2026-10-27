@@ -20,7 +20,7 @@ import type { CategoryId } from '@/lib/domain/categories';
 import type { EntrySource, PromoKind } from '@/lib/domain/entries';
 import type { UnitKind } from '@/lib/domain/units';
 import { NotFoundError, StoreNotFoundError } from '@/lib/errors';
-import { toRomeYearMonth } from '@/lib/inflation';
+import { computeMonthlyMeans } from '@/lib/inflation';
 
 export interface EntrySummary {
   id: string;
@@ -105,8 +105,8 @@ export async function getProductDetail(
       unitKind: product.unitKind,
       isArchived: product.isArchived,
     },
-    monthlySeries: buildMonthlySeries(entries, () => true),
-    promoMarkers: buildMonthlySeries(entries, (entry) => entry.isPromo),
+    monthlySeries: computeMonthlyMeans(entries),
+    promoMarkers: computeMonthlyMeans(entries, (entry) => entry.isPromo),
     stats: buildStats(entries),
     storeComparison: buildStoreComparison(entries),
     entries,
@@ -120,6 +120,10 @@ export async function getProductDetail(
   };
 }
 
+/**
+ * Project a joined entry row onto the plain-JSON summary the screens render
+ * (Dates become epoch ms); shared with the timeline.
+ */
 export function toEntrySummary(row: PriceEntryWithProduct): EntrySummary {
   return {
     id: row.id,
@@ -139,27 +143,6 @@ export function toEntrySummary(row: PriceEntryWithProduct): EntrySummary {
       unitKind: row.product.unitKind,
     },
   };
-}
-
-/** Mean unit price per Europe/Rome month over the entries passing `filter`, oldest first. */
-function buildMonthlySeries(
-  entries: EntrySummary[],
-  filter: (entry: EntrySummary) => boolean,
-): Array<{ month: string; value: number }> {
-  const sums = new Map<string, { total: number; count: number }>();
-  for (const entry of entries) {
-    if (!filter(entry)) {
-      continue;
-    }
-    const month = toRomeYearMonth(entry.recordedAt);
-    const slot = sums.get(month) ?? { total: 0, count: 0 };
-    slot.total += entry.unitPriceMilli;
-    slot.count += 1;
-    sums.set(month, slot);
-  }
-  return [...sums.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, { total, count }]) => ({ month, value: total / count }));
 }
 
 function buildStats(entries: EntrySummary[]): ProductDetail['stats'] {
@@ -228,7 +211,7 @@ export interface EditEntryInput {
  * @throws NotFoundError when the entry is not the user's
  * @throws StoreNotFoundError when the new store is not the user's
  */
-export async function editPriceEntry(
+export async function updatePriceEntry(
   db: Db,
   userId: string,
   entryId: string,
@@ -264,7 +247,7 @@ export async function editPriceEntry(
  *
  * @throws NotFoundError when it is not the user's.
  */
-export async function removePriceEntry(db: Db, userId: string, entryId: string): Promise<void> {
+export async function deletePriceEntry(db: Db, userId: string, entryId: string): Promise<void> {
   const existing = await getPriceEntryById(db, userId, entryId);
   if (!existing) {
     throw new NotFoundError('price entry', entryId);

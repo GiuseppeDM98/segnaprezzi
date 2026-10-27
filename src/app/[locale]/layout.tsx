@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { SwProvider } from '@/components/pwa/sw-provider';
 import { routing } from '@/lib/i18n/routing';
+import { THEME_COOKIE } from '@/lib/theme';
 import '../globals.css';
 
 /*
@@ -30,12 +31,14 @@ const printFont = Martian_Mono({
 /*
  * Why: the `.dark` class must be on <html> before first paint or dark-mode
  * users see a white flash. This inline script runs pre-hydration and reads
- * the `theme` cookie (written by Settings: "dark" | "light"; absent = follow
- * the OS). `suppressHydrationWarning` on <html> is required because the
+ * the THEME_COOKIE cookie (lib/theme.ts, written by Settings: "dark" |
+ * "light"; absent = follow the OS). It is a string, so it can only take the
+ * cookie name by interpolation, never by import; readThemeCookie in
+ * lib/theme.ts is its runtime twin. `suppressHydrationWarning` on <html> is required because the
  * server cannot know which class the script will add.
  */
 const themeInitScript = `(() => {
-  var match = document.cookie.match(/(?:^|; )theme=(dark|light)/);
+  var match = document.cookie.match(/(?:^|; )${THEME_COOKIE}=(dark|light)/);
   var theme = match ? match[1] : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   if (theme === "dark") document.documentElement.classList.add("dark");
 })();`;

@@ -7,6 +7,9 @@
  *
  * Hide-on-scroll is driven by the shell (`isHidden`), never by the bar
  * itself, so the policy of which screens may hide it lives in one place.
+ *
+ * WARNING: NavRail (components/layout/nav-rail.tsx) lists the same
+ * destinations; a change to `items` here belongs there too.
  */
 import { History, House, Settings2, Tag } from 'lucide-react';
 import { motion } from 'motion/react';

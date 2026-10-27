@@ -2,7 +2,7 @@
  * Price entry repository. Every function is scoped by userId — no
  * cross-user read or write is representable through this layer.
  */
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, type SQL, sql } from 'drizzle-orm';
 
 import type { Db, DbTransaction } from '@/lib/db/client';
 import {
@@ -17,7 +17,7 @@ import {
 import type { CategoryId } from '@/lib/domain/categories';
 import type { EntrySource } from '@/lib/domain/entries';
 import { ValidationError } from '@/lib/errors';
-import type { IndexEntry } from '@/lib/inflation/types';
+import type { IndexEntry } from '@/lib/inflation';
 
 export type CreatePriceEntryInput = Omit<
   NewPriceEntry,
@@ -150,24 +150,62 @@ function decodePriceEntriesCursor(cursor: string): { ms: number; id: string } {
 }
 
 /**
- * List the user's entries newest-first with keyset pagination and optional
- * filters. Joins the product summary because every consumer (the /history
- * timeline) renders product name and category next to each entry.
- *
- * Cursor: keyset over (recorded_at DESC, id DESC) — the id tie-breaker makes
- * pagination stable when many entries share a timestamp, and inserting new
- * entries never shifts or duplicates already-fetched pages. Encoding:
- * base64url of `${recordedAtMs}:${id}`. A malformed cursor throws
- * ValidationError (surfaces as HTTP 400 at the boundary).
+ * The entry + product summary + store columns that every "entry with its
+ * product" read selects, already joined and user-scoped. The caller adds
+ * WHERE / ORDER BY / LIMIT and maps each row with toPriceEntryWithProduct.
  */
-export async function listPriceEntries(
-  db: Db,
-  userId: string,
-  options: ListPriceEntriesOptions = {},
-): Promise<PriceEntriesPage> {
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
+function selectPriceEntriesWithProduct(db: Db, userId: string) {
+  return (
+    db
+      .select({
+        entry: priceEntries,
+        product: {
+          id: products.id,
+          name: products.name,
+          brand: products.brand,
+          category: products.category,
+          unitKind: products.unitKind,
+        },
+        storeId: stores.id,
+        storeName: stores.name,
+      })
+      .from(priceEntries)
+      // Defense in depth: both the FK join and products.userId are checked,
+      // so a category filter can never leak another user's product metadata.
+      .innerJoin(
+        products,
+        and(eq(priceEntries.productId, products.id), eq(products.userId, userId)),
+      )
+      // The store is optional (generic purchases) and user-scoped the same way.
+      .leftJoin(stores, and(eq(priceEntries.storeId, stores.id), eq(stores.userId, userId)))
+  );
+}
 
-  const conditions = [eq(priceEntries.userId, userId)];
+/** One row of selectPriceEntriesWithProduct, before mapping. */
+interface PriceEntryJoinRow {
+  entry: PriceEntry;
+  product: PriceEntryWithProduct['product'];
+  storeId: string | null;
+  storeName: string | null;
+}
+
+/** Fold a joined row into the PriceEntryWithProduct shape (store null when absent). */
+function toPriceEntryWithProduct(row: PriceEntryJoinRow): PriceEntryWithProduct {
+  return {
+    ...row.entry,
+    product: row.product,
+    store: row.storeId && row.storeName ? { id: row.storeId, name: row.storeName } : null,
+  };
+}
+
+/**
+ * WHERE conditions of listPriceEntries: the user scope, every optional
+ * filter, and the keyset condition when a cursor is given.
+ *
+ * @throws ValidationError when the cursor is malformed
+ */
+function buildPriceEntryConditions(userId: string, options: ListPriceEntriesOptions): SQL[] {
+  const conditions: SQL[] = [eq(priceEntries.userId, userId)];
 
   if (options.productId) {
     conditions.push(eq(priceEntries.productId, options.productId));
@@ -201,29 +239,31 @@ export async function listPriceEntries(
       conditions.push(keysetCondition);
     }
   }
+  return conditions;
+}
+
+/**
+ * List the user's entries newest-first with keyset pagination and optional
+ * filters. Joins the product summary because the /history timeline renders
+ * product name and category next to each entry.
+ *
+ * Cursor: keyset over (recorded_at DESC, id DESC) — the id tie-breaker makes
+ * pagination stable when many entries share a timestamp, and inserting new
+ * entries never shifts or duplicates already-fetched pages. Encoding:
+ * base64url of `${recordedAtMs}:${id}`. A malformed cursor throws
+ * ValidationError (surfaces as HTTP 400 at the boundary).
+ */
+export async function listPriceEntries(
+  db: Db,
+  userId: string,
+  options: ListPriceEntriesOptions = {},
+): Promise<PriceEntriesPage> {
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
 
   // Fetch limit + 1 rows to know whether a next page exists without a
   // separate COUNT query.
-  const rows = await db
-    .select({
-      entry: priceEntries,
-      product: {
-        id: products.id,
-        name: products.name,
-        brand: products.brand,
-        category: products.category,
-        unitKind: products.unitKind,
-      },
-      storeId: stores.id,
-      storeName: stores.name,
-    })
-    .from(priceEntries)
-    // Defense in depth: both the FK join and products.userId are checked,
-    // so a category filter can never leak another user's product metadata.
-    .innerJoin(products, and(eq(priceEntries.productId, products.id), eq(products.userId, userId)))
-    // The store is optional (generic purchases) and user-scoped the same way.
-    .leftJoin(stores, and(eq(priceEntries.storeId, stores.id), eq(stores.userId, userId)))
-    .where(and(...conditions))
+  const rows = await selectPriceEntriesWithProduct(db, userId)
+    .where(and(...buildPriceEntryConditions(userId, options)))
     .orderBy(desc(priceEntries.recordedAt), desc(priceEntries.id))
     .limit(limit + 1);
 
@@ -232,11 +272,7 @@ export async function listPriceEntries(
   const lastRow = page.at(-1);
 
   return {
-    entries: page.map((row) => ({
-      ...row.entry,
-      product: row.product,
-      store: row.storeId && row.storeName ? { id: row.storeId, name: row.storeName } : null,
-    })),
+    entries: page.map(toPriceEntryWithProduct),
     nextCursor:
       hasMore && lastRow
         ? encodePriceEntriesCursor(lastRow.entry.recordedAt, lastRow.entry.id)
@@ -295,8 +331,7 @@ export async function listObservationsForProductsInRange(
   db: Db | DbTransaction,
   userId: string,
   productIds: string[],
-  from: Date,
-  to: Date,
+  range: { from: Date; to: Date },
 ): Promise<ProductDayObservation[]> {
   if (productIds.length === 0) {
     return [];
@@ -314,8 +349,8 @@ export async function listObservationsForProductsInRange(
       and(
         eq(priceEntries.userId, userId),
         inArray(priceEntries.productId, productIds),
-        gte(priceEntries.recordedAt, from),
-        lte(priceEntries.recordedAt, to),
+        gte(priceEntries.recordedAt, range.from),
+        lte(priceEntries.recordedAt, range.to),
       ),
     )
     .orderBy(desc(priceEntries.recordedAt));
@@ -381,7 +416,7 @@ export async function listPriceEntryIdsByReceipt(
 /**
  * Product ids the user has bought at one store since a given moment.
  *
- * Feeds the +0.05 store-recency bonus of the product matcher: something you
+ * Feeds the store-recency bonus of the product matcher: something you
  * bought at this very supermarket last month is a far likelier match for a
  * tag photographed here than an equally-named product you bought elsewhere.
  * Deliberately one DISTINCT query for the whole catalog — never one query
@@ -509,37 +544,18 @@ export async function listPriceEntriesForProduct(
   userId: string,
   productId: string,
 ): Promise<PriceEntryWithProduct[]> {
-  const rows = await db
-    .select({
-      entry: priceEntries,
-      product: {
-        id: products.id,
-        name: products.name,
-        brand: products.brand,
-        category: products.category,
-        unitKind: products.unitKind,
-      },
-      storeId: stores.id,
-      storeName: stores.name,
-    })
-    .from(priceEntries)
-    .innerJoin(products, and(eq(priceEntries.productId, products.id), eq(products.userId, userId)))
-    .leftJoin(stores, and(eq(priceEntries.storeId, stores.id), eq(stores.userId, userId)))
+  const rows = await selectPriceEntriesWithProduct(db, userId)
     .where(and(eq(priceEntries.userId, userId), eq(priceEntries.productId, productId)))
     .orderBy(desc(priceEntries.recordedAt), desc(priceEntries.id));
 
-  return rows.map((row) => ({
-    ...row.entry,
-    product: row.product,
-    store: row.storeId && row.storeName ? { id: row.storeId, name: row.storeName } : null,
-  }));
+  return rows.map(toPriceEntryWithProduct);
 }
 
 /**
  * Insert-or-update entries by id for the backup import; foreign ids are
- * skipped by the user_id guard. Callers must have verified
- * that product/store/session references belong to the user first — the FK
- * only checks existence, not ownership.
+ * skipped by the user_id guard. Callers must have verified that every
+ * reference (product, store, session, receipt) belongs to the user first —
+ * the FK only checks existence, not ownership.
  */
 export async function upsertPriceEntries(
   db: Db | DbTransaction,

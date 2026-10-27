@@ -6,14 +6,14 @@
  * leads with the year-over-year headline and a 12-month trend, and both
  * need thirteen months of series to be real rather than a placeholder.
  *
- * Design: structured as small pure builder functions (buildSeedMonths,
- * buildGroceryEntries, buildFuelEntries) plus one writer that inserts via
- * the repository layer for price_entries — the seed doubles as an
+ * Design: structured as small pure builder functions (buildSeedMonths and
+ * the build*Entry family) plus writers that insert
+ * price_entries via the repository layer — the seed doubles as an
  * end-to-end smoke test of that layer. Stores/products/sessions use fixed
  * ids for reproducibility and cross-references between builders, which the
  * repository create functions deliberately don't accept (ids are always
- * app-generated) — those three tables are inserted directly via the
- * Drizzle schema instead.
+ * app-generated) — those tables are inserted directly via the Drizzle
+ * schema instead.
  */
 import { eq } from 'drizzle-orm';
 
@@ -25,13 +25,14 @@ import {
 } from '@/lib/db/repositories/price-entries';
 import { products, shoppingSessions, stores } from '@/lib/db/schema/app';
 import { users } from '@/lib/db/schema/auth';
+import type { PromoKind } from '@/lib/domain/entries';
 import { env } from '@/lib/env';
 import { seedId } from './seed-ids';
 import { SEED_USER, SEED_USER_2 } from './seed-users';
 
 // Why: seeding must be impossible against production. The remote Turso URL
 // starts with libsql://; only a local file database is accepted.
-if (!process.env.TURSO_DATABASE_URL?.startsWith('file:')) {
+if (!env.TURSO_DATABASE_URL.startsWith('file:')) {
   console.error('Refusing to seed: TURSO_DATABASE_URL is not a local file database.');
   process.exit(1);
 }
@@ -135,8 +136,6 @@ const STORE_CARREFOUR = {
   kind: 'supermarket' as const,
 };
 
-type PromoKind = 'discount' | 'loyalty' | 'coupon' | 'bundle';
-
 interface GroceryProductDef {
   id: string;
   name: string;
@@ -146,7 +145,7 @@ interface GroceryProductDef {
   packageSize: number;
   /** unit_price_milli for [M-13 … M0], oldest first; the last four are pinned so the resulting index can be checked by hand. */
   prices: number[];
-  /** spaghetti and latte get a second entry on day 18. */
+  /** When set, the product also gets a plain manual entry on day 18 of every month. */
   secondEntryDay18?: boolean;
   /** Month indexes (0 = M-13 … 13 = M0) with a promo entry, and their kind. */
   promos?: Array<{ monthIndex: number; kind: PromoKind }>;
@@ -312,75 +311,127 @@ function calculateTotalPriceCents(unitPriceMilli: number, packageSize: number): 
 // Pure builders: months + fixed data -> entry rows (no ids, no I/O).
 // ---------------------------------------------------------------------------
 
+/** One grocery product in one seed month: everything an entry builder needs. */
+interface GroceryMonth {
+  product: GroceryProductDef;
+  ym: YearMonth;
+  /** 0 = M-13 … monthCount - 1 = M0. */
+  monthIndex: number;
+  monthCount: number;
+  /** The month's Esselunga shopping session. */
+  sessionId: string;
+}
+
+/**
+ * The entry every grocery product gets on day 5 of every month at Esselunga,
+ * inside that month's session. Its promo and its photo source come from the
+ * product definition's `promos` and `photoMonthIndex`.
+ */
+function buildMonthlyEntry({
+  product,
+  ym,
+  monthIndex,
+  sessionId,
+}: GroceryMonth): CreatePriceEntryInput {
+  const unitPriceMilli = product.prices[monthIndex];
+  const promo = product.promos?.find((candidate) => candidate.monthIndex === monthIndex);
+  const isPhoto = product.photoMonthIndex === monthIndex;
+  return {
+    productId: product.id,
+    storeId: STORE_ESSELUNGA.id,
+    sessionId,
+    recordedAt: romeDateTime(ym, 5, 10, 30),
+    totalPriceCents: calculateTotalPriceCents(unitPriceMilli, product.packageSize),
+    packageSize: product.packageSize,
+    unitPriceMilli,
+    isPromo: promo !== undefined,
+    promoKind: promo?.kind,
+    source: isPhoto ? 'photo' : 'manual',
+    currency: 'EUR',
+    ...(isPhoto
+      ? { aiConfidence: 0.93, aiModel: 'claude-haiku-4-5', photoUrl: null, aiRawJson: null }
+      : {}),
+  };
+}
+
+/**
+ * The plain repeat on day 18, same price and session, for products flagged
+ * `secondEntryDay18`; null for the others.
+ */
+function buildDay18Entry({
+  product,
+  ym,
+  monthIndex,
+  sessionId,
+}: GroceryMonth): CreatePriceEntryInput | null {
+  if (!product.secondEntryDay18) {
+    return null;
+  }
+  const unitPriceMilli = product.prices[monthIndex];
+  return {
+    productId: product.id,
+    storeId: STORE_ESSELUNGA.id,
+    sessionId,
+    recordedAt: romeDateTime(ym, 18, 10, 30),
+    totalPriceCents: calculateTotalPriceCents(unitPriceMilli, product.packageSize),
+    packageSize: product.packageSize,
+    unitPriceMilli,
+    isPromo: false,
+    source: 'manual',
+    currency: 'EUR',
+  };
+}
+
+/**
+ * The Carrefour entry on day 12 of the last two months, for products with
+ * `carrefourPrices`; null otherwise. Standalone — no session — so the
+ * timeline shows plain rows too.
+ */
+function buildCarrefourEntry({
+  product,
+  ym,
+  monthIndex,
+  monthCount,
+}: GroceryMonth): CreatePriceEntryInput | null {
+  const carrefourPrice = product.carrefourPrices?.[monthIndex - (monthCount - 2)];
+  if (carrefourPrice === undefined) {
+    return null;
+  }
+  return {
+    productId: product.id,
+    storeId: STORE_CARREFOUR.id,
+    sessionId: null,
+    recordedAt: romeDateTime(ym, 12, 18, 45),
+    totalPriceCents: calculateTotalPriceCents(carrefourPrice, product.packageSize),
+    packageSize: product.packageSize,
+    unitPriceMilli: carrefourPrice,
+    isPromo: false,
+    source: 'manual',
+    currency: 'EUR',
+  };
+}
+
+/** Every grocery entry, product by product and month by month, oldest first. */
 function buildGroceryEntries(
   months: YearMonth[],
   sessionIdByMonthIndex: string[],
 ): CreatePriceEntryInput[] {
-  const entries: CreatePriceEntryInput[] = [];
-
-  for (const product of GROCERY_PRODUCTS) {
-    months.forEach((ym, monthIndex) => {
-      const unitPriceMilli = product.prices[monthIndex];
-      const totalPriceCents = calculateTotalPriceCents(unitPriceMilli, product.packageSize);
-      const promo = product.promos?.find((candidate) => candidate.monthIndex === monthIndex);
-      const isPromo = promo !== undefined;
-      const isPhoto = product.photoMonthIndex === monthIndex;
-      const sessionId = sessionIdByMonthIndex[monthIndex];
-
-      entries.push({
-        productId: product.id,
-        storeId: STORE_ESSELUNGA.id,
-        sessionId,
-        recordedAt: romeDateTime(ym, 5, 10, 30),
-        totalPriceCents,
-        packageSize: product.packageSize,
-        unitPriceMilli,
-        isPromo,
-        promoKind: promo?.kind,
-        source: isPhoto ? 'photo' : 'manual',
-        currency: 'EUR',
-        ...(isPhoto
-          ? { aiConfidence: 0.93, aiModel: 'claude-haiku-4-5', photoUrl: null, aiRawJson: null }
-          : {}),
-      });
-
-      if (product.secondEntryDay18) {
-        entries.push({
-          productId: product.id,
-          storeId: STORE_ESSELUNGA.id,
-          sessionId,
-          recordedAt: romeDateTime(ym, 18, 10, 30),
-          totalPriceCents,
-          packageSize: product.packageSize,
-          unitPriceMilli,
-          isPromo: false,
-          source: 'manual',
-          currency: 'EUR',
-        });
-      }
-
-      // The last two months also see the product at Carrefour (day 12),
-      // standalone — no session — so the timeline shows plain rows too.
-      const carrefourIndex = monthIndex - (months.length - 2);
-      const carrefourPrice = product.carrefourPrices?.[carrefourIndex];
-      if (carrefourPrice !== undefined) {
-        entries.push({
-          productId: product.id,
-          storeId: STORE_CARREFOUR.id,
-          sessionId: null,
-          recordedAt: romeDateTime(ym, 12, 18, 45),
-          totalPriceCents: calculateTotalPriceCents(carrefourPrice, product.packageSize),
-          packageSize: product.packageSize,
-          unitPriceMilli: carrefourPrice,
-          isPromo: false,
-          source: 'manual',
-          currency: 'EUR',
-        });
-      }
-    });
-  }
-
-  return entries;
+  return GROCERY_PRODUCTS.flatMap((product) =>
+    months.flatMap((ym, monthIndex) => {
+      const groceryMonth: GroceryMonth = {
+        product,
+        ym,
+        monthIndex,
+        monthCount: months.length,
+        sessionId: sessionIdByMonthIndex[monthIndex],
+      };
+      return [
+        buildMonthlyEntry(groceryMonth),
+        buildDay18Entry(groceryMonth),
+        buildCarrefourEntry(groceryMonth),
+      ].filter((entry): entry is CreatePriceEntryInput => entry !== null);
+    }),
+  );
 }
 
 function buildFuelEntries(months: YearMonth[]): CreatePriceEntryInput[] {
@@ -418,7 +469,7 @@ function buildFuelEntries(months: YearMonth[]): CreatePriceEntryInput[] {
 // ---------------------------------------------------------------------------
 
 /** Delete a seed user (and, by cascade, all of their data) if it already exists. */
-async function wipeExistingUser(email: string): Promise<void> {
+async function deleteSeedUserByEmail(email: string): Promise<void> {
   await db.delete(users).where(eq(users.email, email));
 }
 
@@ -434,33 +485,24 @@ async function createSeedUser(seed: {
 }
 
 async function seedPrimaryUser(): Promise<void> {
-  await wipeExistingUser(SEED_USER.email);
+  await deleteSeedUserByEmail(SEED_USER.email);
   const userId = await createSeedUser(SEED_USER);
 
-  await db.insert(stores).values([
-    { ...STORE_ESSELUNGA, userId },
-    { ...STORE_ENI, userId },
-    { ...STORE_CARREFOUR, userId },
-  ]);
+  const storeRows = [STORE_ESSELUNGA, STORE_ENI, STORE_CARREFOUR].map((store) => ({
+    ...store,
+    userId,
+  }));
+  await db.insert(stores).values(storeRows);
 
-  await db.insert(products).values([
-    ...GROCERY_PRODUCTS.map((product) => ({
-      id: product.id,
-      userId,
-      name: product.name,
-      brand: product.brand,
-      category: product.category,
-      unitKind: product.unitKind,
-    })),
-    {
-      id: FUEL_PRODUCT.id,
-      userId,
-      name: FUEL_PRODUCT.name,
-      brand: FUEL_PRODUCT.brand,
-      category: FUEL_PRODUCT.category,
-      unitKind: FUEL_PRODUCT.unitKind,
-    },
-  ]);
+  const productRows = [...GROCERY_PRODUCTS, FUEL_PRODUCT].map((product) => ({
+    id: product.id,
+    userId,
+    name: product.name,
+    brand: product.brand,
+    category: product.category,
+    unitKind: product.unitKind,
+  }));
+  await db.insert(products).values(productRows);
 
   const months = buildSeedMonths();
   // Two-digit suffix: seedId pads with zeros, so 'm1' and 'm10' would collide.
@@ -486,12 +528,12 @@ async function seedPrimaryUser(): Promise<void> {
   await createPriceEntries(db, userId, entries);
 
   console.log(
-    `Seeded primary dev user (${SEED_USER.email}): 3 stores, 13 products, ${months.length} months, ${entries.length} entries.`,
+    `Seeded primary dev user (${SEED_USER.email}): ${storeRows.length} stores, ${productRows.length} products, ${months.length} months, ${entries.length} entries.`,
   );
 }
 
 async function seedSecondUser(): Promise<void> {
-  await wipeExistingUser(SEED_USER_2.email);
+  await deleteSeedUserByEmail(SEED_USER_2.email);
   const userId = await createSeedUser(SEED_USER_2);
 
   const STORE_COOP = {
@@ -510,18 +552,23 @@ async function seedSecondUser(): Promise<void> {
     packageSize: 4,
   };
 
-  await db.insert(stores).values({ ...STORE_COOP, userId });
-  await db.insert(products).values({
-    id: PRODUCT_YOGURT.id,
-    userId,
-    name: PRODUCT_YOGURT.name,
-    brand: PRODUCT_YOGURT.brand,
-    category: PRODUCT_YOGURT.category,
-    unitKind: PRODUCT_YOGURT.unitKind,
-  });
+  const storeRows = [{ ...STORE_COOP, userId }];
+  await db.insert(stores).values(storeRows);
+
+  const productRows = [
+    {
+      id: PRODUCT_YOGURT.id,
+      userId,
+      name: PRODUCT_YOGURT.name,
+      brand: PRODUCT_YOGURT.brand,
+      category: PRODUCT_YOGURT.category,
+      unitKind: PRODUCT_YOGURT.unitKind,
+    },
+  ];
+  await db.insert(products).values(productRows);
 
   const currentMonth = getCurrentRomeYearMonth();
-  await createPriceEntries(db, userId, [
+  const entries: CreatePriceEntryInput[] = [
     {
       productId: PRODUCT_YOGURT.id,
       storeId: STORE_COOP.id,
@@ -534,9 +581,12 @@ async function seedSecondUser(): Promise<void> {
       source: 'manual',
       currency: 'EUR',
     },
-  ]);
+  ];
+  await createPriceEntries(db, userId, entries);
 
-  console.log(`Seeded second dev user (${SEED_USER_2.email}): 1 store, 1 product, 1 entry.`);
+  console.log(
+    `Seeded second dev user (${SEED_USER_2.email}): stores=${storeRows.length} products=${productRows.length} entries=${entries.length}.`,
+  );
 }
 
 async function main(): Promise<void> {

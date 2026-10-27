@@ -83,20 +83,23 @@ export async function updateShoppingSession(
   return session ?? null;
 }
 
-/** List the user's sessions newest-first; limit defaults to 20, clamped to [1, 100]. */
-export async function listShoppingSessions(
-  db: Db,
+/**
+ * Every session of the user, newest-first, with no page cap.
+ *
+ * For the full backup export: a backup that dropped the older sessions would
+ * re-import their entries with a dangling sessionId. Sessions are one row
+ * per shopping trip, so the whole set stays small enough to read in one
+ * query.
+ */
+export async function listAllShoppingSessions(
+  db: Db | DbTransaction,
   userId: string,
-  options?: { limit?: number },
 ): Promise<ShoppingSession[]> {
-  const limit = Math.min(Math.max(options?.limit ?? 20, 1), 100);
-
   return db
     .select()
     .from(shoppingSessions)
     .where(eq(shoppingSessions.userId, userId))
-    .orderBy(desc(shoppingSessions.startedAt))
-    .limit(limit);
+    .orderBy(desc(shoppingSessions.startedAt));
 }
 
 /** Statuses a session can still be resumed or written to. */

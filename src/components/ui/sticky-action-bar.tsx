@@ -14,8 +14,8 @@
  *
  * `pb-11` on mobile is what keeps the raised Scan disc off the controls.
  */
-import type { ReactNode, RefObject } from 'react';
-import { useEffect, useRef } from 'react';
+import type { ReactNode, RefCallback } from 'react';
+import { useCallback } from 'react';
 
 import { cx } from '@/lib/cx';
 
@@ -23,8 +23,8 @@ import { cx } from '@/lib/cx';
 export const STICKY_ACTION_BAR_HEIGHT_VAR = '--sticky-action-bar-height';
 
 /**
- * The bar's own look. Exported for the one screen that needs it on a
- * `motion.div` of its own (the bulk-selection bar animates in and out).
+ * The bar's own look, exported for a screen that needs it on a `motion.div`
+ * of its own (the products screen's bulk-selection bar animates in and out).
  */
 export const STICKY_ACTION_BAR_CLASSES =
   'sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-20 border-border border-t border-dashed bg-surface/95 px-4 pt-3 pb-11 backdrop-blur-sm rail:bottom-0 rail:pb-3';
@@ -32,13 +32,17 @@ export const STICKY_ACTION_BAR_CLASSES =
 /**
  * Publish the referenced bar's height for as long as it is mounted.
  *
- * @returns the ref to attach to the bar element.
+ * A callback ref rather than an effect over a ref object: an effect runs when
+ * the component that owns the hook mounts, and a bar rendered conditionally
+ * (the products screen's bulk bar exists only while selecting) is not in the
+ * DOM yet at that moment, so it would never publish its height. The callback
+ * runs when the bar element itself attaches, and its cleanup (React 19, also
+ * honoured by motion components) when the element detaches.
+ *
+ * @returns the callback ref to attach to the bar element.
  */
-export function useStickyActionBarHeight<T extends HTMLElement>(): RefObject<T | null> {
-  const ref = useRef<T | null>(null);
-
-  useEffect(() => {
-    const element = ref.current;
+export function useStickyActionBarHeight<T extends HTMLElement>(): RefCallback<T> {
+  return useCallback((element: T | null) => {
     if (!element) {
       return;
     }
@@ -50,13 +54,11 @@ export function useStickyActionBarHeight<T extends HTMLElement>(): RefObject<T |
     observer.observe(element);
     return () => {
       observer.disconnect();
-      // The bar is gone the moment the screen unmounts; leaving its height
+      // The bar is gone the moment it detaches; leaving its height
       // behind would strand every later toast a bar's height too high.
       root.style.removeProperty(STICKY_ACTION_BAR_HEIGHT_VAR);
     };
   }, []);
-
-  return ref;
 }
 
 export interface StickyActionBarProps {

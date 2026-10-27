@@ -4,13 +4,15 @@ import {
   calculateFuelQuantity,
   calculateFuelTotalCents,
   calculateUnitPriceMilli,
+  computeDerivedUnitPriceMilli,
   isUnitPriceConsistent,
+  isWithinCrossCheckTolerance,
 } from './money';
 
 /*
- * These tests cover the fuel half of the money helpers. The rounding is the
- * whole point: pump unit prices carry three decimals, so every one of these
- * cases would lose money (or invent it) if the arithmetic went through cents.
+ * The fuel cases below are about rounding: pump unit prices carry three
+ * decimals, so each of them would lose money (or invent it) if the
+ * arithmetic went through cents.
  */
 
 describe('calculateFuelTotalCents', () => {
@@ -54,6 +56,25 @@ describe('calculateUnitPriceMilli', () => {
   });
 });
 
+describe('computeDerivedUnitPriceMilli', () => {
+  test('should derive the unit price from the total and the size', () => {
+    expect(computeDerivedUnitPriceMilli(129, 0.5, false)).toBe(2580);
+  });
+
+  test('should leave a unit price the user typed alone', () => {
+    expect(computeDerivedUnitPriceMilli(129, 0.5, true)).toBeNull();
+  });
+
+  test('should derive nothing while the size is missing', () => {
+    expect(computeDerivedUnitPriceMilli(129, null, false)).toBeNull();
+  });
+
+  test('should derive nothing from a zero total or a zero size', () => {
+    expect(computeDerivedUnitPriceMilli(0, 0.5, false)).toBeNull();
+    expect(computeDerivedUnitPriceMilli(129, 0, false)).toBeNull();
+  });
+});
+
 describe('isUnitPriceConsistent', () => {
   test('should accept a triple derived from its own price and size', () => {
     expect(isUnitPriceConsistent(249, 0.5, calculateUnitPriceMilli(249, 0.5))).toBe(true);
@@ -83,5 +104,26 @@ describe('isUnitPriceConsistent', () => {
   test('should still reject a real disagreement on a large pack', () => {
     // Half the price of the same box: far more than rounding can explain.
     expect(isUnitPriceConsistent(309, 270, 6)).toBe(false);
+  });
+});
+
+describe('isWithinCrossCheckTolerance', () => {
+  test('should accept a tag whose unit price matches its total exactly', () => {
+    expect(isWithinCrossCheckTolerance(129, 0.5, 2580)).toBe(true);
+  });
+
+  test('should accept a gap of exactly 2% of the total', () => {
+    // 1000 milli total, 1020 milli derived: the boundary is inclusive.
+    expect(isWithinCrossCheckTolerance(100, 1, 1020)).toBe(true);
+    expect(isWithinCrossCheckTolerance(100, 1, 980)).toBe(true);
+  });
+
+  test('should flag a gap just beyond 2% in either direction', () => {
+    expect(isWithinCrossCheckTolerance(100, 1, 1021)).toBe(false);
+    expect(isWithinCrossCheckTolerance(100, 1, 979)).toBe(false);
+  });
+
+  test('should flag a promo tag whose unit price is the pre-discount one', () => {
+    expect(isWithinCrossCheckTolerance(80, 0.5, 2000)).toBe(false);
   });
 });

@@ -14,6 +14,16 @@ export const BASE_UNIT_SYMBOLS: Record<UnitKind, 'kg' | 'L' | 'pz'> = {
   count: 'pz',
 };
 
+/**
+ * Message key, under the `units` namespace, of the base unit a package size
+ * is shown in ("kg", "L", "pz") — the suffix of every size input.
+ */
+export const SIZE_UNIT_KEY: Record<UnitKind, 'kg' | 'liter' | 'piece'> = {
+  weight: 'kg',
+  volume: 'liter',
+  count: 'piece',
+};
+
 export interface SizeUnitOption {
   /** i18n key suffix under the `units` namespace. */
   key: string;

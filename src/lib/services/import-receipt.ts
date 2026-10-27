@@ -40,6 +40,7 @@ import {
   ExtractionError,
   ExtractionUnavailableError,
   ReceiptAlreadyImportedError,
+  ReceiptExtractionStaleError,
   ReceiptNoLinesError,
   ReceiptNotFoundError,
   StoreNotFoundError,
@@ -118,11 +119,13 @@ export async function importReceipt(db: Db, input: ImportReceiptInput): Promise<
   }
 
   // An extraction already on file is re-used verbatim: re-reading the same
-  // document costs money and cannot say anything new. Steps 6-7 still re-run,
-  // because the catalog may have grown since — possibly from another tab
-  // confirming a sibling receipt a minute ago.
+  // document costs money and cannot say anything new. Flagging and line
+  // resolution still re-run, because the catalog may have grown since —
+  // possibly from another tab confirming a sibling receipt a minute ago.
   if (existing?.status === 'extracted') {
-    const stored = parseReceiptExtraction(existing.aiRawJson);
+    // A stale stored extraction is not an error here: the file is in hand,
+    // so it is simply read again below.
+    const stored = parseReceiptExtraction(existing.aiRawJson, existing.id);
     if (stored) {
       return buildReview(db, {
         userId: input.userId,
@@ -184,6 +187,7 @@ export async function importReceipt(db: Db, input: ImportReceiptInput): Promise<
  * and line resolution re-run on every load rather than being frozen at upload time.
  *
  * @throws ReceiptNotFoundError when the receipt is not the user's, or was discarded
+ * @throws ReceiptExtractionStaleError when its stored extraction no longer parses
  */
 export async function getReceiptForReview(
   db: Db,
@@ -196,9 +200,9 @@ export async function getReceiptForReview(
     throw new ReceiptNotFoundError(receiptId);
   }
 
-  const extraction = parseReceiptExtraction(receipt.aiRawJson);
+  const extraction = parseReceiptExtraction(receipt.aiRawJson, receipt.id);
   if (!extraction) {
-    throw new ReceiptNotFoundError(receiptId);
+    throw new ReceiptExtractionStaleError(receipt.id);
   }
 
   const review = await buildReview(db, {
@@ -359,13 +363,10 @@ async function loadSameDayObservations(
   }
 
   const day = toRomeYearMonthDay(purchasedAtMs);
-  const observations = await listObservationsForProductsInRange(
-    db,
-    userId,
-    productIds,
-    new Date(purchasedAtMs - DAY_MS),
-    new Date(purchasedAtMs + DAY_MS),
-  );
+  const observations = await listObservationsForProductsInRange(db, userId, productIds, {
+    from: new Date(purchasedAtMs - DAY_MS),
+    to: new Date(purchasedAtMs + DAY_MS),
+  });
 
   // The window above is deliberately wider than a day (offsets differ); the
   // exact Rome calendar day is filtered here.
@@ -436,14 +437,29 @@ async function persistExtractedReceipt(db: Db, input: PersistInput): Promise<str
  * Why validate stored data: `ai_raw_json` was written by an older version of
  * this app as easily as by the current one, and a schema that gained a field
  * would otherwise crash the review screen instead of asking for a re-upload.
+ *
+ * @param receiptId - Only for the log line, so a stale row can be found
+ * @returns The extraction, or null when the JSON or the schema check fails;
+ *   the failure is logged with its issues, and the caller decides between
+ *   re-reading the file and ReceiptExtractionStaleError
  */
-export function parseReceiptExtraction(raw: string): ReceiptExtraction | null {
+export function parseReceiptExtraction(raw: string, receiptId: string): ReceiptExtraction | null {
+  let json: unknown;
   try {
-    const parsed = receiptExtractionSchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : null;
-  } catch {
+    json = JSON.parse(raw);
+  } catch (error) {
+    console.error('Stored receipt extraction is not valid JSON', { receiptId, cause: error });
     return null;
   }
+  const parsed = receiptExtractionSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error('Stored receipt extraction fails the current schema', {
+      receiptId,
+      issues: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
+    });
+    return null;
+  }
+  return parsed.data;
 }
 
 /**

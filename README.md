@@ -147,7 +147,7 @@ The service worker is disabled under `pnpm dev`. To try the app offline or insta
 
 ## Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Start with [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) to understand the codebase's conventions, and note that all code follows [docs/DEVELOPMENT_GUIDELINES.md](docs/DEVELOPMENT_GUIDELINES.md) and [docs/COMMENTS.md](docs/COMMENTS.md).
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Start with [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) to understand the codebase's conventions, and note that all code follows [DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md) and [COMMENTS.md](COMMENTS.md).
 
 ## License
 

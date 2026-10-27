@@ -95,6 +95,7 @@
       "shutter": "Capture",
       "unavailable": "Take a photo",
       "starting": "Starting the camera…",
+      "captureFailed": "Photo not saved. Try again.",
       "permissionDenied": {
         "title": "The camera is needed to read price tags",
         "body": "segnaprezzi only uses the camera to photograph shelf tags. Nothing is uploaded without your confirmation. Re-enable it in your browser settings, or upload a photo.",
@@ -108,7 +109,8 @@
       "none": "None",
       "search": "Search stores",
       "create": "Create “{query}”",
-      "manage": "Manage stores"
+      "manage": "Manage stores",
+      "createError": "Couldn’t create “{name}”"
     },
     "tray": {
       "label": "Trip photos",
@@ -139,7 +141,8 @@
       "title": "You have an unfinished trip",
       "body": "Resume it or let it go: photos already uploaded will be deleted.",
       "resume": "Resume",
-      "discard": "Discard"
+      "discard": "Discard",
+      "discardError": "The trip was not discarded. Try again."
     },
     "stale": {
       "title": "Still shopping?",
@@ -171,6 +174,7 @@
     "matchSearch": "Search your catalog",
     "matchSuggestions": "Suggested",
     "matchNoResults": "Nothing for “{query}”",
+    "matchSearchError": "Search failed. Try again.",
     "newProduct": "Create new product",
     "newProductHint": "From what was read off the tag",
     "discard": "Discard",
@@ -236,12 +240,6 @@
     "crossCheckWarning": "Price and unit price don't add up — check",
     "isPromo": "On offer",
     "promoKind": "Offer type",
-    "promoKinds": {
-      "discount": "Discount",
-      "loyalty": "Loyalty card",
-      "coupon": "Coupon",
-      "bundle": "Multi-buy"
-    },
     "submit": "Save",
     "saved": "Added ✓",
     "submitError": "Not saved. Check the data and try again.",
@@ -471,6 +469,7 @@
     "aliasHits": "{count, plural, one {# time} other {# times}}",
     "aliasDelete": "Forget this line",
     "aliasDeleted": "Line forgotten",
+    "aliasDeleteError": "The line was not forgotten. Try again.",
     "aliasesEmpty": "No receipt line is mapped to this product yet.",
     "aliasAnyChain": "Any chain"
   },
@@ -586,6 +585,7 @@
       "importing": "Importing…",
       "imported": "Imported: {entries, plural, one {# entry} other {# entries}}, {products, plural, one {# product} other {# products}}, {stores, plural, one {# store} other {# stores}}",
       "importInvalid": "Invalid file. It must be a segnaprezzi export.",
+      "importError": "Import failed. Try again.",
       "stores": "Stores",
       "storesHelp": "Manage supermarkets and fuel stations."
     },
@@ -659,7 +659,8 @@
     "RECEIPT_TOO_LONG": "The receipt has too many pages (10 at most).",
     "RECEIPT_ALREADY_IMPORTED": "This receipt has already been imported.",
     "RECEIPT_NOT_FOUND": "Receipt not found.",
-    "RECEIPT_NO_LINES": "No product line was found in this receipt."
+    "RECEIPT_NO_LINES": "No product line was found in this receipt.",
+    "RECEIPT_EXTRACTION_STALE": "This receipt was read by an older version of the app: upload it again."
   },
   "offline": {
     "offline": "You're offline — photos stay on your phone",
@@ -671,6 +672,7 @@
     "processing": "{count} processing",
     "failed": "{count, plural, one {# failed} other {# failed}}",
     "retryAll": "Retry all",
+    "retryError": "Couldn’t retry. The photos are still on your phone.",
     "cachedBanner": "You're offline · data last updated {lastSyncTime}",
     "fallbackTitle": "You're offline",
     "fallbackBody": "No problem: your captured photos are safe and will be processed when the signal returns.",

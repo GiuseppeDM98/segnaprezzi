@@ -117,7 +117,7 @@ critical user paths.
 
 Two documents define the style, and reviews enforce both:
 
-**[`docs/DEVELOPMENT_GUIDELINES.md`](docs/DEVELOPMENT_GUIDELINES.md)** — architecture and
+**[`DEVELOPMENT_GUIDELINES.md`](DEVELOPMENT_GUIDELINES.md)** — architecture and
 naming. In one paragraph: layers are strict and unidirectional — route handlers
 and Server Actions stay thin (validate input with Zod at the boundary, call a
 service, map errors to responses); services (`src/lib/services/`) orchestrate
@@ -130,7 +130,7 @@ from db/ai/next. Functions are named verb+noun (`calculateMonthlyIndex`, not
 plural, functions stay small (~30 lines), and errors are never swallowed —
 they are translated at the layer that has context.
 
-**[`docs/COMMENTS.md`](docs/COMMENTS.md)** — comment discipline. In one paragraph:
+**[`COMMENTS.md`](COMMENTS.md)** — comment discipline. In one paragraph:
 comments explain **why**, never what; the six accepted types are function
 (interface contracts), design (file-level approach and trade-offs), why
 (non-obvious decisions), teacher (domain knowledge like the Jevons index),

@@ -9,8 +9,9 @@
  * idempotency test can rely on it.
  *
  * The invented product names ("fenicottero", "ornitorinco", "quokka") are
- * the collaudo "parole spia" of WORKFLOW.md: they cannot collide with seeded
- * or real data, so a fixture row is always recognisable as one.
+ * the acceptance-test spy words ("parole spia") of WORKFLOW.md: they cannot
+ * collide with seeded or real data, so a fixture row is always recognisable
+ * as one.
  *
  * Run: pnpm tsx scripts/make-receipt-fixture.ts
  */
@@ -59,7 +60,7 @@ function buildContentStream(lines: string[]): string {
  * Assemble a minimal single-page PDF with a real cross-reference table.
  *
  * Hand-rolled on purpose: this repository has no PDF dependency — the
- * Anthropic API reads PDFs itself — and adding one to write a fourteen-line
+ * Anthropic API reads PDFs itself — and adding one to write a one-page
  * test fixture would be the tail wagging the dog.
  */
 function buildPdf(lines: string[]): Buffer {

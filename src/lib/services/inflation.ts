@@ -1,7 +1,7 @@
 /**
  * Personal CPI service: projection in, pure computation out.
  *
- * Deliberately thin — the three repository reads and one call into the pure
+ * Deliberately thin — the engine's repository reads and one call into the pure
  * engine. Anything smarter (caching, partial recomputation) belongs nowhere
  * until profiling says otherwise: personal data volumes are tiny (a heavy
  * user logs a few thousand entries per year) and the engine is
@@ -27,6 +27,7 @@ import {
   type IndexSettings,
   type PersonalCpiResult,
 } from '@/lib/inflation';
+import { toIndexSettings } from './settings';
 
 export interface IndexInputs {
   entries: IndexEntry[];
@@ -35,7 +36,7 @@ export interface IndexInputs {
 }
 
 /**
- * The three projections the engine consumes, read once. Exported so the
+ * The projections the engine consumes, read once. Exported so the
  * dashboard read model can derive its thin-data stats and mover
  * sparklines from the same rows instead of reading the entries twice.
  */
@@ -48,10 +49,7 @@ export async function loadIndexInputs(db: Db, userId: string): Promise<IndexInpu
   return {
     entries,
     products,
-    settings: {
-      includePromosInIndex: settings.includePromosInIndex,
-      carryForwardMonths: settings.carryForwardMonths,
-    },
+    settings: toIndexSettings(settings),
   };
 }
 

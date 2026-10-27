@@ -5,7 +5,13 @@ import { createPriceEntry, listPriceEntries } from '@/lib/db/repositories/price-
 import { createProduct } from '@/lib/db/repositories/products';
 import { createStore } from '@/lib/db/repositories/stores';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
-import { listCatalog, mergeProducts, searchProducts, setProductArchived } from './catalog';
+import {
+  deleteProducts,
+  listCatalog,
+  mergeProducts,
+  searchProducts,
+  setProductArchived,
+} from './catalog';
 
 /*
  * Integration tests for the catalog read model: the last and
@@ -131,6 +137,8 @@ describe('mergeProducts', () => {
     });
 
     expect(result.movedEntriesCount).toBe(3);
+    // The survivor id in mergedIds is skipped, so it is not counted either.
+    expect(result.mergedCount).toBe(2);
     const page = await listPriceEntries(db, userId, { productId: survivor.id });
     expect(page.entries).toHaveLength(3);
     const catalog = await listCatalog(db, userId, { includeArchived: true });
@@ -157,6 +165,62 @@ describe('mergeProducts', () => {
     await expect(
       mergeProducts(db, userId, { survivorId: foreign.id, mergedIds: [own.id] }),
     ).rejects.toMatchObject({ code: 'PRODUCT_NOT_FOUND' });
+  });
+
+  it("should refuse a merged id that is not the user's with PRODUCT_NOT_FOUND", async () => {
+    const survivor = await createProduct(db, userId, {
+      name: 'Y',
+      category: 'other',
+      unitKind: 'count',
+    });
+    const foreign = await createProduct(db, otherUserId, {
+      name: 'X',
+      category: 'other',
+      unitKind: 'count',
+    });
+
+    await expect(
+      mergeProducts(db, userId, { survivorId: survivor.id, mergedIds: [foreign.id] }),
+    ).rejects.toMatchObject({ code: 'PRODUCT_NOT_FOUND' });
+  });
+
+  it('should count a repeated merged id once', async () => {
+    const survivor = await createProduct(db, userId, {
+      name: 'Latte',
+      category: 'food',
+      unitKind: 'volume',
+    });
+    const duplicate = await createProduct(db, userId, {
+      name: 'Latte UHT',
+      category: 'food',
+      unitKind: 'volume',
+    });
+
+    const result = await mergeProducts(db, userId, {
+      survivorId: survivor.id,
+      mergedIds: [duplicate.id, duplicate.id],
+    });
+
+    expect(result.mergedCount).toBe(1);
+  });
+});
+
+describe('deleteProducts', () => {
+  it("should refuse an id that is not the user's with PRODUCT_NOT_FOUND", async () => {
+    const own = await createProduct(db, userId, {
+      name: 'Y',
+      category: 'other',
+      unitKind: 'count',
+    });
+    const foreign = await createProduct(db, otherUserId, {
+      name: 'X',
+      category: 'other',
+      unitKind: 'count',
+    });
+
+    await expect(deleteProducts(db, userId, [own.id, foreign.id])).rejects.toMatchObject({
+      code: 'PRODUCT_NOT_FOUND',
+    });
   });
 });
 

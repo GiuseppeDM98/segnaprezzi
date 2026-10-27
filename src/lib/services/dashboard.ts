@@ -11,12 +11,13 @@
 import type { Db } from '@/lib/db/client';
 import type { CategoryId } from '@/lib/domain/categories';
 import {
+  BASE_INDEX,
+  computeMonthlyMeans,
   computePersonalCpi,
   type IndexEntry,
   type IndexProduct,
   type PersonalCpiResult,
   rebaseIstat,
-  toRomeYearMonth,
 } from '@/lib/inflation';
 import istatNic from '../../../data/istat-nic.json';
 import { loadIndexInputs } from './inflation';
@@ -25,7 +26,10 @@ import { loadIndexInputs } from './inflation';
 const TREND_MONTHS = 12;
 /** How many movers the dashboard lists. */
 const TOP_MOVERS = 5;
-/** Years needed before YoY becomes the headline (13 months of series). */
+/**
+ * Months of series needed before YoY becomes the headline: the first month
+ * with a year-ago point is the 13th.
+ */
 const YOY_MIN_MONTHS = 13;
 
 export type HeadlineKind = 'yoy' | 'sinceStart';
@@ -166,12 +170,12 @@ function buildCategoryRatios(
       }
       continue;
     }
-    ratios.push({ category: category.category, ratio: (latest.index - 100) / 100 });
+    ratios.push({ category: category.category, ratio: (latest.index - BASE_INDEX) / BASE_INDEX });
   }
   return ratios.sort((a, b) => b.ratio - a.ratio);
 }
 
-/** The five largest absolute movers, each with its observed monthly means. */
+/** The TOP_MOVERS largest absolute movers, each with its observed monthly means. */
 function buildMovers(
   result: PersonalCpiResult,
   entries: IndexEntry[],
@@ -183,10 +187,9 @@ function buildMovers(
   if (top.length === 0) {
     return [];
   }
-  const means = monthlyMeansByProduct(entries, new Set(top.map((mover) => mover.productId)));
   const brandById = new Map(products.map((product) => [product.id, product.brand] as const));
   return top.map((mover) => {
-    const series = means.get(mover.productId) ?? [];
+    const series = computeMonthlyMeans(entries, (entry) => entry.productId === mover.productId);
     return {
       productId: mover.productId,
       name: mover.name,
@@ -200,32 +203,3 @@ function buildMovers(
   });
 }
 
-/** Observed monthly mean unit price per product (Europe/Rome months), oldest first. */
-function monthlyMeansByProduct(
-  entries: IndexEntry[],
-  productIds: Set<string>,
-): Map<string, Array<{ month: string; value: number }>> {
-  const sums = new Map<string, Map<string, { total: number; count: number }>>();
-  for (const entry of entries) {
-    if (!productIds.has(entry.productId)) {
-      continue;
-    }
-    const month = toRomeYearMonth(entry.recordedAt);
-    const byMonth = sums.get(entry.productId) ?? new Map();
-    const slot = byMonth.get(month) ?? { total: 0, count: 0 };
-    slot.total += entry.unitPriceMilli;
-    slot.count += 1;
-    byMonth.set(month, slot);
-    sums.set(entry.productId, byMonth);
-  }
-  const means = new Map<string, Array<{ month: string; value: number }>>();
-  for (const [productId, byMonth] of sums) {
-    means.set(
-      productId,
-      [...byMonth.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([month, { total, count }]) => ({ month, value: total / count })),
-    );
-  }
-  return means;
-}

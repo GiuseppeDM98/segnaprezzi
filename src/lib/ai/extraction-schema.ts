@@ -14,8 +14,15 @@ import { z } from 'zod';
 
 import { CATEGORY_IDS } from '@/lib/domain/categories';
 import { PROMO_KINDS } from '@/lib/domain/entries';
+import type { ExtractionResult } from '@/lib/domain/extract-photo';
 import { UNIT_KINDS } from '@/lib/domain/units';
 
+export type { ExtractionResult };
+
+// Why `satisfies`: the type lives in the pure domain (the offline queue reads
+// it). This turns a field the type declares but the schema does not produce,
+// or produces with another type, into a compile error here. A field added
+// only to the schema still compiles: add it to ExtractionResult as well.
 export const extractionResultSchema = z.object({
   productName: z.string().min(1),
   brand: z.string().nullable(),
@@ -39,6 +46,4 @@ export const extractionResultSchema = z.object({
   promoKind: z.enum(PROMO_KINDS).nullable(),
   confidence: z.number().min(0).max(1),
   rawText: z.string(),
-});
-
-export type ExtractionResult = z.infer<typeof extractionResultSchema>;
+}) satisfies z.ZodType<ExtractionResult>;

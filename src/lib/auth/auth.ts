@@ -15,6 +15,7 @@ import { deleteAllUserPhotos } from '@/lib/blob/photo-storage';
 import { db } from '@/lib/db/client';
 import * as schema from '@/lib/db/schema';
 import { userSettings } from '@/lib/db/schema/app';
+import { MIN_PASSWORD_LENGTH } from '@/lib/domain/auth';
 import { env } from '@/lib/env';
 
 export const auth = betterAuth({
@@ -31,11 +32,11 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: !env.SIGNUP_ENABLED,
-    minPasswordLength: 8,
+    minPasswordLength: MIN_PASSWORD_LENGTH,
   },
 
   user: {
-    // "Elimina account" wipes everything. The credential account re-checks
+    // "Delete account" wipes everything. The credential account re-checks
     // the password on delete, and the DB cascades from users to every app
     // table, so one call removes all data.
     deleteUser: {
@@ -63,15 +64,14 @@ export const auth = betterAuth({
   },
 
   // Why: Better Auth's built-in rate limiter throttles repeated sign-in/
-  // sign-up calls per IP. The Playwright global-setup logs in two fixed
-  // seed users back-to-back on every run (plus a throwaway signup per test),
-  // all from localhost — enough to trip a per-IP limiter meant for the
-  // public internet, producing flaky 429s that have nothing to do with a
-  // real bug. Disabled outside production; verify this still matches the
-  // installed better-auth version's actual default before relying on it —
-  // don't assume, check.
+  // sign-up calls per IP. The Playwright global-setup logs in its fixed
+  // seed users back-to-back on every run (plus throwaway signups), all
+  // from localhost — enough to trip a per-IP limiter meant for the public
+  // internet, producing flaky 429s that have nothing to do with a real bug.
+  // Disabled outside production, and set explicitly rather than left to the
+  // library default, which may change between better-auth versions.
   rateLimit: {
-    enabled: process.env.NODE_ENV === 'production',
+    enabled: env.NODE_ENV === 'production',
   },
 
   advanced: {
