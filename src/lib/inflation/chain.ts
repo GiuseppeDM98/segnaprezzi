@@ -20,11 +20,13 @@ import {
   bucketEntries,
   buildMonthGrid,
   computeObservedMeans,
+  computeObservedStoreMeans,
   imputeCarryForward,
+  imputeStoreCarryForward,
 } from './bucketing';
 import { computeCoverage, emptyCoverage } from './coverage';
 import { computeMovers } from './movers';
-import { computeMonthLink } from './relatives';
+import { computeJevons, computeMonthLink } from './relatives';
 import type {
   BucketedEntry,
   CategorySeries,
@@ -45,34 +47,6 @@ import {
 export const BASE_INDEX = 100;
 /** Lag, in series points, between a month and its year-over-year reference. */
 const YOY_LAG_MONTHS = 12;
-
-/**
- * Jevons index: the unweighted geometric mean of price relatives,
- * exp(mean(ln r)).
- *
- * Teacher: inside a category we have no quantity data per product-month pair
- * that we can trust (a user may photograph a tag without buying three packs),
- * so the relatives are combined unweighted — exactly ISTAT's situation inside
- * its elementary aggregates, and ISTAT's answer is the same: the Jevons index.
- * The obvious alternative, the arithmetic mean of relatives (Carli index),
- * has a systematic upward bias because it fails the time-reversal test:
- * a price that doubles then halves (relatives 2.0, then 0.5) gives
- * Carli (2.0 + 0.5) / 2 = 1.25 — +25% though the price is back where it
- * started — while Jevons √(2.0 × 0.5) = 1.0, correct. The geometric mean
- * treats a +10% and a −10% move symmetrically and is transitive under
- * chaining; Carli's bias is why the EU banned it for HICP elementary
- * aggregates.
- *
- * Computed in log space: the caller passes relatives in sorted productId
- * order, so the floating-point sum is bit-identical for any input order.
- */
-export function computeJevons(relatives: readonly number[]): number {
-  let sumOfLogs = 0;
-  for (const relative of relatives) {
-    sumOfLogs += Math.log(relative);
-  }
-  return Math.exp(sumOfLogs / relatives.length);
-}
 
 /**
  * R_c(m) for every category with at least one matched product in the link.
@@ -149,13 +123,22 @@ export function computePersonalCpi(input: {
     return { series: [], headline: null, categories: [], coverage: emptyCoverage(), movers: [] };
   }
 
-  // Guide: bucket entries per product per Rome month, then impute gaps up to
-  // carryForwardMonths.
+  // Guide: bucket entries per product per Rome month, across stores and store
+  // by store, then impute gaps up to carryForwardMonths.
   const bucketedEntries = bucketEntries(entries);
   const monthKeys = bucketedEntries.map((entry) => entry.ym).sort();
   const monthGrid = buildMonthGrid(monthKeys[0], monthKeys[monthKeys.length - 1]);
   const observedMeans = computeObservedMeans(bucketedEntries, settings.includePromosInIndex);
+  const observedStoreMeans = computeObservedStoreMeans(
+    bucketedEntries,
+    settings.includePromosInIndex,
+  );
   const priceTable = imputeCarryForward(observedMeans, monthGrid, settings.carryForwardMonths);
+  const storePriceTable = imputeStoreCarryForward(
+    observedStoreMeans,
+    monthGrid,
+    settings.carryForwardMonths,
+  );
   const categoryByProduct = new Map(entries.map((entry) => [entry.productId, entry.category]));
   const monthlyExpenditure = computeMonthlyExpenditure(bucketedEntries);
 
@@ -163,6 +146,7 @@ export function computePersonalCpi(input: {
   // per category, expenditure weights, overall relative.
   const overallRelativeByYm = new Map<string, number>();
   const categoryRelativesByYm = new Map<string, Map<CategoryId, number>>();
+  const comparedMonthsByCategory = new Map<CategoryId, string[]>();
   const monthsWithoutOverlap: string[] = [];
   let outliersClamped = 0;
   let latestLink: MonthLink | null = null;
@@ -170,12 +154,14 @@ export function computePersonalCpi(input: {
   for (let position = 1; position < monthGrid.length; position += 1) {
     const link = computeMonthLink(
       priceTable,
+      storePriceTable,
       categoryByProduct,
       monthGrid[position - 1],
       monthGrid[position],
     );
     latestLink = link;
     outliersClamped += link.clampedCount;
+    recordComparedCategories(link, comparedMonthsByCategory);
 
     const categoryRelatives = computeCategoryRelatives(link);
     categoryRelativesByYm.set(link.toYm, categoryRelatives);
@@ -210,15 +196,36 @@ export function computePersonalCpi(input: {
       yoyPct: latest.yoyPct,
       sinceStartPct: latest.index - BASE_INDEX,
     },
-    categories: buildCategorySeries(bucketedEntries, monthGrid, categoryRelativesByYm),
+    categories: buildCategorySeries(
+      bucketedEntries,
+      monthGrid,
+      categoryRelativesByYm,
+      comparedMonthsByCategory,
+    ),
     coverage: computeCoverage({
       latestLink,
       entryCount: entries.length,
       monthsWithoutOverlap,
       outliersClamped,
     }),
-    movers: computeMovers(observedMeans, products),
+    movers: computeMovers(observedStoreMeans, products),
   };
+}
+
+/** Note the link's month under every category with a new price actually compared in it. */
+function recordComparedCategories(
+  link: MonthLink,
+  comparedMonthsByCategory: Map<CategoryId, string[]>,
+): void {
+  const comparedCategories = new Set(
+    link.relatives.filter((relative) => relative.isPriceCompared).map(({ category }) => category),
+  );
+  for (const category of comparedCategories) {
+    comparedMonthsByCategory.set(category, [
+      ...(comparedMonthsByCategory.get(category) ?? []),
+      link.toYm,
+    ]);
+  }
 }
 
 /**
@@ -236,6 +243,7 @@ function buildCategorySeries(
   bucketedEntries: readonly BucketedEntry[],
   monthGrid: readonly string[],
   categoryRelativesByYm: ReadonlyMap<string, ReadonlyMap<CategoryId, number>>,
+  comparedMonthsByCategory: ReadonlyMap<CategoryId, string[]>,
 ): CategorySeries[] {
   const firstYmByCategory = new Map<CategoryId, string>();
   for (const entry of bucketedEntries) {
@@ -259,7 +267,11 @@ function buildCategorySeries(
         relativeByYm.set(ym, relative);
       }
     }
-    categorySeries.push({ category, series: chainSeries(months, relativeByYm) });
+    categorySeries.push({
+      category,
+      series: chainSeries(months, relativeByYm),
+      comparedMonths: comparedMonthsByCategory.get(category) ?? [],
+    });
   }
   return categorySeries;
 }

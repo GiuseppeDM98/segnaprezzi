@@ -90,7 +90,7 @@ export function ReviewScreen() {
       return;
     }
     // Best effort: an offline review never reports the transition, and
-    // confirm accepts an `active` session anyway (§2.1). callAction still
+    // confirm accepts an `active` session anyway. callAction still
     // logs a rejected request, so the result itself can be ignored.
     void callAction('beginSessionReview', beginSessionReview({ sessionId: activeSessionId }));
   }, []);

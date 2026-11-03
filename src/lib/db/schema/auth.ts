@@ -10,7 +10,7 @@ import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 // NOT NULL column it never writes exists — so the column was removed here
 // and dropped by migration 0002, exactly as the 1.7 upgrade guide
 // prescribes for SQLite. After any `pnpm auth:generate`, diff the output
-// against this file before committing it (AGENTS.md §4.16).
+// against this file before committing it (docs/guide/auth.md §4.16).
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),

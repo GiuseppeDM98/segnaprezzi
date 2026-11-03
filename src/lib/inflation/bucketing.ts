@@ -7,7 +7,15 @@
  * there on, months are 'YYYY-MM' strings handled with integer arithmetic —
  * no timezone or DST reasoning of our own anywhere else.
  */
-import type { BucketedEntry, IndexEntry, MonthlyPrice, ObservedMeans, PriceTable } from './types';
+import type {
+  BucketedEntry,
+  IndexEntry,
+  MonthlyPrice,
+  ObservedMeans,
+  ObservedStoreMeans,
+  PriceTable,
+  StorePriceTable,
+} from './types';
 
 // Why 'en-CA': it is the one widely-supported locale whose formatted date
 // parts come out ISO-like ('2026-04'), so no manual part reassembly and no
@@ -89,54 +97,97 @@ interface Accumulator {
   count: number;
 }
 
+/** Stands for "no store recorded": store ids are nanoids, so it cannot collide. */
+export const NO_STORE_KEY = '';
+
 /**
- * Per-product, per-month arithmetic mean of unitPriceMilli.
+ * The entries whose prices enter the index.
+ *
+ * Promo rule: with includePromosInIndex false, promo entries are dropped —
+ * but if that leaves the product-month empty while promo entries exist, the
+ * promo entries are used instead. Why: a promo price is still a real price
+ * the user saw; treating a promo-only month as "no data" would silently shrink
+ * the matched set and bias the index toward products that never go on
+ * promotion. The setting means "prefer regular prices", not "pretend promos
+ * never happened". A promo-only month is an observation, never an imputation,
+ * so coverage is unaffected.
+ *
+ * Why per product-month and not per store-month: a promo at one store must not
+ * become that store's price while another store shows the regular one, or the
+ * setting would stop preferring regular prices the moment two stores are
+ * involved.
+ */
+function selectEntriesForPrices(
+  entries: readonly BucketedEntry[],
+  includePromosInIndex: boolean,
+): readonly BucketedEntry[] {
+  if (includePromosInIndex) {
+    return entries;
+  }
+  const productMonthKey = (entry: BucketedEntry) => `${entry.productId}|${entry.ym}`;
+  const monthsWithRegularPrice = new Set(
+    entries.filter((entry) => !entry.isPromo).map(productMonthKey),
+  );
+  return entries.filter(
+    (entry) => !entry.isPromo || !monthsWithRegularPrice.has(productMonthKey(entry)),
+  );
+}
+
+/** Arithmetic mean of unitPriceMilli per month, for each key `keyOf` assigns. */
+function computeMeansByMonth(
+  entries: readonly BucketedEntry[],
+  keyOf: (entry: BucketedEntry) => string,
+): ObservedMeans {
+  const accumulators = new Map<string, Map<string, Accumulator>>();
+  for (const entry of entries) {
+    const byMonth = getOrCreate(accumulators, keyOf(entry), () => new Map<string, Accumulator>());
+    const accumulator = getOrCreate(byMonth, entry.ym, () => ({ sum: 0, count: 0 }));
+    accumulator.sum += entry.unitPriceMilli;
+    accumulator.count += 1;
+  }
+
+  const means: ObservedMeans = new Map();
+  for (const [key, byMonth] of accumulators) {
+    means.set(key, new Map([...byMonth].map(([ym, { sum, count }]) => [ym, sum / count] as const)));
+  }
+  return means;
+}
+
+/**
+ * Per-product, per-month arithmetic mean of unitPriceMilli, across stores.
  *
  * Duplicate observations in a month — two stores, a re-scan, entries moved in
- * by a product merge — simply average.
- *
- * Promo rule: with includePromosInIndex false, promo entries are dropped from
- * the mean — but if that leaves the product-month empty while promo entries
- * exist, the promo entries are used instead. Why: a promo price is still a
- * real price the user saw; treating a promo-only month as "no data" would
- * silently shrink the matched set and bias the index toward products that
- * never go on promotion. The setting means "prefer regular prices", not
- * "pretend promos never happened". A promo-only month is an observation,
- * never an imputation, so coverage is unaffected.
+ * by a product merge — simply average. This is the price the index falls back
+ * on when two months share no store (see relatives.ts).
  */
 export function computeObservedMeans(
   entries: readonly BucketedEntry[],
   includePromosInIndex: boolean,
 ): ObservedMeans {
-  // Guide: accumulate the entries that enter the mean and the promo
-  // fallback separately, per product-month.
-  const preferred = new Map<string, Map<string, Accumulator>>();
-  const fallback = new Map<string, Map<string, Accumulator>>();
-  for (const entry of entries) {
-    const ym = entry.ym;
-    const bucket = entry.isPromo && !includePromosInIndex ? fallback : preferred;
-    const byMonth = getOrCreate(bucket, entry.productId, () => new Map<string, Accumulator>());
-    const accumulator = getOrCreate(byMonth, ym, () => ({ sum: 0, count: 0 }));
-    accumulator.sum += entry.unitPriceMilli;
-    accumulator.count += 1;
+  return computeMeansByMonth(
+    selectEntriesForPrices(entries, includePromosInIndex),
+    (entry) => entry.productId,
+  );
+}
+
+/** The same means as computeObservedMeans, kept apart for each store of each product. */
+export function computeObservedStoreMeans(
+  entries: readonly BucketedEntry[],
+  includePromosInIndex: boolean,
+): ObservedStoreMeans {
+  const entriesByProduct = new Map<string, BucketedEntry[]>();
+  for (const entry of selectEntriesForPrices(entries, includePromosInIndex)) {
+    getOrCreate(entriesByProduct, entry.productId, () => []).push(entry);
   }
 
-  // Guide: resolve each product-month — preferred entries win, the promo
-  // fallback only fills months that would otherwise be empty.
-  const means: ObservedMeans = new Map();
-  for (const productId of new Set([...preferred.keys(), ...fallback.keys()])) {
-    const monthMeans = new Map<string, number>();
-    for (const [ym, accumulator] of preferred.get(productId) ?? []) {
-      monthMeans.set(ym, accumulator.sum / accumulator.count);
-    }
-    for (const [ym, accumulator] of fallback.get(productId) ?? []) {
-      if (!monthMeans.has(ym)) {
-        monthMeans.set(ym, accumulator.sum / accumulator.count);
-      }
-    }
-    means.set(productId, monthMeans);
+  const storeMeans: ObservedStoreMeans = new Map();
+  for (const [productId, productEntries] of entriesByProduct) {
+    storeMeans.set(
+      productId,
+      computeMeansByMonth(productEntries, (entry) => entry.storeId ?? NO_STORE_KEY),
+    );
   }
-  return means;
+  return storeMeans;
 }
 
 /** One point of a plain monthly-mean series. */
@@ -207,7 +258,7 @@ export const MAX_CARRY_FORWARD_MONTHS = 6;
  * mean toward "no change", damping measured inflation while a product is
  * imputed. That is the standard, accepted cost of carry-forward imputation
  * (statistical offices pay it too); it is bounded by carryForwardMonths and
- * made visible through coverage.imputedShare.
+ * made visible through coverage.productsWithoutLatestPrice.
  */
 export function imputeCarryForward(
   observedMeans: ObservedMeans,
@@ -235,6 +286,23 @@ export function imputeCarryForward(
       }
     }
     table.set(productId, prices);
+  }
+  return table;
+}
+
+/**
+ * Carry-forward applied store by store: each store of each product keeps its
+ * last known price for at most `carryForwardMonths` months, by the same rule
+ * as imputeCarryForward. See relatives.ts for why the comparison needs it.
+ */
+export function imputeStoreCarryForward(
+  observedStoreMeans: ObservedStoreMeans,
+  monthGrid: readonly string[],
+  carryForwardMonths: number,
+): StorePriceTable {
+  const table: StorePriceTable = new Map();
+  for (const [productId, storeMeans] of observedStoreMeans) {
+    table.set(productId, imputeCarryForward(storeMeans, monthGrid, carryForwardMonths));
   }
   return table;
 }

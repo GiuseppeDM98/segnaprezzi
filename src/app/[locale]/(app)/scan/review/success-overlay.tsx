@@ -2,7 +2,7 @@
 
 /**
  * The review screen's success state: a full-screen overlay with an SVG
- * checkmark drawing its stroke, then a spring pop (§7).
+ * checkmark drawing its stroke, then a spring pop.
  *
  * Design: it shows and hides on `isVisible` alone. How long it stays and
  * where the user goes next belong to the screen, which starts the timer

@@ -52,7 +52,7 @@ export async function confirmShoppingSession(
 /**
  * Mark the spesa as under review when the user opens /scan/review online.
  * Best-effort by design: an offline review simply never reports it, and
- * confirm still accepts an `active` session (§2.1).
+ * confirm still accepts an `active` session.
  */
 export async function beginSessionReview(input: {
   sessionId: string;

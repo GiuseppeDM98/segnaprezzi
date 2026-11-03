@@ -1,8 +1,10 @@
 # AGENTS.md — Operating Manual for Coding Agents
 
 This file is the operating manual for AI coding agents (and humans) working in
-the **segnaprezzi** repository. It distills the project's conventions and
-hard-won lessons into rules you can apply without re-deriving them.
+the **segnaprezzi** repository: the conventions and setup traps that hold for the
+whole repo. Domain narratives live in `docs/guide/`, one file per theme, read
+only when you touch that domain: § Domain guides says which, and carries what to
+know before opening one. Session rules are in `WORKFLOW.md`.
 
 > **Current state**: segnaprezzi has a real DB, real auth, real repositories,
 > one real Anthropic gateway (shelf tags, Claude Opus 5.5), the pure
@@ -15,15 +17,13 @@ hard-won lessons into rules you can apply without re-deriving them.
 > state is tracked in **`CLAUDE.md` → "Current status"** — read it first,
 > trust it over any assumption. Where this file's guidance and the
 > actually-implemented code differ, this file describes what was actually
-> verified to work — a handful of snippets below didn't survive contact with
-> the real dependency versions, the Next.js runtime, the live ISTAT service,
-> the accessibility gates, Turbopack, Serwist's precache manifest, SQLite's
-> NULL semantics and Better Auth's production rate limiter (see §4.15–§4.71).
+> verified to work (§4 and the guides).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
 commit, and guided-collaudo discipline) → this file (conventions) →
 `DEVELOPMENT_GUIDELINES.md` and `COMMENTS.md` (general discipline)
+→ the guide in `docs/guide/` for the domain you touch
 → **`DESIGN.md`** whenever the session touches anything under
 `src/components/` or a `*.tsx` in `src/app/`.
 
@@ -65,18 +65,9 @@ Why two scales: shelf totals never need more than 2 decimals; unit prices
 (1 cent = 10 milli-euros):
 
 ```ts
-// src/lib/domain/money.ts
-
-/**
- * Compute the unit price in milli-euros per base unit.
- *
- * @param totalPriceCents - price paid, in euro cents
- * @param packageSize - package size in base units of the product (kg, L, piece)
- * @returns integer milli-euros per base unit, rounded half-up
- *
- * @example calculateUnitPriceMilli(249, 0.5) === 4980  // €2.49 for 500 g → €4.98/kg
- * @example calculateUnitPriceMilli(9160, 50.9) === 1800 // €91.60 for 50.9 L → €1.80/L
- */
+// src/lib/domain/money.ts: integer milli-euros per base unit, rounded half-up.
+// calculateUnitPriceMilli(249, 0.5) === 4980   // €2.49 for 500 g → €4.98/kg
+// calculateUnitPriceMilli(9160, 50.9) === 1800 // €91.60 for 50.9 L → €1.80/L
 export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: number): number {
   return Math.round((totalPriceCents * 10) / packageSize);
 }
@@ -94,11 +85,9 @@ export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: nu
   not a number) lives there too; `money.ts` stays string-free.
 - The **only** place floats are legitimate: index math in `src/lib/inflation/`
   (price relatives and means are ratios, not money) and `package_size`
-  (a physical quantity, stored as `real`). Inside the engine, sums of
-  integer money are still exact (integer addition never rounds in a double),
-  which is what lets the monthly means and expenditure totals be bit-identical
-  for any input order; only the logs and weighted sums are genuine floats, and
-  those iterate in sorted order for the same reason.
+  (a physical quantity, stored as `real`). Sums of integer money stay exact in a
+  double, so monthly means and expenditure totals are bit-identical for any input
+  order; the logs and weighted sums iterate in sorted order for the same reason.
 - Zod schemas for money fields are `z.number().int().positive()` — a float
   reaching a `*_cents`/`*_milli` field is a validation bug at the boundary.
 
@@ -122,12 +111,9 @@ the price arithmetic is `calculateUnitPriceMilli` in `money.ts` above —
 nothing outside `domain/` hand-rolls a unit conversion.
 
 **Do not assume a product category implies a unit kind.** Fuel is the standing
-counter-example: petrol, diesel and LPG are dispensed per litre, but Italian
-CNG (metano) is dispensed and priced **per kilogram**. Each entry in
-`FUEL_QUICK_PICKS` therefore carries its own `unitKind`, and
+counter-example: petrol, diesel and LPG are per litre, Italian CNG (metano) per
+**kilogram**. Each entry in `FUEL_QUICK_PICKS` carries its own `unitKind`, and
 `createFuelEntry` reads it from the pick rather than hardcoding `'volume'`.
-Storing kilograms in a column that declares litres is an error in the data,
-which no later screen can repair.
 
 ### 1.4 Time and month bucketing (Europe/Rome)
 
@@ -138,34 +124,13 @@ which no later screen can repair.
 - Month keys are `"YYYY-MM"` strings, derived with `Intl.DateTimeFormat` (no
   date library dependency):
 
-```ts
-// src/lib/inflation/bucketing.ts
-
-// Why 'en-CA': it is the one widely-supported locale whose formatted date
-// parts come out ISO-like ('2026-04'), so no manual part reassembly and no
-// DST/offset arithmetic of our own — the Intl database owns the timezone
-// rules, including Italy's DST switches.
-// Why module-level: constructing an Intl.DateTimeFormat is orders of
-// magnitude more expensive than calling .format(); the engine formats one
-// timestamp per entry on every recomputation.
-const romeYearMonthFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Europe/Rome',
-  year: 'numeric',
-  month: '2-digit',
-});
-
-/**
- * Map an epoch-milliseconds UTC timestamp to the 'YYYY-MM' calendar month
- * it falls in for the Europe/Rome timezone.
- *
- * Examples (2026 DST starts 29 March, so Rome is UTC+2 in late March):
- *   toRomeYearMonth(Date.parse('2026-03-31T22:30:00Z')) === '2026-04'
- *   toRomeYearMonth(Date.parse('2026-01-31T23:30:00Z')) === '2026-02'
- */
-export function toRomeYearMonth(ms: number): string {
-  return romeYearMonthFormatter.format(new Date(ms));
-}
-```
+`toRomeYearMonth(ms)` in `src/lib/inflation/bucketing.ts` uses a module-level
+`romeYearMonthFormatter` (`new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', … })`):
+`en-CA` gives ISO-like parts so the Intl database owns DST, and one formatter
+per module because constructing it costs far more than `.format()`.
+`toRomeYearMonth(Date.parse('2026-03-31T22:30:00Z')) === '2026-04'` and
+`toRomeYearMonth(Date.parse('2026-01-31T23:30:00Z')) === '2026-02'` (2026 DST
+starts 29 March).
 
 ### 1.5 Layered architecture and import rules
 
@@ -195,14 +160,11 @@ Import rules — **what each layer may and must never import**:
 | `src/components/**` | domain, `lib/i18n` navigation, `motion`, other components | `lib/db`, repositories, services, gateways, `lib/env` |
 | `src/lib/auth/**` | `lib/db` (adapter needs it), `lib/env` | services, components |
 
-The `db`-singleton carve-out (established by the `/api/export` route,
-followed by every capture page and action and by
-`getPersonalCpi(db, userId)`): services take the Drizzle handle as
-their first parameter, exactly like repositories, so that the confirm flow can
-pass a transaction and the tests can pass a throwaway database. Something has
-to hand them the real one, and the app layer is the only caller. It passes the
-handle straight through — reading or writing through it in a page or an action
-is still forbidden.
+The `db`-singleton carve-out (established by the `/api/export` route, followed
+by every capture page and action and by `getPersonalCpi(db, userId)`): services
+take the Drizzle handle first, like repositories, so the confirm flow can pass a
+transaction and tests a throwaway database. The app layer only passes it through:
+reading or writing through it in a page or an action is forbidden.
 
 Enforcement is by review until a lint rule exists. When in doubt: **data flows
 down, types flow up, and `domain/` + `inflation/` import nothing**.
@@ -218,64 +180,29 @@ wrong — the **service** fetches, the pure function computes.
 
 ### 1.7 Error handling: DomainError codes + translation at the boundary
 
-Expected errors are `DomainError` subclasses in `src/lib/errors.ts`.
-The `code` is a stable `DomainErrorCode` —
-a SCREAMING_SNAKE string union — that doubles as the i18n key under the
-`errors` namespace (`errors.NOT_FOUND`). Classes carry **no** HTTP status;
-route handlers own the code→status mapping:
+Expected errors are `DomainError` subclasses in `src/lib/errors.ts`
+(`NotFoundError`, `ValidationError`, `UnauthorizedError`, `ExtractionError`).
+The `code` is a stable `DomainErrorCode`, a SCREAMING_SNAKE string union that
+doubles as the i18n key under the `errors` namespace (`errors.NOT_FOUND`).
+Classes carry **no** HTTP status. `new.target.name` keeps subclass names in stack
+traces without each one setting `this.name`.
 
-```ts
-// src/lib/errors.ts
-
-// WARNING: adding a code here requires updating:
-// - the `errors` namespace in messages/it.json and messages/en.json
-// - HTTP_STATUS_BY_CODE in src/app/api/route-errors.ts
-export type DomainErrorCode =
-  | 'NOT_FOUND'
-  | 'VALIDATION_FAILED'
-  | 'UNAUTHORIZED'
-  | 'EXTRACTION_FAILED'
-  | 'INTERNAL';
-// The union was later extended with INVALID_INPUT, INVALID_DATE,
-// INVALID_PRICE, INVALID_SIZE, INVALID_STORE_KIND,
-// INCONSISTENT_FUEL_PRICES, SESSION_NOT_FOUND, STORE_NOT_FOUND,
-// PRODUCT_NOT_FOUND, SESSION_CLOSED, PHOTO_TOO_LARGE,
-// UNSUPPORTED_PHOTO_TYPE and EXTRACTION_UNAVAILABLE for capture — via the
-// checklist above. (The seven RECEIPT_* codes left with receipt import.)
-// The code→HTTP mapping lives once, as HTTP_STATUS_BY_CODE in
-// src/app/api/route-errors.ts, shared by every route handler: an exhaustive
-// Record<DomainErrorCode, number> — which is what makes the compiler, not a
-// reviewer, catch a code added without a status.
-
-export class DomainError extends Error {
-  readonly code: DomainErrorCode;
-
-  constructor(code: DomainErrorCode, message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    // Why: `new.target.name` keeps subclass names in stack traces and logs
-    // without each subclass having to set `this.name` itself.
-    this.name = new.target.name;
-    this.code = code;
-  }
-}
-
-/** Serializable error shape returned by Server Actions. */
-export type ActionError = {
-  code: DomainErrorCode;
-  message: string;
-  issues?: string[];
-};
-
-// Guide: every Server Action returns this discriminated shape — the client
-// narrows on `ok` and translates `error.code` on failure.
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: ActionError };
-```
-
-The subclasses (`NotFoundError`, `ValidationError`, `UnauthorizedError`,
-`ExtractionError`) and the `toActionError()` mapper live alongside them in
-`src/lib/errors.ts`. The HTTP mapping is `NOT_FOUND` → 404,
-`VALIDATION_FAILED` → 400, `UNAUTHORIZED` → 401, `EXTRACTION_FAILED` → 422,
-`INTERNAL` → 500.
+- **Codes**: `NOT_FOUND`, `VALIDATION_FAILED`, `UNAUTHORIZED`,
+  `EXTRACTION_FAILED`, `INTERNAL`; for capture `INVALID_INPUT`, `INVALID_DATE`,
+  `INVALID_PRICE`, `INVALID_SIZE`, `INVALID_STORE_KIND`,
+  `INCONSISTENT_FUEL_PRICES`, `SESSION_NOT_FOUND`, `STORE_NOT_FOUND`,
+  `PRODUCT_NOT_FOUND`, `SESSION_CLOSED`, `PHOTO_TOO_LARGE`,
+  `UNSUPPORTED_PHOTO_TYPE`, `EXTRACTION_UNAVAILABLE`. The seven `RECEIPT_*` codes
+  left with receipt import. A new code follows the checklist in §2.3.
+- **HTTP**: `HTTP_STATUS_BY_CODE` in `src/app/api/route-errors.ts`, one
+  exhaustive `Record<DomainErrorCode, number>` shared by every route handler, so
+  the compiler catches a code without a status. `NOT_FOUND` → 404,
+  `VALIDATION_FAILED` → 400, `UNAUTHORIZED` → 401, `EXTRACTION_FAILED` → 422,
+  `INTERNAL` → 500.
+- **Actions**: every Server Action returns
+  `ActionResult<T> = { ok: true; data: T } | { ok: false; error: ActionError }`,
+  with `ActionError = { code; message; issues?: string[] }`. The client narrows on
+  `ok` and translates `error.code`. `toActionError()` is the mapper.
 
 Translation happens twice, at two different boundaries:
 
@@ -316,13 +243,9 @@ Schemas live next to the boundary that uses them; shared field shapes (money,
 nanoid ids, month keys) are composed from small reusable schemas. Inside the
 service/domain layers, inputs are already typed — do not re-validate.
 
-```ts
-// Reusable field schemas — src/lib/domain/schemas.ts
-export const nanoidSchema = z.string().length(21);
-export const priceCentsSchema = z.number().int().positive();
-export const unitPriceMilliSchema = z.number().int().positive();
-export const epochMsSchema = z.number().int().positive();
-```
+Reusable field schemas are in `src/lib/domain/schemas.ts`: `nanoidSchema`
+(`z.string().length(21)`), `priceCentsSchema`, `unitPriceMilliSchema`,
+`epochMsSchema` (each `z.number().int().positive()`).
 
 ### 1.9 Repository pattern — every query is user-scoped (security invariant)
 
@@ -336,23 +259,10 @@ condition. No exceptions, not even "the id is already unique". This is the
 single invariant that prevents cross-user data leaks; it is cheaper to
 enforce mechanically than to reason about per-query.
 
-```ts
-// src/lib/db/repositories/stores.ts
-
-/** Fetch one store by id, or null if it does not exist for this user. */
-export async function getStoreById(
-  db: Db,
-  userId: string,
-  storeId: string,
-): Promise<Store | null> {
-  const rows = await db
-    .select()
-    .from(stores)
-    .where(and(eq(stores.userId, userId), eq(stores.id, storeId)))
-    .limit(1);
-  return rows[0] ?? null;
-}
-```
+The shape is `getStoreById(db, userId, storeId)` in
+`src/lib/db/repositories/stores.ts`:
+`.where(and(eq(stores.userId, userId), eq(stores.id, storeId)))`, returning
+`rows[0] ?? null`.
 
 - Repository modules are named **by aggregate, plural, kebab-case, no
   `Repository` suffix**: `price-entries.ts`, `products.ts`, `stores.ts`,
@@ -500,100 +410,52 @@ constructing payloads/prompts, `format*` for display strings.
 
 ### 2.1 The tree, annotated
 
-The repo layout, with what belongs in each directory — and what must
-never appear there:
+One line per group of files, with what must never appear there. What each module
+does is in its own header comment.
 
 ```
 segnaprezzi/
-├── docs/
-│   └── assets/                 # Logo, favicon source SVG (build inputs, not served).
-├── data/
-│   └── istat-nic.json          # Committed ISTAT NIC monthly series. Only scripts/update-istat.ts writes it.
-├── drizzle/                    # Generated SQL migrations + meta. Never hand-edited; always committed.
-├── scripts/                    # tsx entry points: seed.ts, update-istat.ts, generate-icons.ts,
-│                               #   prune-photos.ts, plus their pure helpers (seed-ids.ts, seed-users.ts,
-│                               #   istat-nic.ts).
-│                               #   Scripts may import src/lib/** but nothing imports scripts/.
-├── messages/
-│   ├── it.json                 # Default locale. Same key tree as en.json — always.
-│   └── en.json
-├── public/                     # PWA icons, manifest assets. Static only — no source files.
+├── docs/assets/        # Logo, favicon source SVG (build inputs, not served).
+├── docs/guide/         # Domain guides, one file per theme (§ Domain guides).
+├── data/istat-nic.json # Committed ISTAT series. Only scripts/update-istat.ts writes it.
+├── drizzle/            # Generated SQL migrations + meta. Never hand-edited; always committed.
+├── scripts/            # tsx entry points (seed, update-istat, generate-icons, prune-photos) and pure
+│                       #   helpers (seed-ids, seed-users, istat-nic). May import src/lib/**; nothing imports scripts/.
+├── messages/           # it.json (default locale) and en.json. Same key tree, always.
+├── public/             # PWA icons, manifest assets. Static only, no source files.
 ├── src/
-│   ├── app/                    # App Router. [locale]/(app)/... pages, colocated actions.ts,
-│   │   │                       #   api/ route handlers, globals.css (@theme tokens), layout.
-│   │   │                       #   NEVER: business logic, Drizzle queries, fetch to Anthropic.
-│   │   ├── [locale]/(app)/     # The signed-in routes. A screen too long for one file keeps its parts
-│   │   │                       #   colocated in its route folder, beside page.tsx and actions.ts:
-│   │   │                       #   scan/review/: review-derivations (pure, tested), use-review-drafts,
-│   │   │                       #     review-card-list, review-confirm-bar, review-match-sheet,
-│   │   │                       #     success-overlay.
-│   │   │                       #   add/manual/: use-manual-entry-form, manual-entry-derivations
-│   │   │                       #     (pure, tested), manual-product-section, manual-price-section,
-│   │   │                       #     manual-details-section, manual-submit-bar.
-│   │   │                       #   history/: history-filter-bar, history-timeline, history-list-states.
-│   │   │                       #   products/: catalog-view (pure, tested), catalog-header, product-list,
-│   │   │                       #     selection-action-bar, merge-products-sheet.
-│   │   │                       #   products/[id]/: chart-window (pure, tested), price-overview,
-│   │   │                       #     store-comparison-section, price-history-list,
-│   │   │                       #     product-menu-sheet, edit-product-sheet.
-│   │   │                       #   settings/: index-settings-section, preferences-section, data-section,
-│   │   │                       #     delete-account-sheet.
-│   │   └── api/                # Only the handlers listed in §1.10, plus route-errors.ts: the one
-│   │                           #   DomainErrorCode→HTTP status table and error body they all share.
-│   ├── components/
-│   │   ├── ui/                 # Primitives (button, sheet, field, input, chip, toast, tab-bar, fab…)
-│   │   │                       #   + use-focus-trap (focus in/out and Tab cycling for sheets).
-│   │   ├── pwa/               # sw-provider, sw-registration, sw-update-toast, install-sheet,
-│   │   │                       #   ios-install-sheet, install-row. Client-only.
-│   │   ├── charts/             # Hand-rolled SVG: area-chart, category-bars, sparkline, trend-badge,
-│   │   │                       #   number-ticker + scale.ts (pure, tested: the scales and the
-│   │   │                       #   area chart geometry).
-│   │   ├── capture/            # The capture screens' parts: camera-view, photo-tray, extraction-card,
-│   │   │                       #   match-picker, store-picker-sheet + its use-store-options hook,
-│   │   │                       #   use-product-search (the match sheet's catalog search)…
-│   │   ├── entries/            # entry-sheet (view/edit/delete one observation; detail + timeline),
-│   │   │                       #   promo-fields (the promo toggle + kind chips every entry form shares).
-│   │   ├── auth/               # auth-form (progressive-reveal login/signup form).
-│   │   └── layout/             # app-shell, nav-rail, screen-header, offline-banner.
-│   │                           #   components/ NEVER imports db/, services/, ai/, blob/, env,
-│   │                           #   nor Server Actions — screens pass actions down as callbacks.
+│   ├── app/            # App Router: [locale]/(app)/ pages, colocated actions.ts, globals.css (@theme), layout.
+│   │   │               #   NEVER: business logic, Drizzle queries, fetch to Anthropic.
+│   │   ├── [locale]/(app)/ # A screen too long for one file keeps its parts in its route folder, beside
+│   │   │               #   page.tsx and actions.ts (scan/review, add/manual, history, products,
+│   │   │               #   products/[id], settings); *-derivations, catalog-view and chart-window are pure and tested.
+│   │   └── api/        # Only the handlers in §1.10, plus route-errors.ts: the one status table and error body.
+│   ├── components/     # ui/ (primitives, use-focus-trap), pwa/ (client-only), charts/ (hand-rolled SVG, scale.ts
+│   │                   #   pure and tested), capture/, entries/, products/, auth/, layout/.
+│   │                   #   NEVER imports db/, services/, ai/, blob/, env, nor Server Actions:
+│   │                   #   screens pass actions down as callbacks.
 │   ├── lib/
-│   │   ├── domain/             # categories.ts, units.ts, money.ts, schemas.ts and the other shared
-│   │   │                       #   rules and wire types: extract-photo.ts, photos.ts, search.ts,
-│   │   │                       #   history-groups.ts, auth.ts… Pure, zero imports.
-│   │   ├── inflation/          # Index engine: bucketing, relatives, chaining, coverage.
-│   │   │                       #   Pure. Imports domain/ only. The most heavily unit-tested code.
-│   │   ├── db/
-│   │   │   ├── client.ts       # libSQL client + Drizzle instance (env-driven local/remote).
-│   │   │   ├── schema/         # auth.ts (Better Auth CLI output), app.ts (our tables), index.ts.
-│   │   │   └── repositories/   # One module per aggregate. Queries only, all userId-scoped.
-│   │   ├── services/           # Use cases: record-entry.ts, merge-products.ts, compute-index.ts...
-│   │   │                       #   Orchestration only — no SQL, no HTTP, no JSX.
-│   │   ├── ai/                 # The Anthropic gateway: the shelf-tag call, its prompt and response
-│   │   │                       #   schema, and the one AiGatewayError mapping (toAiGatewayError).
-│   │   ├── blob/               # Vercel Blob gateway: upload/delete photo.
-│   │   ├── offline/            # CLIENT-side: Dexie schema, photo queue, sync manager,
-│   │   │                       #   safe-storage.ts (localStorage that never throws).
-│   │   │                       #   Never imported by server code.
-│   │   ├── auth/               # auth.ts (Better Auth config), client.ts, session.ts (requireUser).
-│   │   ├── i18n/               # routing.ts, navigation.ts (wrapped Link/router), request config.
-│   │   ├── env.ts              # Zod-validated env access. The ONLY file reading process.env.
-│   │   ├── format.ts           # ALL Intl display formatting (money, dates, units) + input parsing.
-│   │   ├── motion.ts           # houseSpring, quickFade, chartDraw…, useAppMotion() — the only place
-│   │   │                       #   springs, durations and easings are declared.
-│   │   ├── theme.ts            # The theme cookie name + read/apply helpers (Settings, root layout).
-│   │   ├── call-action.ts      # Client guard: a rejected Server Action call becomes ok: false.
-│   │   ├── action-results.ts   # Server-only: the failure results + revalidation every action shares.
-│   │   ├── redirects.ts        # Validates the post-login redirectTo (no open redirect).
-│   │   ├── cx.ts               # Class-name joiner (no clsx dependency).
-│   │   ├── use-media-query.ts  # tablet:/rail: queries for components that branch on width.
-│   │   ├── use-container-width.ts # ResizeObserver width for the SVG charts.
-│   │   └── errors.ts           # DomainError + DomainErrorCode + ActionResult (§1.7).
-│   └── middleware.ts           # next-intl locale routing + auth guard.
-├── tests/
-│   └── e2e/                    # Playwright specs (*.spec.ts). Critical paths only.
+│   │   ├── domain/     # Shared rules and wire types (categories, units, money, schemas, entries…). Pure, zero imports.
+│   │   ├── inflation/  # Index engine. Pure, imports domain/ only. The most heavily unit-tested code.
+│   │   ├── db/         # client.ts (env-driven libSQL + Drizzle), schema/ (auth.ts CLI output, app.ts ours, index.ts),
+│   │   │               #   repositories/ (one module per aggregate, queries only, all userId-scoped), testing/.
+│   │   ├── services/   # Use cases (create-price-entry, confirm-shopping-session, dashboard, inflation, export…).
+│   │   │               #   Orchestration only: no SQL, no HTTP, no JSX.
+│   │   ├── ai/         # The Anthropic gateway: shelf-tag call, prompt, response schema, toAiGatewayError.
+│   │   ├── blob/       # Vercel Blob gateway: upload/delete photo.
+│   │   ├── offline/    # CLIENT-side: Dexie schema, photo queue, sync manager, safe-storage.ts. Never imported by server code.
+│   │   ├── auth/       # auth.ts (Better Auth config), client.ts, session.ts (requireUser).
+│   │   ├── i18n/       # routing.ts, navigation.ts (wrapped Link/router), request.ts.
+│   │   ├── env.ts      # Zod-validated env access. The ONLY file reading process.env.
+│   │   ├── format.ts   # ALL Intl display formatting (money, dates, units) + input parsing.
+│   │   ├── motion.ts   # houseSpring, quickFade, chartDraw…, useAppMotion(): the only place springs and easings are declared.
+│   │   ├── errors.ts   # DomainError + DomainErrorCode + ActionResult (§1.7).
+│   │   └── …           # theme.ts, call-action.ts (client guard), action-results.ts (server-only), redirects.ts
+│   │                   #   (no open redirect), cx.ts, use-media-query.ts, use-container-width.ts.
+│   └── middleware.ts   # next-intl locale routing + auth guard.
+├── tests/e2e/          # Playwright specs (*.spec.ts). Critical paths only.
 ├── AGENTS.md · CLAUDE.md · DESIGN.md · PRODUCT.md · README.md · CONTRIBUTING.md · COMMENTS.md · DEVELOPMENT_GUIDELINES.md
-├── LICENSE (MIT) · biome.json · drizzle.config.ts · next.config.ts · package.json
+└── LICENSE (MIT) · biome.json · drizzle.config.ts · next.config.ts · package.json
 ```
 
 ### 2.2 Test placement
@@ -618,14 +480,11 @@ comment; this section is the registry.
 
 **Adding/renaming a category** (`src/lib/domain/categories.ts`):
 
-```ts
-// WARNING: when you add a category here, also update:
-// - messages/it.json and messages/en.json ("categories" namespace)
-// - the AI extraction prompt in src/lib/ai/ — the model must know the new id
-// - AGENTS.md §1.11 namespace notes if semantics change
-// The DB stores the raw id string: renaming an id requires a data migration.
-export const categories = [ /* ... the category taxonomy ... */ ] as const;
-```
+Update `messages/it.json` and `messages/en.json` (`categories` namespace), the
+AI extraction prompt in `src/lib/ai/` (the model must know the new id), and
+AGENTS.md §1.11 if semantics change. The DB stores the raw id string: renaming an
+id requires a data migration. `src/lib/domain/categories.ts` carries this as a
+`WARNING` comment above `export const categories`.
 
 **Adding a `DomainErrorCode`** (`src/lib/errors.ts`): extend the union, add
 the matching `errors.<CODE>` message to **both** `messages/it.json` and
@@ -655,9 +514,9 @@ section, and the Vercel project settings.
 differs, and the tab bar in `components/layout/` if it is a top-level
 destination.
 
-**Regenerating `src/lib/db/schema/auth.ts`** (`pnpm auth:generate`): re-add
-the hand-patched `issuer` column on `accounts` (§4.16) — the CLI output
-doesn't include it, and signup breaks at runtime without it.
+**Regenerating `src/lib/db/schema/auth.ts`** (`pnpm auth:generate`): diff the
+output against the committed file and keep what the installed core requires
+(`docs/guide/auth.md` §4.16); `accounts.issuer` no longer exists (§4.69 there).
 
 ---
 
@@ -670,8 +529,8 @@ these scripts.
 
 | Script | Command | When to use |
 |---|---|---|
-| `dev` | `next dev` | Daily development. Serwist is disabled here (§4.3). |
-| `build` | `next build --webpack` | Production build; also the only way to build the service worker. **The `--webpack` flag is load-bearing** — see §4.39. |
+| `dev` | `next dev` | Daily development. Serwist is disabled here (`docs/guide/offline-pwa.md` §4.3). |
+| `build` | `next build --webpack` | Production build; also the only way to build the service worker. **The `--webpack` flag is load-bearing** — see `docs/guide/offline-pwa.md` §4.39. |
 | `start` | `next start` | Serve the production build locally (PWA testing). |
 | `lint` | `biome check .` | The pre-commit check (there is no CI). Formatting AND lint in one pass. |
 | `lint:fix` | `biome check --write .` | Auto-fix before committing. Run it, don't hand-format. |
@@ -683,10 +542,10 @@ these scripts.
 | `db:migrate` | `drizzle-kit migrate` | Apply pending migrations to the DB in `TURSO_DATABASE_URL`. |
 | `db:studio` | `drizzle-kit studio` | Browse/edit data in a local GUI while debugging. |
 | `db:seed` | `tsx --env-file-if-exists=.env.local scripts/seed.ts` | Populate the local DB with demo data (products, entries across months). Not `--env-file` — see §4.21. |
-| `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (§3.5, §4.2, §4.16). |
+| `auth:generate` | `pnpm dlx @better-auth/cli@1.4.22 generate --yes --config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` | Regenerate `src/lib/db/schema/auth.ts` after a Better Auth config change; always follow with `pnpm db:generate` (`docs/guide/auth.md` §3.5, §4.2, §4.16). |
 | `icons` | `tsx scripts/generate-icons.ts` | Regenerate PWA icon set from `docs/assets/logo.svg` into `public/`. |
 | `istat:update` | `tsx scripts/update-istat.ts` | Refresh `data/istat-nic.json` from ISTAT; commit the diff. |
-| `photos:prune` | `tsx --env-file-if-exists=.env.local scripts/prune-photos.ts` | Report (or `--delete`) entry photos in Blob that no entry references. Dry run by default; run it with the target deployment's env — see §4.61. |
+| `photos:prune` | `tsx --env-file-if-exists=.env.local scripts/prune-photos.ts` | Report (or `--delete`) entry photos in Blob that no entry references. Dry run by default; run it with the target deployment's env — see `docs/guide/capture.md` §4.61. |
 
 `tsx` is a devDependency — scripts run TypeScript directly, no build step.
 Always invoke through `pnpm` (`pnpm db:migrate`, `pnpm test`), never through
@@ -733,673 +592,364 @@ Never edit an already-committed migration; add a new one. Never use
 
 ### 3.5 Better Auth CLI (rarely needed)
 
-```bash
-pnpm auth:generate  # regenerates src/lib/db/schema/auth.ts
-pnpm db:generate    # ALWAYS follows — see §4.2
-pnpm db:migrate
-```
-
-Always invoke through the `auth:generate` script (§3.1) — never a raw
-`npx`/`pnpm dlx` call inline; the script pins the CLI version. Re-run only
-when the Better Auth config changes shape (new plugin, new field). The
-generated `schema/auth.ts` is committed but not fully hand-off — it needs one
-manual correction after every regeneration until the CLI catches up with the
-installed core version; see §4.16 before touching it.
+Moved with the rest of auth: `docs/guide/auth.md` §3.5. Always through the
+`auth:generate` script, always followed by `pnpm db:generate`.
 
 ---
 
 ## 4. Gotchas and Non-Obvious Setup
 
+Each gotcha is a rule, with its date and the file or test that fixes it where
+one exists; the story behind it is in `git log`. Numbers are stable and never
+reused, so a block that moved to a guide keeps its number there.
+
+### Domain guides
+
+| Guide | Read it when you touch | Blocks |
+|---|---|---|
+| `docs/guide/auth.md` | Better Auth config, its schema, sign-in from scripts or tests | §3.5, §4.2, §4.16, §4.19, §4.42, §4.69 |
+| `docs/guide/offline-pwa.md` | photo queue, sync, service worker, manifest, icons | §4.3, §4.9, §4.39, §4.40, §4.43–§4.48 |
+| `docs/guide/capture.md` | AI gateway, prompt, Blob, price invariant, photo deletion | §4.7, §4.51, §4.54, §4.59, §4.61, §4.63, §4.64–§4.66, §4.70 |
+| `docs/guide/inflation-index.md` | index engine, coverage figures, ISTAT series and its workflow | §4.27, §4.29, §4.71–§4.73 |
+
+**Authentication (Better Auth).** After `pnpm auth:generate`, always run
+`pnpm db:generate`, or the DB has no auth tables (§4.2), and diff the result
+by hand against the committed file: the CLI lags behind core, so keep what the
+installed core requires (§4.16). A script outside a browser must set `Origin`
+explicitly on every Better Auth route, and so must any E2E call acting on an
+authenticated session (§4.19). Never disable the rate limiter for tests: it is
+the app's only brute-force defence (§4.42). An upgrade that touches auth is
+verified by a running server and a real sign-in, not by `pnpm test` (§4.69).
+The rest — the CLI flags and version history, how the E2E helper waits out a
+429, and the `accounts.issuer` story — in `docs/guide/auth.md`.
+
+**Offline queue, service worker and PWA.** `next build` without `--webpack`
+emits no service worker and still reports success, and `pnpm dev` serves none:
+offline behavior can only be tested with `pnpm build && pnpm start` (§4.3,
+§4.39). Idempotency depends on a queued photo's client-generated nanoid: never
+regenerate it on retry, never let the server mint ids for queued items (§4.9).
+Adding a locale means an entry in `next.config.ts`'s
+`additionalPrecacheEntries` and in `src/app/sw.ts`'s `fallbacks` list (§4.40).
+In Vitest, fake `Date` only around Dexie, never the timers (§4.43). The rest —
+the happy-dom `FormData` workaround, Serwist's event and matcher types, the
+installability test, the favicon conflict — in `docs/guide/offline-pwa.md`.
+
+**Tag capture, AI extraction and photo storage.** `claude-opus-5-5` returns
+400 on `temperature` and pays its thinking tokens out of `max_tokens`, so
+leave `temperature` out and `max_tokens` at 8000 (§4.70). A gateway that
+needs different SDK options gets its own `Anthropic` instance, not
+`client.withOptions()` (§4.51). Blobs do not follow the database's cascades:
+any new path that destroys entries owes the store an explicit cleanup, row
+first and blob after (§4.59). `isUnitPriceConsistent` is the ONE predicate
+the review screens, the fuel form and every write ask, and its tolerance
+scales with the package size (§4.63). The rest — the dev Blob token, worked
+examples in prompts, the prune tool's guard — in `docs/guide/capture.md`.
+
+**Personal inflation index and ISTAT series.** The index compares each store
+with itself: every store keeps its own carried price, a product's relative is
+the Jevons of the stores priced in both months, and a price seen only at a new
+store reads 0% (§4.72). `isPriceCompared` is not `!isToImputed`, and coverage
+counts products, never a share of prices (§4.73). The dashboard loads
+`data/istat-nic.json` as a static import and never fetches ISTAT at runtime;
+ISTAT is always queried with a narrow key (§4.27). `update-istat.yml` needs a
+repository setting, not a token, to open its pull request (§4.71). The rest —
+the SDMX dataflows and headers, the worked store example, removing the
+engine's dead branches (§4.29) — in `docs/guide/inflation-index.md`.
+
+### Setup and tooling
+
 **4.1 Turso local vs remote is an env switch, not a code switch.**
-`src/lib/db/client.ts` creates one client from `TURSO_DATABASE_URL`. With
-`file:local.db` it is a plain local SQLite file and `TURSO_AUTH_TOKEN` may be
-empty; with a `libsql://` URL the token is required (`src/lib/env.ts` enforces
-this conditionally). No `if (isDev)` branches anywhere else.
+`src/lib/db/client.ts` creates one client from `TURSO_DATABASE_URL`. `file:local.db`
+is a plain SQLite file and `TURSO_AUTH_TOKEN` may be empty; a `libsql://` URL
+requires the token (`src/lib/env.ts`). No `if (isDev)` branches anywhere else.
 
-**4.2 Better Auth CLI generate, then drizzle-kit generate — in that order.**
-The Better Auth CLI writes Drizzle table definitions (`users`, `sessions`,
-`accounts`, `verifications`) into `src/lib/db/schema/auth.ts`; it does **not**
-create migrations. Skipping the follow-up `pnpm db:generate` leaves the DB
-without auth tables and every auth call failing with a table-not-found error.
+**4.5 Tailwind 4 has no `tailwind.config`.** Tokens and plugins are declared in
+`src/app/globals.css` under `@theme` and `@plugin`. Don't create a
+`tailwind.config.ts`; content scanning is automatic.
 
-**4.3 Serwist is disabled in dev — and needs `--webpack` in prod (§4.39).**
-The Serwist plugin sets `disable: process.env.NODE_ENV === "development"`.
-`pnpm dev` serves no service worker — offline behavior, caching, and the install prompt can only be
-tested with `pnpm build && pnpm start`. Do not "fix" offline bugs against the
-dev server; you are testing nothing. After testing SW changes, bump nothing
-manually — Serwist handles SW versioning from the build.
+**4.6 TypeScript 7 is the native (Go) compiler.** `tsc` is the TS7 native port:
+same CLI, stricter about some legacy patterns, not always at parity with an
+editor's bundled 5.x. Point the editor at the workspace version. If
+`pnpm typecheck` and the editor disagree, the CLI wins.
 
-**4.4 Every internal link goes through the wrapped navigation API.** Because
-all routes live under `[locale]`, `src/lib/i18n/navigation.ts` exports
-`Link`, `useRouter`, `usePathname`, `redirect`, `getPathname` from next-intl's
-`createNavigation`. Importing `next/link` or `next/navigation` for an internal
-route produces locale-less URLs that 404 or drop the user to the default
-locale. Grep before review: the only allowed `next/link` usages are external
-`<a>`-equivalent cases (none expected).
-
-**4.5 Tailwind 4 has no `tailwind.config`.** Design tokens live in
-`src/app/globals.css` under `@theme` (CSS-first configuration). Don't create a
-`tailwind.config.ts` — plugins and tokens are declared in CSS (`@plugin`,
-`@theme`). Content scanning is automatic.
-
-**4.6 TypeScript 7 is the native (Go) compiler.** `tsc` on this repo is the
-TS7 native port — same CLI name, dramatically faster, but stricter about a few
-legacy patterns and not always in feature-parity with editors' bundled 5.x.
-Point your editor at the workspace TypeScript version. If `pnpm typecheck`
-and the editor disagree, the CLI verdict wins.
-
-**4.7 Vercel Blob needs a real token even in dev.** There is no local Blob
-emulator. Pull the dev token from the linked Vercel project:
-`vercel link` once, then `vercel env pull .env.local` (this fills
-`BLOB_READ_WRITE_TOKEN`). Without it, `/api/extract` fails at the upload step
-— photo capture UI can still be developed offline against the queue.
-
-**4.8 Timestamps are integer ms — never Date strings.** All schema timestamp
-columns use `integer` with `{ mode: "timestamp_ms" }`; Drizzle hands you
-`Date` objects and stores `getTime()` values. Never store an ISO string, never
-store seconds. When comparing or bucketing, work with the epoch-ms number;
-when displaying, format with `Intl.DateTimeFormat` and the active locale.
-
-**4.9 Photo queue ids are client-generated nanoids — idempotency depends on
-this.** The offline queue (Dexie) assigns each captured photo a nanoid(21) at
-capture time. That id is reused as the Blob pathname
-(`users/{userId}/photos/{entryId}.webp`, `addRandomSuffix: false`) and becomes
-`price_entries.id` when the user confirms. A retry after a dropped connection
-therefore overwrites the same blob, and the confirm action **inserts with
-`onConflictDoNothing`** so a replay never duplicates the row. Never regenerate
-an id on retry; never let the server mint ids for queued items.
-
-**4.10 Category changes fan out.** The enum in
-`src/lib/domain/categories.ts` is referenced by both message files, the AI
-extraction prompt, and the checklist registry in §2.3 of this file.
-The DB stores raw id strings, so renames are data migrations. Follow the
-checklist comment — it exists because the compiler cannot catch a stale
-prompt.
-
-**4.11 `pnpm` is not always on `PATH` on this Windows dev machine.** Neither
-Git Bash nor PowerShell resolve `pnpm` by default, and `corepack enable`
-fails with `EPERM` writing shims into `C:\Program Files\nodejs` without admin
-rights. Fix once per shell session: `npm install -g pnpm`, then prepend
-`C:\Users\<user>\AppData\Roaming\npm` to `PATH` for that shell (Bash:
-`export PATH="$PATH:/c/Users/<user>/AppData/Roaming/npm"`). `corepack pnpm`
-also works ad hoc but does **not** put a `pnpm` binary on `PATH`, so tools
-that spawn `pnpm` as a subprocess (e.g. `create-next-app --use-pnpm`) still
-fail with `ENOENT` even when `corepack pnpm -v` succeeds. **The Mac has the
-same shape of problem**: `corepack enable` fails with `EACCES` on
+**4.11 `pnpm` is not always on `PATH` on this Windows dev machine.** Windows:
+`corepack enable` fails with `EPERM` on `C:\Program Files\nodejs`; run
+`npm install -g pnpm`, then prepend `C:\Users\<user>\AppData\Roaming\npm` to
+`PATH` per shell (Bash: `export PATH="$PATH:/c/Users/<user>/AppData/Roaming/npm"`).
+`corepack pnpm` works ad hoc but puts no `pnpm` on `PATH`, so a subprocess (e.g.
+`create-next-app --use-pnpm`) still fails with `ENOENT` even when
+`corepack pnpm -v` succeeds. **Mac**: `corepack enable` fails with `EACCES` on
 `/usr/local/bin`, and `corepack pnpm run <script>` dies with `spawnSync pnpm
 ENOENT` because pnpm's own `verifyDeps` re-spawns `pnpm`. Fix once:
-`corepack enable --install-directory ~/.local/bin`, then every shell (and
-every agent command) needs `export PATH="$HOME/.local/bin:$PATH"`.
+`corepack enable --install-directory ~/.local/bin`, then every shell and agent
+command needs `export PATH="$HOME/.local/bin:$PATH"`.
 
 **4.12 Biome's CSS parser needs `tailwindDirectives: true` for Tailwind 4
 at-rules.** From Biome ~2.5, `@custom-variant` and `@theme` in
-`src/app/globals.css` are rejected as parse errors unless `biome.json` sets
-`"css": { "parser": { "tailwindDirectives": true } }`. Without it, `pnpm lint`
-fails on the theming file even though the CSS is correct Tailwind 4 syntax.
+`src/app/globals.css` are parse errors unless `biome.json` sets
+`"css": { "parser": { "tailwindDirectives": true } }`.
 
 **4.13 Next.js 16 rewrites `AGENTS.md` on every `next dev`/`next build`
-unless disabled.** The "agent rules" feature appends a generated
-`<!-- BEGIN:nextjs-agent-rules -->` block to this file describing the
-installed Next.js version. This repo's `AGENTS.md` is a hand-maintained
-contract, not a target for codegen — `next.config.ts` sets `agentRules:
-false`. If a future Next upgrade reintroduces unwanted writes to project
-docs, keep the flag; do not let generated content live in a committed file.
-
-**4.14 Pin the Playwright browser locale, or the root-path smoke test is
-flaky.** next-intl's middleware negotiates the locale from `Accept-Language`
-when no `theme`/locale cookie is set. Playwright's default browser context
-locale follows the host OS/CI runner, which is often `en-US` — that then
-outranks the app's Italian default at `/`, and
-`tests/e2e/smoke.spec.ts`'s Italian-heading assertion fails nondeterministically.
-Fix: `playwright.config.ts` → `projects[].use.locale = 'it-IT'`. Every
-project needs it; the three phone-shaped ones (`mobile`, `offline-queue`,
-`pwa`) share one `mobileDevice` literal that pins it once. A WebKit project
-for iOS PWA checks was considered and deliberately left out — Playwright's
-WebKit is not Safari, so it cannot answer the questions that matter there
-(`beforeinstallprompt` absence, the 7-day storage eviction, the real share
-sheet); those stay owner checks on a real device.
-
-**4.15 SQLite's `RESTRICT` FK action is not deferred to end-of-statement —
-never use it when a cascading delete elsewhere can touch the same row
-first.** Every other FK action (including the default `NO ACTION`) is
-checked once, after the whole statement's cascades have run. `RESTRICT`
-checks immediately, per row, as the cascade executes. `price_entries` has
-both `productId → products.id` and `userId → users.id` (cascade); with
-`productId` set to `restrict`, a single `DELETE FROM users` that cascades to
-both `products` and `price_entries` could fail with a spurious FK violation
-depending on which sibling cascade SQLite processes first (reproduced with a
-minimal 3-table case). If a future table needs "block deletion while
-children exist" semantics on a column that a cascade can also reach
-transitively, default to omitting `onDelete` (`NO ACTION`) instead of
-`restrict` — same user-facing blocking behavior for a direct delete, no
-same-statement cascade race.
-
-**4.16 `@better-auth/cli` lags behind the `better-auth` core package's own
-versioning — pin an actual published version, and diff its output by hand.**
-There is no `@better-auth/cli@^1.7.0`; the CLI tops out around
-`1.4.22`/`1.5.0-beta.x` while core is at 1.7.12. The CLI needs explicit
-`--config src/lib/auth/auth.ts --output src/lib/db/schema/auth.ts` (it does
-not autodetect either path here). History worth knowing before trusting
-either side: core 1.7.0–1.7.2 required an `issuer` column on `accounts`, so
-it was added by hand on 2026-08-21; core 1.7.3 abolished it, and 1.7.12's
-Drizzle adapter refuses to *start* while a NOT NULL column it never writes
-exists (§4.69). The generated file is therefore neither fully CLI output nor
-fully hand-written: after every `pnpm auth:generate`, diff against the
-committed file and keep what the installed core actually requires. Check the
-latest `@better-auth/cli` version whenever this comes up again.
-
-**4.17 The test DB factory uses a uniquely-named temp file, never
-`:memory:` — an anonymous in-memory libSQL connection silently resets
-itself the instant a `db.transaction()` callback throws.** Verified with a
-minimal repro: a table created before the transaction becomes "no such
-table" on the very next query after a rolled-back transaction on the same
-connection — this broke the `mergeProducts` rollback tests outright.
-`file::memory:?cache=shared` avoids that crash but shares ONE anonymous
-database across every client in the process (verified: an unrelated second
-client immediately sees the first client's rows), breaking per-test
-isolation. `@libsql/client` also rejects the standard SQLite named-memory-db
-escape hatch (`file:name?mode=memory&cache=shared` → "Unsupported URL query
-parameter 'mode'"). `src/lib/db/testing/create-test-db.ts` instead creates a
-fresh temp file per call under `os.tmpdir()`, cleaned up on
-`process.on('exit')` — same fresh-DB-per-test contract, none of the three
-bugs above.
-
-**4.18 A local file database needs WAL + a busy_timeout, or a handful of
-concurrent requests throws `SQLITE_BUSY: database is locked`.** SQLite's
-default rollback-journal mode serializes readers and writers tightly enough
-that Playwright's parallel workers hitting `GET /api/export` reproduced it
-reliably. `src/lib/db/client.ts` runs `PRAGMA journal_mode = WAL` and
-`PRAGMA busy_timeout = 5000` once per process, only for `file:` URLs (Turso
-remote already handles concurrency server-side). Fire-and-forget, not
-awaited — a top-level `await` there breaks `tsx`'s CJS transform for
-`scripts/*` — safe because the local driver executes synchronously
-under the hood and `journal_mode=WAL` is persisted in the file itself, so
-even a worst-case race self-heals after the first successful run.
-
-**4.19 Better Auth enforces an Origin check that raw HTTP clients don't
-satisfy by default.** From Playwright's `page.request`, sign-in and sign-up
-work without extra headers (open, unauthenticated entry points) but
-`POST /api/auth/sign-out` 403s with `MISSING_OR_NULL_ORIGIN` unless the
-request carries an `Origin` header matching a trusted origin. **Refinement
-(2026-08-21, found during a capture-flow collaudo):** that carve-out is specific
-to `page.request`, which inherits the browser context's origin. A bare Node
-`fetch()` sends no `Origin` at all, so it is rejected on **every** Better Auth
-route including sign-in — any script that authenticates outside a browser must
-set `Origin` explicitly — `page.request.post()` is a raw API call,
-not a real in-page `fetch()`, so it never sends one on its own (verified via
-curl too). Pass `headers: { Origin: new URL(page.url()).origin }` explicitly
-on any E2E call to a Better Auth route that acts on an authenticated
-session, not just anonymous sign-in/sign-up.
-
-**4.20 Next.js dev (Turbopack) can return a truncated response when several
-Playwright workers race to be the first request to compile a route.**
-Reproduced twice on different routes ("Unexpected end of JSON input"
-server-side). Largely historical now that the E2E suite runs against a
-production build where nothing compiles on demand (§4.41). The serial
-warm-up pass in `tests/e2e/global-setup.ts` was kept — it still warms the
-server's module graph and the DB connection — but it is no longer load
-bearing, and a new route does not have to be added to it. The hazard itself
-remains for anything else that drives `next dev` from parallel clients.
+unless disabled.** The generated `<!-- BEGIN:nextjs-agent-rules -->` block is
+kept out by `agentRules: false` in `next.config.ts`. This file is a
+hand-maintained contract: keep the flag through any Next upgrade, and let no
+generated content live in a committed file.
 
 **4.21 Node's `--env-file` throws if the file is missing — any environment
 without `.env.local` (a fresh clone, a GitHub Actions job, Vercel) breaks a
-`tsx --env-file=...` script.** First caught by the former CI `e2e` job:
-`pnpm db:seed` worked locally and failed there with `.env.local: not found`,
-because the workflow injected env vars via its `env:` block, not a file. `drizzle-kit` doesn't hit this — `drizzle.config.ts`
-loads `.env.local` through the `dotenv` package's `config()`, which silently
-no-ops on a missing file. Use `--env-file-if-exists=.env.local` (Node 20.12+)
-for any `tsx` script invoked by both a local dev workflow and CI/production —
-never bare `--env-file` unless the file's presence is actually guaranteed
-everywhere the script runs.
-
-**4.22 A `"use server"` module may only export async functions — Zod schemas
-cannot live in `actions.ts`.** Next.js rejects an exported `const` from a
-`"use server"` file at build time, so an `export const
-confirmShoppingSessionSchema` in `scan/review/actions.ts` does
-not compile. Either keep the schema as a module-local (non-exported) constant,
-or — when the tests or another module need it, as the confirm schema's own
-unit tests do — put it in a sibling plain module (
-`scan/review/schema.ts`) that the action imports. Type-only exports are fine
-either way: they are erased before the check runs. Field schemas shared across
-several boundaries belong in `src/lib/domain/schemas.ts` (§1.8).
-
-**4.23 Seed ids are padded to 21 characters — never add a short readable id.**
-`scripts/seed-ids.ts` → `seedId('seed-prod-latte')` produces a contract-shaped
-`nanoid(21)`-length id while staying readable and reproducible. Every id is a
-nanoid(21) and the confirm boundary validates that
-length, so a 15-character seed id makes the review screen reject any suggestion
-pointing at a seeded product (`INVALID_INPUT` on confirm) — a failure that only
-shows up in a real capture flow against a seeded database, never in the seed
-script itself.
-
-**4.24 Playwright must wait for hydration before `setInputFiles` on `/scan`.**
-`page.goto()` resolves on the server HTML, where the camera panel is still in
-its `idle` branch and no React change handler is attached yet; setting the file
-then silently does nothing. Assert the fallback panel
-(`data-testid="camera-fallback"`, rendered only after the client camera hook
-has run and failed to find a camera) is visible first. The race only appears
-under parallel load — it passed for two runs before the quick-entry spec
-started competing for the same dev server.
-
-**4.25 `getByRole('alert')` is never unique in this app.** Next.js renders its
-own route announcer as `<div role="alert" id="__next-route-announcer__">`, so
-any `getByRole('alert')` locator hits at least two elements and fails Playwright's
-strict mode. Target the specific `data-testid` instead.
-
-**4.26 `vitest.config.ts` pins the environment variables the unit suite runs
-with.** Some modules under test import `src/lib/env.ts`, which
-fails fast on a missing variable — so the suite would depend on a developer's
-`.env.local` (and break in CI, which has none) without the `test.env` block.
-The values there are placeholders on purpose: a real `ANTHROPIC_API_KEY` must
-never be reachable from a test run. Every network call in the suite is mocked.
-
-**4.27 ISTAT's SDMX service needs three things that were not obvious going
-in.** (1) The NIC was rebased to 2025=100 in January 2026: dataflow
-`IT1,167_744,1.0` (base 2015) is frozen at 2025-12, and `IT1,167_745,1.0`
-("Nic - monthly data from 2026 onwards (base 2025)") is the live one — it also
-serves the 1995/2010/2015 bases under distinct `DATA_TYPE` codes, so key
-`M.IT..4.00` returns the whole history back to 1996 and
-`scripts/update-istat.ts` chain-links the bases onto 2025=100 (reference-year
-averages, ISTAT's own "coefficiente di raccordo" method; the pure half lives in
-`scripts/istat-nic.ts`, tested offline). (2) `?format=jsondata` (SDMX-JSON 2.0)
-returns every observation as `null` on this NSI version; negotiate SDMX-JSON
-1.0 with `Accept: application/json`. (3) Node's `fetch` sends
-`accept-language: *` by default and the service answers HTTP 500
-`languageTag1` — send `Accept-Language: en`. Also: the host is slow and
-flaky; the full dataflow catalogue (`/dataflow/IT1?detail=allstubs`) is ~2 MB
-and can take over a minute, and `/data/<flow>/all` times out — always query a
-narrow key. The dashboard loads `data/istat-nic.json` as a static import and
-calls `rebaseIstat(months, series[0].ym)`; it never fetches ISTAT at runtime.
-
-**4.29 Test the engine's dead branches by removing them, not by faking
-inputs.** The target is ≈100% line coverage of `src/lib/inflation/`; the
-last few uncovered lines were defensive guards that TypeScript narrowing
-needed but no input could reach (a product in the price table with no
-category, a category series with no first priced month, a mover tie-breaker
-between two identical ids). Each was removed by restructuring — derive the
-category's first month from the entries, rely on `Array.prototype.sort` being
-stable over candidates already iterated in sorted id order — rather than by
-writing a test that manufactures an impossible state. Coverage was measured
-with `@vitest/coverage-v8` installed transiently (`pnpm add -D`, measure,
-`git checkout package.json pnpm-lock.yaml && pnpm install --frozen-lockfile`);
-it is deliberately not a project dependency.
-
-**4.31 Python one-liners on Windows write CRLF unless told otherwise.**
-`open(path, 'w')` in text mode converts `\n` to `\r\n`, and Biome's formatter
-then fails every touched file ("Formatter would have printed…") while the diff
-looks unchanged. Either open with `newline=''`, write bytes, or run a
-CRLF→LF normalization over `git status` files before `pnpm lint` — the UI
-build session lost two lint rounds to this before the pattern was clear.
-Biome's `--write` has the same effect in reverse: it rewrites a CRLF file to
-LF, so after formatting a CRLF file convert it back and check with
-`tr -cd '
-' | wc -c` (what `grep -c $'
-$'` gets wrong in Git Bash).
-
-**4.32 Playwright's `baseURL` must follow the dev server's port, and Better
-Auth must agree.** `next dev` silently moves to :3001 when :3000 is taken by
-another project, while `playwright.config.ts` kept pointing at :3000 —
-`reuseExistingServer` then runs the suite against the *other* app. The config
-now reads `PORT` (`PORT=3001 pnpm test:e2e`) and starts its
-own server and passes `BETTER_AUTH_URL` to it, so the origin can no longer
-drift from the port. Outside Playwright the rule still stands: on a
-non-default port start the server with `BETTER_AUTH_URL` set to that origin,
-or sign-out (which enforces trusted origins) 403s and the failure looks like
-an auth bug that isn't one.
-
-**4.33 axe measures contrast on rendered pixels — let the 150 ms route
-cross-fade finish first.** The a11y suite reported `color-contrast` failures
-on pages that pass when inspected by hand: `AppShell` fades `<main>` in over
-150 ms, and a half-transparent page fails every text node against its blend.
-`tests/e2e/a11y.spec.ts` waits for `main` to reach opacity 1 before
-`AxeBuilder` runs. Also: the highlighter accent (`--color-accent`, 3.3:1 on
-paper) is fine for fills and icons (≥ 3:1) but not for words — hence
-`--color-accent-ink` (§1.12).
-
-**4.34 A `<fieldset>` with `display: grid` reserves a row for its legend
-even when the legend is `sr-only`.** The `Segmented` control rendered its
-radios in the top half of the box. Keep the fieldset unstyled
-(`m-0 border-0 p-0`) and put the grid on an inner `<div>`.
-
-**4.35 Motion's `whileTap` on a non-button element adds `tabindex="0"` on
-the client only.** A `motion.span` with `whileTap` inside a `<Link>` produced
-a hydration mismatch on every page (the FAB). Use a real `<button>`, or move
-the press feedback to CSS (`group-active:scale-95`) when the element is not
-the interactive one.
-
-**4.36 `seedId()` pads with zeros, so readable seed labels that differ only
-by a trailing digit collide.** `seed-session-m1` and `seed-session-m10` both
-pad to `seed-session-m1000000`. Use fixed-width suffixes (`m01`, `m10`).
-
-**4.37 Input file elements hidden with `sr-only` still need an accessible
-name.** axe's `label` rule flags a label-less `<input type="file">` even when
-a visible button triggers it; give it `aria-label`.
-
-**4.38 The impeccable decision page needs an unsandboxed shell.**
-`serve-question.mjs --start` binds a local port and daemonizes; under the
-sandboxed Bash tool it cannot, so run it (and the `--wait`) with the sandbox
-disabled, then open the printed URL with `Start-Process` from PowerShell.
+`tsx --env-file=...` script.** Use `--env-file-if-exists=.env.local` (Node
+20.12+) for any `tsx` script run both locally and elsewhere. `drizzle-kit` is
+immune: `drizzle.config.ts` loads `.env.local` through the `dotenv` package's
+`config()`, which no-ops on a missing file. The former CI `e2e` job caught
+`pnpm db:seed` failing with `.env.local: not found`, env vars coming from an
+`env:` block.
 
 **4.30 The Bash tool on this Windows machine truncates long commands (~8 KB).**
-A heredoc that writes a whole TypeScript module, or a Python edit script with
-several large `old`/`new` blocks, fails with `unexpected EOF while looking for
-matching `''` — the command was cut, not mis-quoted. Write new source files
-with the Write tool, make edits with short Python one-liners, and split
-multi-file documentation edits into several calls. Cost the inflation-engine
-session two false starts before the pattern was clear.
+The symptom is `unexpected EOF while looking for matching `''`: the command was
+cut, not mis-quoted. Write new source files with the Write tool, make edits with
+short Python one-liners, and split multi-file documentation edits, including
+Python scripts with large `old`/`new` blocks.
 
-**4.39 `next build` emits no service worker under Turbopack, and does not
-fail.** Next.js 16 builds with Turbopack by default; `@serwist/next` is a
-webpack plugin, so it never runs, `public/sw.js` is never written, and the
-build reports success — the only sign is one warning on stderr among Next's
-own output. `package.json`'s `build` script is therefore
-`next build --webpack`. `pnpm dev` is unaffected: Serwist disables itself in
-development, and the warning only fires when it is enabled. When Next drops
-webpack support, migrate to `@serwist/turbopack` or Serwist's configurator
-mode (`@serwist/next/config` + `@serwist/cli`), not back to a silent no-op.
+**4.31 Python one-liners on Windows write CRLF unless told otherwise.**
+`open(path, 'w')` in text mode turns `\n` into `\r\n`, and Biome then fails every
+touched file ("Formatter would have printed…") on a diff that looks unchanged.
+Open with `newline=''`, write bytes, or normalize CRLF→LF over `git status` files
+before `pnpm lint`. Biome's `--write` does the reverse: it rewrites a CRLF file
+to LF, so convert it back and count CRs with `tr -cd '\r' | wc -c` (what
+`grep -c $'\r$'` gets wrong in Git Bash).
 
-**4.40 `@serwist/next`'s precache manifest contains no HTML of ours.** It
-globs the build output, which for the App Router is `/_next/static/**` — every
-page is server-rendered. The `fallbacks.entries` config therefore pointed at
-`/offline` and `/en/offline` URLs that were never precached, and an offline
-navigation failed with `ERR_FAILED` instead of rendering the fallback (the
-`PrecacheFallbackPlugin` is attached correctly; `matchPrecache` simply found
-nothing). Fix: `additionalPrecacheEntries` in `next.config.ts`, one entry per
-locale, with a `randomUUID()` revision minted per build so an updated worker
-re-fetches them. Adding a locale means adding an entry there *and* in
-`src/app/sw.ts`'s `fallbacks` list.
+**4.38 The impeccable decision page needs an unsandboxed shell.**
+`serve-question.mjs --start` binds a local port and daemonizes, so run it and
+the `--wait` with the sandbox disabled, then open the printed URL with
+`Start-Process` from PowerShell.
 
-**4.41 The whole E2E suite runs against a production build, and a dev server
-must not run beside it.** The service worker exists only in a production
-build, so `playwright.config.ts`'s single `webServer` is
-`pnpm build && pnpm start`. Two Next processes sharing one `.next` directory
-corrupt each other's generated types — a dev server running during a build
-produced a `.next/dev/types/root-params.d.ts` with a stray brace and the build
-then failed to type-check. The pre-existing `mobile` and `desktop` projects
-set `serviceWorkers: 'block'` so a real worker never changes what they
-measure.
-
-**4.42 Better Auth's rate limiter is on whenever `NODE_ENV === 'production'`,
-and `/sign-in*` + `/sign-up*` allow 3 requests per 10 s per IP.** Every
-Playwright worker is the same IP, so moving the suite onto a production server
-made `global-setup`'s two logins plus a signup, and then the signup tests,
-trip it. Do **not** disable the limiter for tests — it is the app's only
-brute-force defence. `tests/e2e/helpers/auth.ts` waits out a 429 using its
-`Retry-After` header (the limiter does not extend the window on a rejected
-request, so one wait is enough).
-
-**4.43 In Vitest, fake `Date` only — never the timers — around Dexie.**
-fake-indexeddb drives itself on real macrotasks, so `vi.useFakeTimers()` with
-its default `toFake` list deadlocks Dexie mid-transaction.
-`vi.useFakeTimers({ toFake: ['Date'] })` freezes the clock instead, which is
-what makes `nextAttemptAt` assertions exact; advance it with
-`vi.setSystemTime()` and drain again rather than waiting on the engine's own
-timer. Corollary: do not use `vi.waitFor()` in such a test — with fake timers
-installed it advances them, and the frozen clock drifts by its 50 ms polling
-interval (this cost one confusing "expected …408000, got …408050").
-
-**4.44 happy-dom's `FormData` rejects a Blob that has been through
-IndexedDB.** happy-dom installs its own `Blob`/`FormData` classes, but a Blob
-stored in fake-indexeddb comes back as Node's (structuredClone knows nothing
-about happy-dom), and `FormData.append` then throws "parameter 2 is not of
-type Blob". `src/lib/offline/sync.test.ts` runs in the `node` environment with
-three hand-made globals — an EventTarget `window`, an EventTarget `document`
-with a `visibilityState`, and a `navigator` whose `onLine` the test controls.
-
-**4.45 `serwist` already declares the Background Sync `SyncEvent`.** Adding a
-local `interface BackgroundSyncEvent` to `ServiceWorkerGlobalScopeEventMap`
-is a TS2717 "subsequent property declarations must have the same type" error.
-Write `self.addEventListener('sync', (event) => …)` and read `event.tag`.
-
-**4.46 A Serwist fallback matcher receives the failed request, not a parsed
-URL.** Its parameter is `HandlerDidErrorCallbackParam` (`request`, `error`,
-`event`) — no `url`, unlike a `runtimeCaching` matcher. Parse it yourself:
-`const { pathname } = new URL(request.url)`.
-
-**4.47 Lighthouse 12 has removed the PWA category and the
-`installable-manifest` audit.** `--only-audits=installable-manifest` returns
-an empty `audits` object rather than an error. Installability is asserted in
-`tests/e2e/pwa.spec.ts` instead (manifest contract, every icon served,
-`/sw.js` served, an offline navigation answered by the fallback).
-
-**4.48 `src/app/favicon.ico` and `public/favicon.ico` cannot coexist.** Both
-claim `/favicon.ico` and Next fails the build with a conflicting-public-file
-error. The icon pipeline writes the `public/` one, so the App Router
-convention file was deleted; `generateMetadata` declares `/favicon.ico`
-explicitly.
-
-**4.49 SQLite treats NULLs as DISTINCT inside a UNIQUE index, so
-`ON CONFLICT` never fires for a nullable key column.** Learned on the retired
-`product_aliases` table (unique on a nullable `store_chain`): two rows with
-NULL in the key do NOT collide, so an `onConflictDoUpdate` upsert silently
-inserts a duplicate. Any future unique key with a nullable column must
-either read-before-write inside a transaction (with `isNull()`, not
-`eq(col, null)`, which is never true in SQL) or replace the NULL with a
-sentinel value.
-
-**4.50 A `biome-ignore` suppression must be ONE comment node.** Four
-consecutive `//` lines are four comments, and Biome only reads the first as
-the suppression — it then reports both `suppressions/unused` on the comment
-*and* the original rule on the node below. Use a `/* … */` block for any
-justification that needs more than one line (`{/* … */}` inside JSX
-children), and keep it directly above the node.
-
-**4.51 Don't reach for `client.withOptions()` when a gateway needs different
-SDK options — give it its own `Anthropic` instance.** `src/lib/ai/`'s test
-seam is an injected client shaped `{ messages: { parse } }`; a
-`withOptions({ timeout })` call inside the gateway means every mock must also
-implement `withOptions`. When receipts had their own gateway it constructed
-its own client and re-used `extract-price-tag.ts`'s exported
-`toAiGatewayError`, so the failure classification lived in exactly one place
-— the rule a second gateway must follow again.
-
-**4.52 `test.beforeEach` in a `describe.configure({ mode: 'serial' })` group
-wipes the state the next test depends on.** A serial group whose second test
-asserts on what the first one wrote (the retired receipt suite's "re-upload
-is refused" case) needs `beforeAll` for its reset: Playwright re-runs it on a
-retry of the group, so the fixture stays idempotent either way.
+**4.50 A `biome-ignore` suppression must be ONE comment node.** Biome reads only
+the first of several consecutive `//` lines, then reports both
+`suppressions/unused` and the original rule. Use a `/* … */` block for a
+multi-line justification (`{/* … */}` inside JSX children), directly above the
+node.
 
 **4.53 An all-ASCII binary fixture needs a `.gitattributes` entry, or
-`core.autocrlf` silently corrupts it.** A hand-written PDF with no compressed
-streams is classified as *text* by git's content heuristic and gets its line
-endings rewritten on checkout under Windows' `core.autocrlf=true`; every byte
-offset in its xref table then points one byte early per preceding line, and
-the file stops being a document any reader can open — while a test that
-hashes whatever is on disk still passes. `.gitattributes` declares `*.pdf`
-and the image formats `binary`; verify with `git cat-file -p :<path> |
-sha256sum` against the file on disk. The fixture that taught this is gone;
+`core.autocrlf` silently corrupts it.** Git classifies a hand-written PDF with no
+compressed streams as text and rewrites its line endings under Windows'
+`core.autocrlf=true`, which breaks every xref offset while a test hashing the
+file on disk still passes. `.gitattributes` declares `*.pdf` and the image formats
+`binary`; verify with `git cat-file -p :<path> | sha256sum`. The fixture is gone;
 the attributes file stays.
-
-**4.54 When a real-world document surfaces a prompt gap, add a worked
-example matching its *exact* shape — and when the model still cannot be made
-reliable, look for an invariant in the document itself.** Both lessons come
-from the retired receipt pipeline and apply to the shelf-tag prompt as well.
-A generic rule ("don't guess ambiguous abbreviations") was true in principle
-and too weak in practice to override a plausible-looking wrong guess; a
-concrete counter-example in the prompt fixed it, because the model follows
-examples far more reliably than an instruction it can rationalize past.
-Prompt changes can only be verified against a real document, never by a
-unit test. And when three prompt attempts did not stop Haiku from counting
-six identical lines as seven, what worked was arithmetic on the printed
-total — deterministic, tested, and visible to the user. A self-check rule
-in a prompt ("Σ must not exceed the total") is **dangerous** without its
-legitimate exceptions spelled out: the model will delete a real line to
-satisfy it.
-
-**4.55 A `<table class="sr-only">` is not hidden from layout, and can widen
-the whole document.** `sr-only` sets `width: 1px` with `overflow: hidden`, but
-a `<table>` is sized by its own content and simply ignores that width — and
-`sr-only` also sets `white-space: nowrap`, so the accessible caption becomes
-one unbreakable line. The chart data tables therefore stretched
-`/products/[id]` to 507 px inside a 390 px viewport: the page scrolled
-sideways, and every `fixed inset-x-0` element (tab bar, toast outlet) stretched
-with it. Fix: wrap the table in a `<div class="sr-only">` and leave the table
-itself unstyled — a div is a block box that honours the width and clips. The
-dashboard did not show it only because its caption is shorter, which means the
-bug was present and merely under threshold. Measure this, don't eyeball it:
-`document.documentElement.scrollWidth > clientWidth` on every route finds it
-in one pass.
-
-**4.56 A portal that renders on the client's first pass is a hydration
-mismatch, and `typeof document === 'undefined'` does not prevent it.** The
-server renders nothing, but the client's hydration render already has a
-document — so `Sheet`, opened at mount (the resume-session prompt on `/scan`),
-produced a whole portal with no server counterpart and logged a mismatch on
-every visit. The guard has to be a mounted flag set in an effect, not a
-document check; the sheet then opens one tick later, which is invisible next to
-its own spring.
-
-**4.57 A sticky action bar and the toast outlet are anchored to the same
-bottom edge, and the toast wins.** The toast sits at `4.5rem + safe-area` and a
-sticky footer at `3.5rem + safe-area` plus its own height, so the toast landed
-on the confirm button — and because the toast card is `pointer-events-auto`, it
-also ate the tap. CSS custom properties only inherit downwards and the toast is
-a sibling of the whole app, so the bar publishes its measured height onto
-`document.documentElement` as `--sticky-action-bar-height` and the outlet adds
-it to its own offset. Use `StickyActionBar` (or `STICKY_ACTION_BAR_CLASSES` +
-`useStickyActionBarHeight()` when the bar must be a `motion.div`) — never
-another hand-copy of the class string. The hook hands back a callback ref, not
-a ref object, and that is load-bearing: the catalog's bulk bar exists only
-while selecting, so an effect run when the screen mounted found no element and
-the bar never published its height. Measuring when the element itself attaches
-covers a bar that mounts late.
-
-**4.58 A message that is true in two places at once breaks a `getByText`
-locator.** Naming the blocking reason on the review card meant "1 da
-completare" appeared both in the card's banner and in the confirm bar, and the
-existing E2E assertion failed Playwright's strict mode. The fix was editorial
-rather than technical — the count belongs to the bar, the card only states its
-own status ("Da completare") — but the class of failure is the same one as
-§4.25: prefer a `data-testid` over user-visible text whenever the string is not
-structurally unique.
-
-**4.59 Blobs do not participate in the database's cascades, and nothing will
-remind you.** `price_entries` cascades from `users`, so deleting an account
-emptied every table — while the shelf photos sat in Vercel Blob forever, which
-is a privacy failure rather than a storage bill. Deleting a single observation
-had the same hole. Any new path that destroys entries owes the store an
-explicit cleanup: `deleteOwnedPhotos(userId, urls)` for a known set (it filters
-to the user's own prefix and swallows its failures) or `deleteAllUserPhotos`
-for a whole account, wired to Better Auth's `deleteUser.afterDelete(user,
-request)` hook. Order matters: drop the row first and the blob after, because
-an orphan blob is recoverable and a row whose photo is gone is not.
-`pnpm photos:prune` reports what has already leaked.
-
-**4.60 Spy words must be disjoint across E2E suites that share a seed user.**
-Any flow that fuzzy-matches against the *whole* catalog of a seed user (the
-scan review's suggestions do) can be captured by a product another spec
-created in parallel — the retired receipt suite lost an assertion to
-"Fenicottero in scatola E2E" from a file nobody had touched. Invented names
-keep fixtures away from real data (`WORKFLOW.md` obligation 1); they also
-have to keep fixtures away from *each other*: the delete suite owns
-"vombato" and "axolotl", and a new suite picks words no other spec uses.
-**The same applies inside one file**: disjoint spy words are not enough when
-the rest of the name matches ("Pesto narvalo 190g" vs "Pesto capibara 190g"),
-so vary the noun too. The symptom is a card stuck on `needs-product`, which
-reads like a bug in the matcher.
-
-**4.61 A prune tool that compares one database against one blob store must
-refuse a mismatched pair.** `scripts/prune-photos.ts` calls a blob an orphan
-when no `price_entries.photo_url` references it — so pointing it at
-`file:local.db` while `BLOB_READ_WRITE_TOKEN` still names production makes
-every real photo look unreferenced, and `--delete` would take all of them. It
-prints the database it is comparing, and refuses to delete when the database
-references no photo at all (`--force` overrides). Any future operator script
-that diffs two systems needs the same shape of guard: name both sides, and
-treat "one side is suspiciously empty" as an error, not as a big cleanup.
-
-**4.62 Two naming facts that cost a grep each.** The source-icon chip key on
-history and product detail is `productDetail.source.*` — not the `history.*`
-namespace its position on screen suggests. And the two operations people look
-for under "products" are split: merging duplicates lives in
-`db/repositories/products.ts`, exporting a user's full data in
-`services/export.ts`.
-
-**4.63 The unit-price invariant's tolerance must SCALE with the package
-size, or the app refuses its own arithmetic.** `unit_price_milli` is an
-integer, so rounding it costs up to half a milli-euro per base unit: half a
-cent on a 1 kg pack, but **13,5 cents on a 270-piece box of tissues**
-(3,09 € → 0,01144 € each → storable only as 11 milli, which multiplies back
-to 2,97 €). Against a fixed one-cent slack that is a violation, so a write
-threw `INVALID_PRICE` over a number the app itself had derived.
-`isUnitPriceConsistent` (`domain/money.ts`, `UNIT_PRICE_TOLERANCE_MILLI`)
-therefore allows `max(10, packageSize / 2)` milli, and it is the ONE
-predicate the review screens, the fuel form and every write ask. Two rules
-generalize: when a stored value is quantized, a tolerance on a quantity
-DERIVED from it has to carry the quantization, not a constant somebody once
-found reasonable; and a server-side assertion the client cannot evaluate is
-a rejection nobody can act on — share the predicate or do not assert it.
-
-**4.64–4.66 Retired with receipt import (2026-10-27).** They covered the
-printed-€/kg-before-discount case, the Σ-lines-vs-printed-total
-reconciliation and Haiku's miscount of repeated lines; the durable parts
-moved into §4.54 and §4.63. The numbers stay reserved so older references
-in `git log` still point somewhere.
-
----
-
-**4.67 Every E2E suite that writes as the second seed user leaves the account
-as it found it, because the thin dashboard is a state, not a page.**
-`a11y.spec.ts` expects `dashboard-thin` for `dev2`, which `getDashboardData`
-shows only while the series has fewer than two months. The retired receipt
-suite's fixture was dated August, so one confirmed import gave the account a
-second month and the full dashboard — and with `fullyParallel` the desktop
-project's a11y run landed after the mobile project's flow often enough to
-fail two tests in a file nobody touched (seen 2026-10-27; the race predated
-that session). `quick-entry` and `delete-product` clean up in `afterAll`. A
-new flow suite owes the same `afterAll`, and a fixture dated outside the
-current month is the tell.
 
 **4.68 pnpm 11 reads `overrides` from `pnpm-workspace.yaml`, not from
 `package.json`.** A `"pnpm": { "overrides": … }` block in `package.json` is
-accepted silently and does nothing: `pnpm install` finishes in half a second
-and `pnpm why` still shows the old version. The overrides in
-`pnpm-workspace.yaml` (`vite`, `browserslist`, `esbuild@<0.24.3`) exist
-because a parent pins a vulnerable version (vitest, `@serwist/utils` with an
-exact `4.28.6`, drizzle-kit's `@esbuild-kit`); `docs/guide/dipendenze.md`
-says when each can go. `pnpm update --depth Infinity <name>` is enough for a
-transitive package whose parent's range already allows the fix
-(`brace-expansion`, `source-map-js`); an exact pin needs the override.
+accepted silently and does nothing: `pnpm why` still shows the old version. The
+overrides in `pnpm-workspace.yaml` (`vite`, `browserslist`, `esbuild@<0.24.3`,
+`glob`, `minimatch`) exist because a parent pins a vulnerable version (vitest,
+`@serwist/utils` with an exact `4.28.6`, drizzle-kit's `@esbuild-kit`, `@serwist`
+with an exact `glob`); `docs/guide/dipendenze.md` says when each can go.
+`pnpm update --depth Infinity <name>` is enough when the parent's range already
+allows the fix (`brace-expansion`, `source-map-js`); an exact pin needs the
+override.
 
-**4.69 Better Auth 1.7.12 checks the Drizzle schema at startup and refuses a
-NOT NULL column it never writes — the hand-added `accounts.issuer` was one.**
-The upgrade from 1.7.1 (four advisories, one critical) did not change a line
-of app code, and the unit suite stayed green; `next start` then threw
-`BetterAuthError: Drizzle schema mismatch … Required columns Better Auth never
-writes: accounts.issuer`, and every E2E login got a 500. Core 1.7.0–1.7.2 had
-required that column (§4.16), 1.7.3 abolished it, and the official 1.7
-upgrade guide's SQLite recipe is exactly `ALTER TABLE account DROP COLUMN
-issuer` (SQLite has no `ALTER COLUMN … DROP NOT NULL`). Migration 0002
-carries that drop next to the receipt tables. Lesson: a library upgrade that
-touches auth is verified by a running server and a real sign-in, not by
-`pnpm test` — the adapter's check runs only when the app boots.
+### Data and schema
 
-**4.70 Claude Opus 5.5 rejects `temperature`, and its thinking tokens are
-paid out of `max_tokens`.** Moving `EXTRACTION_MODEL` from
-`claude-haiku-4-5` to `claude-opus-5-5` meant: delete `temperature: 0` (400
-on this model, not a warning); thinking is always on and the only control is
-`output_config.effort` (`high` here, the owner's choice for a dense image
-where a misread digit is a wrong price); raise `max_tokens` to 8000 because
-the thinking budget counts against it and a 1500 cap could truncate the
-structured answer; and give the gateway 60 s with `maxDuration = 90` on
-`/api/extract` (Fluid compute is on, so the Hobby plan's 300 s ceiling is the
-real one — `maxDuration` is ours to set, not Vercel's). The test asserts the
-absence of `temperature` on purpose: it is the one regression a careless
-revert would reintroduce. Pricing moved from $1/$5 to $4/$20 per MTok; a
-tag is still a few cents.
+**4.8 Timestamps are integer ms — never Date strings.** Schema timestamps are
+`integer` with `{ mode: "timestamp_ms" }`; Drizzle hands you `Date` objects and
+stores `getTime()` values. Never store an ISO string or seconds. Compare and
+bucket on the epoch-ms number; display with `Intl.DateTimeFormat` and the active
+locale.
 
-**4.71 A GitHub Actions workflow that opens a pull request needs a
-repository setting, not a token.** `update-istat.yml` ran green through
-the refresh and the branch push, then failed in `peter-evans/create-pull-request`
-with "GitHub Actions is not permitted to create or approve pull requests" —
-twice, a month apart, while every other step was fine. The switch is
-`Settings → Actions → General → Allow GitHub Actions to create and approve
-pull requests` (`gh api -X PUT repos/<owner>/<repo>/actions/permissions/workflow
--F can_approve_pull_request_reviews=true`), off by default on every repo.
-After enabling it the same workflow opened PR #15 unchanged. The CI workflow
-(`ci.yml`) was removed on the same day: it had been red since 2026-10-23 over
-two unformatted files and a deprecated `biome.json` key that `pnpm lint`
-reproduces locally, and the gate is the local one (§3.1).
+**4.10 Category changes fan out.** `src/lib/domain/categories.ts` is referenced
+by both message files, the AI extraction prompt and the registry in §2.3. The DB
+stores raw id strings, so renames are data migrations. The compiler cannot catch
+a stale prompt: follow the checklist comment.
+
+**4.15 SQLite's `RESTRICT` FK action is not deferred to end-of-statement —
+never use it when a cascading delete elsewhere can touch the same row
+first.** Every other FK action, including the default `NO ACTION`, is checked
+after the statement's cascades; `RESTRICT` checks per row as they run. With
+`productId → products.id` set to `restrict` and `userId → users.id` cascading on
+`price_entries`, a `DELETE FROM users` could fail with a spurious FK violation.
+For "block deletion while children exist" on a column a cascade can reach, omit
+`onDelete` (`NO ACTION`) instead of `restrict`.
+
+**4.17 The test DB factory uses a uniquely-named temp file, never
+`:memory:` — an anonymous in-memory libSQL connection silently resets
+itself the instant a `db.transaction()` callback throws.** The table becomes "no
+such table" on the next query, which broke the `mergeProducts` rollback tests.
+`file::memory:?cache=shared` shares ONE database across every client in the
+process, and `@libsql/client` rejects `file:name?mode=memory&cache=shared`
+("Unsupported URL query parameter 'mode'").
+`src/lib/db/testing/create-test-db.ts` creates a fresh temp file per call under
+`os.tmpdir()`, cleaned up on `process.on('exit')`.
+
+**4.18 A local file database needs WAL + a busy_timeout, or a handful of
+concurrent requests throws `SQLITE_BUSY: database is locked`.** Playwright's
+parallel workers on `GET /api/export` reproduced it. `src/lib/db/client.ts` runs
+`PRAGMA journal_mode = WAL` and `PRAGMA busy_timeout = 5000` once per process,
+only for `file:` URLs. Fire-and-forget on purpose: a top-level `await` there
+breaks `tsx`'s CJS transform for `scripts/*`, and `journal_mode=WAL` persists in
+the file, so a race self-heals.
+
+**4.23 Seed ids are padded to 21 characters — never add a short readable id.**
+`scripts/seed-ids.ts` → `seedId('seed-prod-latte')` gives a `nanoid(21)`-length
+readable id. A 15-character id makes the review screen reject suggestions pointing
+at a seeded product (`INVALID_INPUT` on confirm), visible only in a real capture
+flow.
+
+**4.36 `seedId()` pads with zeros, so readable seed labels that differ only
+by a trailing digit collide.** `seed-session-m1` and `seed-session-m10` both pad
+to `seed-session-m1000000`. Use fixed-width suffixes (`m01`, `m10`).
+
+**4.49 SQLite treats NULLs as DISTINCT inside a UNIQUE index, so
+`ON CONFLICT` never fires for a nullable key column.** Learned on the retired
+`product_aliases` table (`store_chain`): an `onConflictDoUpdate` upsert silently
+inserts a duplicate. A unique key with a nullable column must read-before-write
+in a transaction (with `isNull()`, not `eq(col, null)`, never true in SQL) or
+replace the NULL with a sentinel.
+
+**4.62 Two naming facts that cost a grep each.** The source-icon chip key on
+history and product detail is `productDetail.source.*`, not `history.*`. Merging
+duplicates lives in `db/repositories/products.ts`, exporting a user's full data
+in `services/export.ts`.
+
+### Routing and React
+
+**4.4 Every internal link goes through the wrapped navigation API.**
+`src/lib/i18n/navigation.ts` exports `Link`, `useRouter`, `usePathname`,
+`redirect`, `getPathname` from next-intl's `createNavigation`. `next/link` or
+`next/navigation` on an internal route produces locale-less URLs that 404 or drop
+to the default locale. Grep before review: the only allowed `next/link` usages are
+external `<a>`-equivalent cases (none expected).
+
+**4.22 A `"use server"` module may only export async functions — Zod schemas
+cannot live in `actions.ts`.** An `export const confirmShoppingSessionSchema` in
+`scan/review/actions.ts` does not compile. Keep it module-local, or put it in a
+sibling such as `scan/review/schema.ts` when tests need it. Type-only exports are
+fine. Field schemas shared across boundaries go in `src/lib/domain/schemas.ts`
+(§1.8).
+
+**4.34 A `<fieldset>` with `display: grid` reserves a row for its legend
+even when the legend is `sr-only`.** Seen on `Segmented`. Keep the fieldset
+unstyled (`m-0 border-0 p-0`) and put the grid on an inner `<div>`.
+
+**4.35 Motion's `whileTap` on a non-button element adds `tabindex="0"` on
+the client only.** A `motion.span` inside a `<Link>` gave a hydration mismatch on
+every page. Use a real `<button>`, or CSS (`group-active:scale-95`) when the
+element is not the interactive one.
+
+**4.37 Input file elements hidden with `sr-only` still need an accessible
+name.** axe's `label` rule flags a label-less `<input type="file">` even when a
+visible button triggers it; give it `aria-label`.
+
+**4.55 A `<table class="sr-only">` is not hidden from layout, and can widen
+the whole document.** A `<table>` ignores `width: 1px` with `overflow: hidden`, and
+`white-space: nowrap` makes its caption unbreakable, so `/products/[id]` scrolled sideways and every
+`fixed inset-x-0` element stretched. Wrap the table in a `<div class="sr-only">`
+and leave the table unstyled. Measure it:
+`document.documentElement.scrollWidth > clientWidth` on every route.
+
+**4.56 A portal that renders on the client's first pass is a hydration
+mismatch, and `typeof document === 'undefined'` does not prevent it.** `Sheet`,
+opened at mount (the resume-session prompt on `/scan`), had no server counterpart.
+The guard is a mounted flag set in an effect, not a document check.
+
+**4.57 A sticky action bar and the toast outlet are anchored to the same
+bottom edge, and the toast wins.** The toast sits at `4.5rem + safe-area`, a
+sticky footer at `3.5rem + safe-area` plus its height, and because the toast card
+is `pointer-events-auto` it also eats the tap. The bar publishes its measured
+height onto `document.documentElement` as `--sticky-action-bar-height` and the
+outlet adds it to its offset. Use `StickyActionBar` (or
+`STICKY_ACTION_BAR_CLASSES` + `useStickyActionBarHeight()` when the bar must be a
+`motion.div`), never a hand-copy of the class string. The hook returns a callback
+ref on purpose: the catalog's bulk bar mounts late, and an effect at screen mount
+would find no element.
+
+### Testing
+
+**4.14 Pin the Playwright browser locale, or the root-path smoke test is
+flaky.** next-intl negotiates from `Accept-Language` when no `theme`/locale cookie
+is set, and a host's `en-US` outranks the Italian default at `/`, failing
+`tests/e2e/smoke.spec.ts`. `playwright.config.ts` → `projects[].use.locale = 'it-IT'`
+on every project; `mobile`, `offline-queue` and `pwa` share one `mobileDevice`
+literal. WebKit was deliberately left out: it is not Safari, so
+`beforeinstallprompt` absence, the 7-day storage eviction and the real share sheet
+stay owner checks on a real device.
+
+**4.20 Next.js dev (Turbopack) can return a truncated response when several
+Playwright workers race to be the first request to compile a route.** The symptom
+is "Unexpected end of JSON input" server-side. Largely historical since §4.41. The
+warm-up in `tests/e2e/global-setup.ts` stays but is no longer load bearing; a new
+route need not join it. The hazard remains for anything driving `next dev` from
+parallel clients.
+
+**4.24 Playwright must wait for hydration before `setInputFiles` on `/scan`.**
+`page.goto()` resolves on server HTML, with the camera panel in its `idle` branch
+and no change handler attached, and setting the file silently does nothing. Assert `data-testid="camera-fallback"` is visible
+first. The race appears only under parallel load.
+
+**4.25 `getByRole('alert')` is never unique in this app.** Next.js renders
+`<div role="alert" id="__next-route-announcer__">`, which breaks strict mode.
+Target the specific `data-testid`.
+
+**4.26 `vitest.config.ts` pins the environment variables the unit suite runs
+with.** Modules importing `src/lib/env.ts` fail fast on a missing variable, so the
+`test.env` block keeps the suite off a developer's `.env.local`. The values are
+placeholders on purpose: a real `ANTHROPIC_API_KEY` must never be reachable from a
+test run, and every network call is mocked.
+
+**4.32 Playwright's `baseURL` must follow the dev server's port, and Better
+Auth must agree.** `next dev` silently moves to :3001, and `reuseExistingServer`
+would then test the *other* app. `playwright.config.ts` reads `PORT`
+(`PORT=3001 pnpm test:e2e`), starts its own server and passes `BETTER_AUTH_URL`.
+Outside Playwright, on a non-default port, set `BETTER_AUTH_URL` to that origin or
+sign-out 403s and looks like an auth bug.
+
+**4.33 axe measures contrast on rendered pixels — let the 150 ms route
+cross-fade finish first.** `AppShell` fades `<main>` in, and a half-transparent
+page fails `color-contrast` on every text node. `tests/e2e/a11y.spec.ts` waits for `main` to reach
+opacity 1 before `AxeBuilder` runs. The accent (`--color-accent`, 3.3:1) is for
+fills and icons, not words: hence `--color-accent-ink` (§1.12).
+
+**4.41 The whole E2E suite runs against a production build, and a dev server
+must not run beside it.** The service worker exists only there, so the single
+`webServer` is `pnpm build && pnpm start`. Two Next processes sharing one `.next`
+corrupt each other's generated types (`.next/dev/types/root-params.d.ts`), and the
+build then fails to type-check. `mobile` and `desktop` set
+`serviceWorkers: 'block'`.
+
+**4.52 `test.beforeEach` in a `describe.configure({ mode: 'serial' })` group
+wipes the state the next test depends on.** A serial group whose second test reads
+what the first wrote needs `beforeAll` for its reset; Playwright re-runs it on a
+retry of the group, so the fixture stays idempotent.
+
+**4.58 A message that is true in two places at once breaks a `getByText`
+locator.** "1 da completare" appeared on the review card and in the confirm bar,
+failing strict mode. Fixed editorially: the count belongs to the bar, the card says
+"Da completare". Same class as §4.25: prefer a `data-testid` unless the string is
+structurally unique.
+
+**4.60 Spy words must be disjoint across E2E suites that share a seed user.** The
+scan review's suggestions fuzzy-match the seed user's whole catalog, so a product
+from a parallel spec can capture an assertion ("Fenicottero in scatola E2E" once
+did). Invented names keep fixtures away from real data (`WORKFLOW.md` obligation
+1) and must keep them away from each other: the delete suite owns "vombato" and
+"axolotl". **The same applies inside one file**: "Pesto narvalo 190g" and "Pesto
+capibara 190g" still match, so vary the noun too. The symptom is a card stuck on
+`needs-product`, which reads like a matcher bug.
+
+**4.67 Every E2E suite that writes as the second seed user leaves the account
+as it found it, because the thin dashboard is a state, not a page.** `a11y.spec.ts`
+expects `dashboard-thin` for `dev2`, which `getDashboardData` shows only below two
+months of series; a fixture from another month flipped it under `fullyParallel`
+(seen 2026-10-27). `quick-entry` and `delete-product` clean up in `afterAll`. A new
+flow suite owes the same `afterAll`, and a fixture dated outside the current month
+is the tell.
+
+**4.74 With `fullyParallel`, a `beforeAll` runs once per worker, so a spec that
+recreates its account there deletes it under another worker's login.** The symptom
+is `loginViaApi failed: 500` in a test that does nothing wrong. A spec owning a
+throwaway account declares `mode: 'serial'` (`dashboard-coverage.spec.ts`,
+2026-11-03). Two more traps from that spec: a category section holds the visible
+list and a screen-reader table, so scope a text count to the `ol`; and
+`not.toContainText('0,0%')` also rejects `+10,0%`.
 
 ## 5. Definition of Done
 
@@ -1419,6 +969,7 @@ Every task, not just a large feature, is done only when:
 
 | Document | What it governs | When to read |
 |---|---|---|
+| `docs/guide/*.md` | Domain narratives: auth, offline and PWA, capture, the index, dependencies (`dipendenze.md`) | When you touch that domain |
 | `DEVELOPMENT_GUIDELINES.md` | Layers, naming, errors, testing, security, performance | Once fully; re-check when unsure |
 | `COMMENTS.md` | Comment types and discipline | Before writing any code with comments |
 | `DESIGN.md` | Tokens, typography, layout vocabulary, animation, anti-patterns — generated by the impeccable documenter from the shipped UI build | **Mandatory before any UI work** |

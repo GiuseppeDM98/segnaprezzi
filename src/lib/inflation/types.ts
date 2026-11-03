@@ -33,6 +33,12 @@ export interface IndexEntry {
   /** Integer milli-euros per base unit (kg | L | piece). */
   unitPriceMilli: number;
   isPromo: boolean;
+  /**
+   * Where the price was seen; null when no store was recorded. Prices are
+   * compared store by store (see relatives.ts), and null counts as one store
+   * of its own.
+   */
+  storeId: string | null;
 }
 
 /** Minimal product projection — only what movers need for display. */
@@ -75,6 +81,12 @@ export interface CategorySeries {
   category: CategoryId;
   /** Own chained index, base 100 at the category's first month with a price. */
   series: MonthPoint[];
+  /**
+   * Months in which a new price of the category was actually compared with an
+   * earlier one. A series that is flat with no such month says "not measured",
+   * not "prices held".
+   */
+  comparedMonths: string[];
 }
 
 export interface Coverage {
@@ -83,10 +95,10 @@ export interface Coverage {
   /** Distinct categories in that matched set. */
   categoriesCovered: number;
   /**
-   * Share of the 2·n product-month prices entering the latest link that were
-   * carry-forward imputations rather than observations. Range 0..1.
+   * Products of that matched set with no observation in the latest month: they
+   * count as flat only because their previous price was carried forward.
    */
-  imputedShare: number;
+  productsWithoutLatestPrice: number;
   /** Total number of input entries the computation saw. */
   entryCount: number;
   /** Months where no product matched and the index was carried flat. */
@@ -106,6 +118,8 @@ export interface ProductMover {
   toMilli: number;
   /** (toMilli / fromMilli − 1) × 100. */
   pct: number;
+  /** The stores both means were taken from: the ones observed in both months. */
+  storeIds: Array<string | null>;
 }
 
 export interface PersonalCpiResult {
@@ -132,6 +146,9 @@ export interface BucketedEntry extends IndexEntry {
 /** productId → 'YYYY-MM' → arithmetic mean of the observed unitPriceMilli. */
 export type ObservedMeans = Map<string, Map<string, number>>;
 
+/** productId → store key → 'YYYY-MM' → mean observed at that store. */
+export type ObservedStoreMeans = Map<string, ObservedMeans>;
+
 /** One product's price in one grid month: an observed mean or a carry-forward. */
 export interface MonthlyPrice {
   value: number;
@@ -140,6 +157,9 @@ export interface MonthlyPrice {
 
 /** productId → 'YYYY-MM' → price, after carry-forward imputation. */
 export type PriceTable = Map<string, Map<string, MonthlyPrice>>;
+
+/** productId → store key → 'YYYY-MM' → price at that store, after carry-forward. */
+export type StorePriceTable = Map<string, PriceTable>;
 
 /** One matched-model relative of one product across one month pair. */
 export interface ProductRelative {
@@ -150,6 +170,11 @@ export interface ProductRelative {
   /** Whether the price on either side of the link was a carry-forward. */
   isFromImputed: boolean;
   isToImputed: boolean;
+  /**
+   * Whether the link holds a new price compared with an earlier one. False for
+   * a carried price, and for a price seen only at a store with no earlier price.
+   */
+  isPriceCompared: boolean;
 }
 
 /** The matched set of one consecutive month pair (fromYm → toYm). */

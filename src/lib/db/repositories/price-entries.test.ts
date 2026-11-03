@@ -299,6 +299,7 @@ describe('price-entries repository', () => {
         totalPriceCents: 129,
         quantity: 1,
         isPromo: false,
+        storeId: null,
       },
       {
         productId: ownProduct.id,
@@ -308,6 +309,7 @@ describe('price-entries repository', () => {
         totalPriceCents: 139,
         quantity: 1,
         isPromo: true,
+        storeId: null,
       },
     ]);
   });

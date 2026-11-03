@@ -34,7 +34,7 @@ import {
 import { Link } from '@/lib/i18n/navigation';
 import type { DashboardData } from '@/lib/services/dashboard';
 
-/** localStorage key of the ISTAT overlay toggle (persists per device, §5.1). */
+/** localStorage key of the ISTAT overlay toggle (persists per device). */
 const ISTAT_TOGGLE_KEY = 'segnaprezzi.dashboard.istat';
 
 export interface DashboardScreenProps {
@@ -152,9 +152,10 @@ function Hero({ data }: { data: ReadyData }) {
           products: coverage.productsCompared,
           categories: coverage.categoriesCovered,
         })}
-        {coverage.imputedShare > 0 &&
-          t('coverageImputed', {
-            pct: formatPct(coverage.imputedShare, locale, { decimals: 0 }).replace('+', ''),
+        {coverage.productsWithoutLatestPrice > 0 &&
+          t('coverageMissing', {
+            count: coverage.productsWithoutLatestPrice,
+            month: formatMonth(headline.latestMonth, locale),
           })}
       </p>
     </section>
@@ -238,6 +239,7 @@ function CategorySection({ data }: { data: ReadyData }) {
       <CategoryBars
         items={data.categories}
         formatValue={(ratio) => formatPct(ratio, locale)}
+        notMeasuredLabel={t('categoryNotMeasured')}
         ariaSummary={t('categoriesSummary', { count: data.categories.length })}
         className="-mx-1"
       />

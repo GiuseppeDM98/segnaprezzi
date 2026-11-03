@@ -4,7 +4,7 @@
  * Design — honesty as a requirement: a national index averages millions of
  * quotes; a personal one may hang on five products. Every result therefore
  * carries coverage statistics (products compared, categories covered,
- * imputed share, flags for months with no overlap and clamped outliers) and
+ * products without a price this month, flags for months with no overlap and clamped outliers) and
  * the UI is contractually required to surface them. A headline number
  * computed from two products must LOOK thin.
  */
@@ -21,29 +21,20 @@ export interface CoverageInput {
 /**
  * Describe the latest month-over-month link and the whole-series flags.
  *
- * `imputedShare` is the imputed fraction of the 2·n product-month prices
- * entering the latest link — each relative consumes two prices (the month
- * before and the month itself), either of which may be a carry-forward.
+ * `productsWithoutLatestPrice` counts products, not prices. Why not a share of
+ * the 2·n prices entering the link: every price of the month before is real in
+ * a young series, so that share cannot pass 50%. A percentage just under 50 read as
+ * about half while it meant 19 products out of 20 with no price this month.
  */
 export function computeCoverage(input: CoverageInput): Coverage {
   const relatives = input.latestLink?.relatives ?? [];
   const productsCompared = relatives.length;
   const categoriesCovered = new Set(relatives.map((relative) => relative.category)).size;
 
-  let imputedPrices = 0;
-  for (const relative of relatives) {
-    if (relative.isFromImputed) {
-      imputedPrices += 1;
-    }
-    if (relative.isToImputed) {
-      imputedPrices += 1;
-    }
-  }
-
   return {
     productsCompared,
     categoriesCovered,
-    imputedShare: productsCompared === 0 ? 0 : imputedPrices / (2 * productsCompared),
+    productsWithoutLatestPrice: relatives.filter((relative) => relative.isToImputed).length,
     entryCount: input.entryCount,
     monthsWithoutOverlap: input.monthsWithoutOverlap,
     outliersClamped: input.outliersClamped,
@@ -55,7 +46,7 @@ export function emptyCoverage(): Coverage {
   return {
     productsCompared: 0,
     categoriesCovered: 0,
-    imputedShare: 0,
+    productsWithoutLatestPrice: 0,
     entryCount: 0,
     monthsWithoutOverlap: [],
     outliersClamped: 0,
