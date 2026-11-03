@@ -12,9 +12,9 @@
 - Added a fuel quick entry form: pick benzina, diesel, GPL or metano, type any two of price per unit, quantity and total, and the third fills itself in
 - Added promotion tracking — mark a price as a discount, loyalty-card price, coupon or multi-buy, so you can later decide whether promos count toward your index
 
-- Added the dashboard: your personal inflation as one big number (year over year once you have a year of data, "since you started" before that), with month-over-month, the index value, and an honesty line that says how many products and categories it rests on
+- Added the dashboard: your personal inflation as one big number (year over year once you have a year of data, "since you started" before that), with month-over-month, the index value, and an honesty line that says how many products and categories it rests on and how many still have no price this month
 - Added the 12-month trend chart of your index with a one-tap comparison against the official ISTAT index, rebased to your own starting month so the two lines are directly comparable
-- Added the category breakdown (which parts of your shopping went up or down) and the top movers — the five products that changed the most, each with a tiny price line
+- Added the category breakdown (which parts of your shopping went up or down, and "not measured" where no new price could be compared yet) and the top movers — the five products that changed the most at the same stores, each with a tiny price line
 - Added a product catalog with search and category filters, an archive, and a merge tool to fold duplicate products together without losing any history
 - Added product pages: monthly price chart with promo markers, min/max/average/latest, where it's cheapest across your stores, and every observation — editable or deletable from a sheet
 - Added the history: every price you recorded, day by day, with shopping trips grouped under their total, and filters by category, store, promo and source
@@ -82,6 +82,7 @@
 
 - Updated Next.js to 16.4.2, which fixes critical remote code execution advisories in image optimization (GHSA-2464-fhr4-w9xw) and in cached functions (GHSA-673q-mjm6-r5xr), plus a denial of service in Server Actions (GHSA-p3m5-59mp-jv5r). Self-hosted instances should update
 - Updated Better Auth to 1.7.12, which fixes a critical advisory in OAuth state handling (GHSA-965c-763c-88jm) and two lesser ones; none applied to this app's email-and-password login, but self-hosted instances should update all the same
+- Updated the server-side HTTP client behind photo storage, which fixes denial-of-service and TLS advisories; self-hosted instances should update
 
 ## 📚 Documentation
 
@@ -96,8 +97,8 @@
 - Added the sync engine behind the photo queue, with its own tests: five attempts spaced 1, 2, 4 and 8 seconds apart, at most two uploads at a time, one drain at a time across the page and the background worker, and the same photo id on every attempt so a retry can never duplicate an entry
 - The end-to-end suite now runs against a real production build with the service worker installed, covering offline capture, reconnection, backoff and the offline fallback page
 
-- Added the personal inflation engine: your entries are bucketed into calendar months (Italian time), each product is compared with itself month over month, products within a category are combined with a geometric mean, and categories are weighted by what you actually spent over the last twelve months — giving a chained index (first month = 100) with month-over-month, year-over-year and since-start figures, per-category series, and your top risers and fallers
-- Added honesty stats next to every index number — how many products were compared, how many categories, how much was carried forward from earlier months, which months had nothing to compare, and how many suspicious jumps were capped — so a thin history never looks more solid than it is
+- Added the personal inflation engine: your entries are bucketed into calendar months (Italian time), each product is compared with itself at the same store month over month (so a change of store alone is never inflation), products within a category are combined with a geometric mean, and categories are weighted by what you actually spent over the last twelve months — giving a chained index (first month = 100) with month-over-month, year-over-year and since-start figures, per-category series, and your top risers and fallers
+- Added honesty stats next to every index number — how many products were compared, how many categories, how many still have no price this month, which months had nothing to compare, and how many suspicious jumps were capped — so a thin history never looks more solid than it is
 - Added carry-forward and outlier guards: a missing month is filled from the last known price for up to two months (configurable; 0 turns it off), a promo-only month still counts when promos are excluded from the index, and one implausible jump (a €/100 g tag read as €/kg) can move the index by at most a factor of five for one month
 - Added the official ISTAT NIC index as bundled data (all items, monthly since 1996, in the current 2025 = 100 base) so the "you vs Italy" comparison works offline, plus a maintenance command and a monthly GitHub workflow that refresh it from ISTAT's data service and open a pull request with the diff
 - Set up the Next.js 16 project foundation (build tooling, linting, type checking, and automated tests) that the rest of the app will be built on

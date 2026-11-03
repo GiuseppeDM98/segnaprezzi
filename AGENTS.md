@@ -18,7 +18,7 @@ hard-won lessons into rules you can apply without re-deriving them.
 > verified to work — a handful of snippets below didn't survive contact with
 > the real dependency versions, the Next.js runtime, the live ISTAT service,
 > the accessibility gates, Turbopack, Serwist's precache manifest, SQLite's
-> NULL semantics and Better Auth's production rate limiter (see §4.15–§4.71).
+> NULL semantics and Better Auth's production rate limiter (see §4.15–§4.74).
 
 **Reading order for any session**:
 `CLAUDE.md` (state) → `WORKFLOW.md` (session/collaboration rules — branch,
@@ -1354,9 +1354,10 @@ current month is the tell.
 `package.json`.** A `"pnpm": { "overrides": … }` block in `package.json` is
 accepted silently and does nothing: `pnpm install` finishes in half a second
 and `pnpm why` still shows the old version. The overrides in
-`pnpm-workspace.yaml` (`vite`, `browserslist`, `esbuild@<0.24.3`) exist
-because a parent pins a vulnerable version (vitest, `@serwist/utils` with an
-exact `4.28.6`, drizzle-kit's `@esbuild-kit`); `docs/guide/dipendenze.md`
+`pnpm-workspace.yaml` (`vite`, `browserslist`, `esbuild@<0.24.3`, `glob`,
+`minimatch`) exist because a parent pins a vulnerable version (vitest,
+`@serwist/utils` with an exact `4.28.6`, drizzle-kit's `@esbuild-kit`,
+`@serwist` with an exact `glob`); `docs/guide/dipendenze.md`
 says when each can go. `pnpm update --depth Infinity <name>` is enough for a
 transitive package whose parent's range already allows the fix
 (`brace-expansion`, `source-map-js`); an exact pin needs the override.
@@ -1400,6 +1401,38 @@ After enabling it the same workflow opened PR #15 unchanged. The CI workflow
 (`ci.yml`) was removed on the same day: it had been red since 2026-10-23 over
 two unformatted files and a deprecated `biome.json` key that `pnpm lint`
 reproduces locally, and the gate is the local one (§3.1).
+
+**4.72 The index compares each store with itself, and only carrying each
+store's price forward keeps that honest.** One product is logged across stores
+(the same GPL at two stations, the same bananas at two supermarkets), so a mean
+across stores reads a change of store as inflation. Comparing only the stores
+seen in both months is the obvious fix and it is wrong: with both stores in
+March, the dear one alone in April and the cheap one alone in May, the index
+loses the step down and never gets it back. Each store therefore keeps its own
+carried price, and a product's relative is the Jevons of the stores priced in
+both months. A price seen only at a new store compares with nothing and reads
+0%, the owner's call of 2026-11-03; the accepted cost is that moving for good
+to a dearer or cheaper store does not move the index (README, "What the index
+measures"). With `carryForwardMonths = 0` the cross-store ratio is the fallback.
+One store returns its ratio untouched, so a single-store history stays
+bit-identical. Fixed in `relatives.test.ts`, "store-by-store comparison".
+
+**4.73 "This month's price is real" and "a new price was compared" are two
+different facts, and neither is a share of prices.** `isPriceCompared` is not
+`!isToImputed`: a price seen only at a new store is observed and still compares
+with nothing, so its category reads "not measured" (2026-11-03,
+`dashboard.test.ts`). A carried-forward share counted over the 2·n prices of a
+link cannot pass 50% in a young series, because every price of the month before
+is real: the line that showed it looked like "about half" while nearly every
+product had no price this month. Count products (`coverage.ts`).
+
+**4.74 With `fullyParallel`, a `beforeAll` runs once per worker, so a spec that
+recreates its account there deletes it under another worker's login.** The
+symptom is `loginViaApi failed: 500` in a test that does nothing wrong. A spec
+owning a throwaway account declares `mode: 'serial'`
+(`dashboard-coverage.spec.ts`, 2026-11-03). Two more traps from that spec: a
+category section holds the visible list and a screen-reader table, so scope a
+text count to the `ol`; and `not.toContainText('0,0%')` also rejects `+10,0%`.
 
 ## 5. Definition of Done
 

@@ -11,3 +11,8 @@ overrides:
   vite: "^8.3.5"
   browserslist: "^4.29.4"
   "esbuild@<0.24.3": "^0.25.12"
+  # @serwist/build and @serwist/next pin glob 13.0.6 exactly, also in 9.5.13:
+  # moderate advisories GHSA-3g3m-2fjr-6pw4 (glob) and GHSA-g3hv-75wg-m249
+  # (minimatch). Build-time only; see docs/guide/dipendenze.md.
+  glob: "14.0.3"
+  minimatch: "11.0.3"

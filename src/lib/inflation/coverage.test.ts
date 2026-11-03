@@ -5,8 +5,8 @@ import type { MonthLink } from './types';
 
 describe('computeCoverage', () => {
   it('should describe the latest link and carry the whole-series flags through', () => {
-    // Arrange: three matched products in two categories; one of the six
-    // prices entering the link is a carry-forward.
+    // Arrange: three matched products in two categories; the one carry-forward
+    // is the month before, so all three have a price this month.
     const latestLink: MonthLink = {
       fromYm: '2026-05',
       toYm: '2026-06',
@@ -18,6 +18,7 @@ describe('computeCoverage', () => {
           relative: 1,
           isFromImputed: false,
           isToImputed: false,
+          isPriceCompared: true,
         },
         {
           productId: 'oil',
@@ -25,6 +26,7 @@ describe('computeCoverage', () => {
           relative: 1,
           isFromImputed: false,
           isToImputed: false,
+          isPriceCompared: true,
         },
         {
           productId: 'pasta',
@@ -32,6 +34,7 @@ describe('computeCoverage', () => {
           relative: 1,
           isFromImputed: true,
           isToImputed: false,
+          isPriceCompared: true,
         },
       ],
     };
@@ -48,14 +51,14 @@ describe('computeCoverage', () => {
     expect(coverage).toEqual({
       productsCompared: 3,
       categoriesCovered: 2,
-      imputedShare: 1 / 6,
+      productsWithoutLatestPrice: 0,
       entryCount: 13,
       monthsWithoutOverlap: ['2026-04'],
       outliersClamped: 2,
     });
   });
 
-  it('should count both sides of a relative when both prices are imputed', () => {
+  it('should count a product whose price this month is carried forward', () => {
     const latestLink: MonthLink = {
       fromYm: '2026-05',
       toYm: '2026-06',
@@ -67,6 +70,7 @@ describe('computeCoverage', () => {
           relative: 1,
           isFromImputed: true,
           isToImputed: true,
+          isPriceCompared: false,
         },
       ],
     };
@@ -78,10 +82,10 @@ describe('computeCoverage', () => {
       outliersClamped: 0,
     });
 
-    expect(coverage.imputedShare).toBe(1);
+    expect(coverage.productsWithoutLatestPrice).toBe(1);
   });
 
-  it('should report zero products and a zero imputed share when there is no latest link', () => {
+  it('should report zero products when there is no latest link', () => {
     const coverage = computeCoverage({
       latestLink: null,
       entryCount: 2,
@@ -92,7 +96,7 @@ describe('computeCoverage', () => {
     expect(coverage).toEqual({
       productsCompared: 0,
       categoriesCovered: 0,
-      imputedShare: 0,
+      productsWithoutLatestPrice: 0,
       entryCount: 2,
       monthsWithoutOverlap: [],
       outliersClamped: 0,
@@ -103,7 +107,7 @@ describe('computeCoverage', () => {
     expect(emptyCoverage()).toEqual({
       productsCompared: 0,
       categoriesCovered: 0,
-      imputedShare: 0,
+      productsWithoutLatestPrice: 0,
       entryCount: 0,
       monthsWithoutOverlap: [],
       outliersClamped: 0,

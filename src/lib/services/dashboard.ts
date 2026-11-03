@@ -31,6 +31,8 @@ const TOP_MOVERS = 5;
  * with a year-ago point is the 13th.
  */
 const YOY_MIN_MONTHS = 13;
+/** Month-over-month links inside a year-over-year change. */
+const YOY_LINKS = YOY_MIN_MONTHS - 1;
 
 export type HeadlineKind = 'yoy' | 'sinceStart';
 
@@ -52,7 +54,7 @@ export interface DashboardMover {
   brand: string | null;
   category: CategoryId;
   ratio: number;
-  /** Monthly mean unit prices between the mover's from and to months. */
+  /** Monthly mean unit prices between the mover's from and to months, on the stores it compares. */
   sparkline: number[];
 }
 
@@ -67,11 +69,16 @@ export type DashboardData =
   | {
       state: 'ready';
       headline: DashboardHeadline;
-      coverage: { productsCompared: number; categoriesCovered: number; imputedShare: number };
+      coverage: {
+        productsCompared: number;
+        categoriesCovered: number;
+        productsWithoutLatestPrice: number;
+      };
       trend: Array<{ month: string; value: number }>;
       /** ISTAT rebased to the user's base month; null when the months do not overlap. */
       istat: Array<{ month: string; value: number }> | null;
-      categories: Array<{ category: CategoryId; ratio: number }>;
+      /** A null ratio: no price of the category was actually compared on this horizon. */
+      categories: Array<{ category: CategoryId; ratio: number | null }>;
       movers: DashboardMover[];
     };
 
@@ -107,7 +114,7 @@ export async function getDashboardData(db: Db, userId: string): Promise<Dashboar
     coverage: {
       productsCompared: result.coverage.productsCompared,
       categoriesCovered: result.coverage.categoriesCovered,
-      imputedShare: result.coverage.imputedShare,
+      productsWithoutLatestPrice: result.coverage.productsWithoutLatestPrice,
     },
     trend,
     istat: buildIstatOverlay(
@@ -153,26 +160,34 @@ function buildIstatOverlay(
   return overlay.length > 0 ? overlay : null;
 }
 
-/** Each category's change on the same horizon as the hero, sorted descending. */
+/**
+ * Each category's change on the same horizon as the hero, sorted descending,
+ * with the categories not measured on that horizon last.
+ *
+ * Why null and not 0: a category whose products were all carried forward chains
+ * flat, and "0,0%" would read as "prices held" when nothing was compared at all.
+ */
 function buildCategoryRatios(
   result: PersonalCpiResult,
   kind: HeadlineKind,
-): Array<{ category: CategoryId; ratio: number }> {
-  const ratios: Array<{ category: CategoryId; ratio: number }> = [];
-  for (const category of result.categories) {
-    const latest = category.series[category.series.length - 1];
-    if (!latest) {
+): Array<{ category: CategoryId; ratio: number | null }> {
+  const measured: Array<{ category: CategoryId; ratio: number }> = [];
+  const notMeasured: Array<{ category: CategoryId; ratio: null }> = [];
+  for (const { category, series, comparedMonths } of result.categories) {
+    const latest = series[series.length - 1];
+    if (!latest || (kind === 'yoy' && latest.yoyPct === null)) {
       continue;
     }
-    if (kind === 'yoy') {
-      if (latest.yoyPct !== null) {
-        ratios.push({ category: category.category, ratio: latest.yoyPct / 100 });
-      }
-      continue;
+    const horizon = kind === 'yoy' ? series.slice(-YOY_LINKS) : series;
+    if (!horizon.some((point) => comparedMonths.includes(point.ym))) {
+      notMeasured.push({ category, ratio: null });
+    } else if (kind === 'yoy') {
+      measured.push({ category, ratio: (latest.yoyPct as number) / 100 });
+    } else {
+      measured.push({ category, ratio: (latest.index - BASE_INDEX) / BASE_INDEX });
     }
-    ratios.push({ category: category.category, ratio: (latest.index - BASE_INDEX) / BASE_INDEX });
   }
-  return ratios.sort((a, b) => b.ratio - a.ratio);
+  return [...measured.sort((a, b) => b.ratio - a.ratio), ...notMeasured];
 }
 
 /** The TOP_MOVERS largest absolute movers, each with its observed monthly means. */
@@ -189,7 +204,12 @@ function buildMovers(
   }
   const brandById = new Map(products.map((product) => [product.id, product.brand] as const));
   return top.map((mover) => {
-    const series = computeMonthlyMeans(entries, (entry) => entry.productId === mover.productId);
+    // Why the mover's stores only: the line must tell the same story as the
+    // badge beside it, which compares those stores and no others.
+    const series = computeMonthlyMeans(
+      entries,
+      (entry) => entry.productId === mover.productId && mover.storeIds.includes(entry.storeId),
+    );
     return {
       productId: mover.productId,
       name: mover.name,

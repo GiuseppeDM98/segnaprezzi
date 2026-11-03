@@ -15,9 +15,33 @@
  * lentils in March. So each month-over-month link uses only the products
  * priced (observed or imputed) in BOTH months — the matched set. This is
  * the matched-model principle used by every statistical office.
+ *
+ * Design: the same principle applies to stores. Bananas at 1,50 at one store
+ * and 1,80 at another, a month apart, are not a 20% rise: nobody changed a
+ * price. So a product's relative compares each store with itself and takes the
+ * Jevons of those store relatives; the mean across stores is only the fallback
+ * for two months with no store in common.
+ *
+ * Why stores carry their prices forward: comparing only the stores observed in
+ * both months would make the index drift for good. With both stores seen in
+ * March, only the dearer one in April and only the cheaper one in May, the
+ * April relative is 1 and the May relative falls back on 1,50/1,80: −17%, and a
+ * later month with both stores would never give it back, though no price moved.
+ * With each store's last known price still in play, every one of those links is
+ * 1 and a real move is delayed, never lost — the argument of imputeCarryForward,
+ * one level down.
+ *
+ * The accepted cost: moving to a dearer store for good does not count as
+ * inflation. The index measures how prices move, not where the user shops.
  */
 import type { CategoryId } from '@/lib/domain/categories';
-import type { MonthLink, PriceTable, ProductRelative } from './types';
+import type {
+  MonthLink,
+  MonthlyPrice,
+  PriceTable,
+  ProductRelative,
+  StorePriceTable,
+} from './types';
 
 /**
  * Outlier bounds for a single month-over-month relative.
@@ -47,6 +71,65 @@ export function clampRelative(relative: number): { value: number; wasClamped: bo
 }
 
 /**
+ * Jevons index: the unweighted geometric mean of price relatives,
+ * exp(mean(ln r)).
+ *
+ * Teacher: inside a category we have no quantity data per product-month pair
+ * that we can trust (a user may photograph a tag without buying three packs),
+ * so the relatives are combined unweighted — exactly ISTAT's situation inside
+ * its elementary aggregates, and ISTAT's answer is the same: the Jevons index.
+ * The obvious alternative, the arithmetic mean of relatives (Carli index),
+ * has a systematic upward bias because it fails the time-reversal test:
+ * a price that doubles then halves (relatives 2.0, then 0.5) gives
+ * Carli (2.0 + 0.5) / 2 = 1.25 — +25% though the price is back where it
+ * started — while Jevons √(2.0 × 0.5) = 1.0, correct. The geometric mean
+ * treats a +10% and a −10% move symmetrically and is transitive under
+ * chaining; Carli's bias is why the EU banned it for HICP elementary
+ * aggregates.
+ *
+ * Computed in log space: the caller passes relatives in sorted key order, so
+ * the floating-point sum is bit-identical for any input order.
+ */
+export function computeJevons(relatives: readonly number[]): number {
+  let sumOfLogs = 0;
+  for (const relative of relatives) {
+    sumOfLogs += Math.log(relative);
+  }
+  return Math.exp(sumOfLogs / relatives.length);
+}
+
+/**
+ * One product's unclamped relative across a month pair: the Jevons of the
+ * stores priced in both months, or the ratio of the cross-store prices when no
+ * store is.
+ *
+ * A single shared store returns its ratio as is, so a product always seen in
+ * one store gets exactly the relative it would have with no store data at all.
+ */
+function computeProductRelative(
+  storePrices: PriceTable,
+  prices: { from: MonthlyPrice; to: MonthlyPrice },
+  fromYm: string,
+  toYm: string,
+): { relative: number; isPriceCompared: boolean } {
+  const storeRelatives: number[] = [];
+  let hasNewPrice = false;
+  for (const storeKey of [...storePrices.keys()].sort()) {
+    const from = storePrices.get(storeKey)?.get(fromYm);
+    const to = storePrices.get(storeKey)?.get(toYm);
+    if (from && to) {
+      storeRelatives.push(to.value / from.value);
+      hasNewPrice ||= !to.isImputed;
+    }
+  }
+  if (storeRelatives.length === 0) {
+    return { relative: prices.to.value / prices.from.value, isPriceCompared: !prices.to.isImputed };
+  }
+  const relative = storeRelatives.length === 1 ? storeRelatives[0] : computeJevons(storeRelatives);
+  return { relative, isPriceCompared: hasNewPrice };
+}
+
+/**
  * The matched set of one consecutive month pair: one clamped relative per
  * product priced in both `fromYm` and `toYm`.
  *
@@ -57,6 +140,7 @@ export function clampRelative(relative: number): { value: number; wasClamped: bo
  */
 export function computeMonthLink(
   priceTable: PriceTable,
+  storePriceTable: StorePriceTable,
   categoryByProduct: ReadonlyMap<string, CategoryId>,
   fromYm: string,
   toYm: string,
@@ -72,7 +156,13 @@ export function computeMonthLink(
     if (!from || !to || !category) {
       continue;
     }
-    const { value, wasClamped } = clampRelative(to.value / from.value);
+    const { relative, isPriceCompared } = computeProductRelative(
+      storePriceTable.get(productId) ?? new Map(),
+      { from, to },
+      fromYm,
+      toYm,
+    );
+    const { value, wasClamped } = clampRelative(relative);
     if (wasClamped) {
       clampedCount += 1;
     }
@@ -82,6 +172,7 @@ export function computeMonthLink(
       relative: value,
       isFromImputed: from.isImputed,
       isToImputed: to.isImputed,
+      isPriceCompared,
     });
   }
   return { fromYm, toYm, relatives, clampedCount };

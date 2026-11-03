@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { addMonthsToYm, bucketEntries, computeObservedMeans } from './bucketing';
+import { addMonthsToYm, bucketEntries, computeObservedStoreMeans } from './bucketing';
 import { computePersonalCpi } from './chain';
 import { buildEntry, buildProduct, DEFAULT_SETTINGS, midMonth } from './fixtures';
 import { computeMovers } from './movers';
@@ -110,7 +110,7 @@ describe('computeMovers', () => {
     const entries = [...buildPair('flat', 1000, 1000), ...buildPair('mover', 1000, 900)];
     const products = [buildProduct({ id: 'flat' }), buildProduct({ id: 'mover' })];
 
-    const movers = computeMovers(computeObservedMeans(bucketEntries(entries), true), products);
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), products);
 
     expect(movers.map((mover) => mover.productId)).toEqual(['mover']);
     expect(movers[0].pct).toBeCloseTo(-10, 10);
@@ -120,7 +120,7 @@ describe('computeMovers', () => {
     const entries = [...buildPair('b', 1000, 1100), ...buildPair('a', 2000, 2200)];
     const products = [buildProduct({ id: 'b' }), buildProduct({ id: 'a' })];
 
-    const movers = computeMovers(computeObservedMeans(bucketEntries(entries), true), products);
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), products);
 
     expect(movers.map((mover) => mover.productId)).toEqual(['a', 'b']);
   });
@@ -132,7 +132,7 @@ describe('computeMovers', () => {
       buildEntry({ recordedAt: midMonth('2026-06'), unitPriceMilli: 1500 }),
     ];
 
-    const movers = computeMovers(computeObservedMeans(bucketEntries(entries), true), [
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), [
       buildProduct(),
     ]);
 
@@ -142,7 +142,7 @@ describe('computeMovers', () => {
   it('should skip a product missing from the projection instead of throwing', () => {
     const entries = buildPair('ghost', 1000, 1100);
 
-    const movers = computeMovers(computeObservedMeans(bucketEntries(entries), true), []);
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), []);
 
     expect(movers).toEqual([]);
   });
@@ -151,7 +151,7 @@ describe('computeMovers', () => {
     const entries = buildPair('pasta', 2280, 2580);
     const products = [buildProduct({ id: 'pasta', name: 'Spaghetti n.5 500g', category: 'food' })];
 
-    const movers = computeMovers(computeObservedMeans(bucketEntries(entries), true), products);
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), products);
 
     expect(movers).toEqual([
       {
@@ -163,7 +163,70 @@ describe('computeMovers', () => {
         fromMilli: 2280,
         toMilli: 2580,
         pct: (2580 / 2280 - 1) * 100,
+        storeIds: [null],
       },
     ]);
+  });
+
+  it('should measure a mover on the stores of both months and report them', () => {
+    const entries = [
+      buildEntry({ recordedAt: midMonth('2026-03'), storeId: 'coop', unitPriceMilli: 1000 }),
+      buildEntry({ recordedAt: midMonth('2026-04'), storeId: 'coop', unitPriceMilli: 1100 }),
+      buildEntry({ recordedAt: midMonth('2026-04'), storeId: 'esselunga', unitPriceMilli: 3000 }),
+    ];
+
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), [
+      buildProduct(),
+    ]);
+
+    expect(movers).toHaveLength(1);
+    expect(movers[0]).toMatchObject({ fromMilli: 1000, toMilli: 1100, storeIds: ['coop'] });
+  });
+
+  it('should leave out a product whose two months share no store', () => {
+    const entries = [
+      buildEntry({ recordedAt: midMonth('2026-03'), storeId: 'coop', unitPriceMilli: 1500 }),
+      buildEntry({ recordedAt: midMonth('2026-04'), storeId: 'esselunga', unitPriceMilli: 1800 }),
+    ];
+
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), [
+      buildProduct(),
+    ]);
+
+    expect(movers).toEqual([]);
+  });
+
+  it('should start from the earliest month sharing a store with the latest', () => {
+    const entries = [
+      buildEntry({ recordedAt: midMonth('2026-02'), storeId: 'coop', unitPriceMilli: 1000 }),
+      buildEntry({ recordedAt: midMonth('2026-03'), storeId: 'esselunga', unitPriceMilli: 2000 }),
+      buildEntry({ recordedAt: midMonth('2026-04'), storeId: 'esselunga', unitPriceMilli: 2200 }),
+    ];
+
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), [
+      buildProduct(),
+    ]);
+
+    expect(movers[0]).toMatchObject({
+      fromYm: '2026-03',
+      toYm: '2026-04',
+      storeIds: ['esselunga'],
+    });
+    expect(movers[0].pct).toBeCloseTo(10, 10);
+  });
+
+  it('should average the shared stores and map the missing store back to null', () => {
+    const entries = [
+      buildEntry({ recordedAt: midMonth('2026-03'), storeId: 'coop', unitPriceMilli: 1000 }),
+      buildEntry({ recordedAt: midMonth('2026-03'), storeId: null, unitPriceMilli: 2000 }),
+      buildEntry({ recordedAt: midMonth('2026-04'), storeId: 'coop', unitPriceMilli: 1200 }),
+      buildEntry({ recordedAt: midMonth('2026-04'), storeId: null, unitPriceMilli: 2400 }),
+    ];
+
+    const movers = computeMovers(computeObservedStoreMeans(bucketEntries(entries), true), [
+      buildProduct(),
+    ]);
+
+    expect(movers[0]).toMatchObject({ fromMilli: 1500, toMilli: 1800, storeIds: [null, 'coop'] });
   });
 });

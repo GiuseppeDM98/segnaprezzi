@@ -6,8 +6,10 @@ import {
   buildMonthGrid,
   computeMonthlyMeans,
   computeObservedMeans,
+  computeObservedStoreMeans,
   countMonthsBetween,
   imputeCarryForward,
+  NO_STORE_KEY,
   toRomeYearMonth,
 } from './bucketing';
 import { computePersonalCpi } from './chain';
@@ -126,7 +128,7 @@ describe('computeObservedMeans', () => {
     // Assert: March keeps the promo mean and counts as observed, not imputed.
     expect(means.get('pasta')?.get('2026-03')).toBe(1800);
     expect(result.series[1].momPct).toBeCloseTo((2000 / 1800 - 1) * 100, 10);
-    expect(result.coverage.imputedShare).toBe(0);
+    expect(result.coverage.productsWithoutLatestPrice).toBe(0);
     expect(result.coverage.productsCompared).toBe(1);
   });
 
@@ -210,8 +212,8 @@ describe('imputeCarryForward', () => {
       100,
       expect.closeTo(110, 10),
     ]);
-    // The May→June link uses the imputed May price: 1 of 2 prices imputed.
-    expect(result.coverage.imputedShare).toBe(0.5);
+    // The May→June link starts from the carried May price, but June is observed.
+    expect(result.coverage.productsWithoutLatestPrice).toBe(0);
     expect(result.coverage.monthsWithoutOverlap).toEqual([]);
   });
 
@@ -258,7 +260,7 @@ describe('imputeCarryForward', () => {
     // Assert: April is missing, so both links touching April are unmatched.
     expect(table.get('pasta')?.has('2026-04')).toBe(false);
     expect(result.coverage.monthsWithoutOverlap).toEqual(['2026-04', '2026-05']);
-    expect(result.coverage.imputedShare).toBe(0);
+    expect(result.coverage.productsWithoutLatestPrice).toBe(0);
   });
 
   it('should never backcast a price into months before the first observation', () => {
@@ -268,5 +270,53 @@ describe('imputeCarryForward', () => {
     const table = imputeCarryForward(computeObservedMeans(bucketEntries(entries), true), grid, 2);
 
     expect([...(table.get('pasta') ?? []).keys()]).toEqual(['2026-05']);
+  });
+});
+
+describe('computeObservedStoreMeans', () => {
+  it('should keep each store apart and average within it', () => {
+    const entries = [
+      buildEntry({ recordedAt: midMonth('2026-03'), storeId: 'coop', unitPriceMilli: 1000 }),
+      buildEntry({ recordedAt: atTenUtc('2026-03-20'), storeId: 'coop', unitPriceMilli: 1200 }),
+      buildEntry({ recordedAt: midMonth('2026-03'), storeId: null, unitPriceMilli: 3000 }),
+    ];
+
+    const pasta = computeObservedStoreMeans(bucketEntries(entries), true).get('pasta');
+
+    expect(pasta?.get('coop')?.get('2026-03')).toBe(1100);
+    expect(pasta?.get(NO_STORE_KEY)?.get('2026-03')).toBe(3000);
+  });
+
+  it('should not let a promo at one store stand beside a regular price at another', () => {
+    const entries = [
+      buildEntry({ recordedAt: midMonth('2026-03'), storeId: 'coop', unitPriceMilli: 1000 }),
+      buildEntry({
+        recordedAt: midMonth('2026-03'),
+        storeId: 'esselunga',
+        unitPriceMilli: 500,
+        isPromo: true,
+      }),
+    ];
+
+    const withoutPromos = computeObservedStoreMeans(bucketEntries(entries), false).get('pasta');
+    const withPromos = computeObservedStoreMeans(bucketEntries(entries), true).get('pasta');
+
+    expect([...(withoutPromos?.keys() ?? [])]).toEqual(['coop']);
+    expect(withPromos?.get('esselunga')?.get('2026-03')).toBe(500);
+  });
+
+  it('should keep a promo-only month when no store shows a regular price', () => {
+    const entries = [
+      buildEntry({
+        recordedAt: midMonth('2026-03'),
+        storeId: 'esselunga',
+        unitPriceMilli: 500,
+        isPromo: true,
+      }),
+    ];
+
+    const pasta = computeObservedStoreMeans(bucketEntries(entries), false).get('pasta');
+
+    expect(pasta?.get('esselunga')?.get('2026-03')).toBe(500);
   });
 });

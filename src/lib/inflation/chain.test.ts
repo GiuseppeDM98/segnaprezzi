@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { addMonthsToYm } from './bucketing';
-import { chainSeries, computeJevons, computePersonalCpi } from './chain';
+import { chainSeries, computePersonalCpi } from './chain';
 import {
   buildEntry,
   buildProduct,
@@ -11,6 +11,7 @@ import {
   midMonth,
   shuffleWith,
 } from './fixtures';
+import { computeJevons } from './relatives';
 import type { IndexEntry, IndexProduct, MonthPoint } from './types';
 
 /** A one-product series: one entry per month from `firstYm`, at the given unit prices. */
@@ -84,7 +85,7 @@ describe('computePersonalCpi', () => {
       coverage: {
         productsCompared: 0,
         categoriesCovered: 0,
-        imputedShare: 0,
+        productsWithoutLatestPrice: 0,
         entryCount: 0,
         monthsWithoutOverlap: [],
         outliersClamped: 0,
@@ -112,12 +113,16 @@ describe('computePersonalCpi', () => {
       sinceStartPct: 0,
     });
     expect(result.categories).toEqual([
-      { category: 'food', series: [{ ym: '2026-03', index: 100, momPct: 0, yoyPct: null }] },
+      {
+        category: 'food',
+        series: [{ ym: '2026-03', index: 100, momPct: 0, yoyPct: null }],
+        comparedMonths: [],
+      },
     ]);
     expect(result.coverage).toEqual({
       productsCompared: 0,
       categoriesCovered: 0,
-      imputedShare: 0,
+      productsWithoutLatestPrice: 0,
       entryCount: 2,
       monthsWithoutOverlap: [],
       outliersClamped: 0,
@@ -234,7 +239,7 @@ describe('computePersonalCpi', () => {
     expect(result.series[1].index).toBeGreaterThan(100);
     expect(result.series[1].index).toBeLessThan(110);
     expect(result.coverage.productsCompared).toBe(2);
-    expect(result.coverage.imputedShare).toBe(0.25);
+    expect(result.coverage.productsWithoutLatestPrice).toBe(1);
   });
 
   it('should start a category series at 100 in the month the category first appears', () => {
@@ -392,7 +397,8 @@ describe('computePersonalCpi', () => {
     // coverage
     expect(result.coverage.productsCompared).toBe(3);
     expect(result.coverage.categoriesCovered).toBe(2);
-    expect(result.coverage.imputedShare).toBeCloseTo(0.1667, 4);
+    // Pasta's May price is carried, but June is observed for all three.
+    expect(result.coverage.productsWithoutLatestPrice).toBe(0);
     expect(result.coverage.entryCount).toBe(13);
     expect(result.coverage.monthsWithoutOverlap).toEqual([]);
     expect(result.coverage.outliersClamped).toBe(0);

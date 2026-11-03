@@ -31,6 +31,7 @@ export function buildEntry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     quantity: 1,
     unitPriceMilli: 2380,
     isPromo: false,
+    storeId: null,
     ...overrides,
   };
 }

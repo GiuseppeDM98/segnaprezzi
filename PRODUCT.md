@@ -33,7 +33,7 @@ Official inflation is computed on a national basket that is nobody's basket.
 segnaprezzi's mechanism — which a generic expense tracker cannot truthfully
 copy — is a real CPI methodology (matched-model relatives, Jevons within
 category, expenditure-weighted across categories, carry-forward imputation,
-coverage stats) applied to one person's own shelf observations, with the
+coverage stats, each store compared with itself) applied to one person's own shelf observations, with the
 ISTAT series rebased onto the user's own base month for a like-for-like
 comparison. Private per user, offline-first, self-hostable.
 
@@ -55,9 +55,10 @@ comparison. Private per user, offline-first, self-hostable.
   displayed number goes through `src/lib/format.ts`; percentages are always
   signed with a true minus sign; tabular figures everywhere data appears.
 - Every headline number ships with its coverage line ("Basato su N prodotti
-  in M categorie · X% stimato") — the app never shows an index without
-  saying how thin the data is. No fake charts: fewer than two monthly
-  buckets means a thin-data state, not a line.
+  in M categorie · K ancora senza prezzo di nov 2026") — the app never shows
+  an index without saying how thin the data is. A category with no price
+  actually compared reads "non rilevata", never "0,0%". No fake charts: fewer
+  than two monthly buckets means a thin-data state, not a line.
 - Inflation semantics are inverted relative to finance apps: a rising price
   is unfavorable, a falling price favorable.
 - Architecture and names are fixed by the existing schema/code; the visual

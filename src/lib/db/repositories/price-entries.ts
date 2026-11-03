@@ -303,6 +303,8 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
       // the expenditure weights multiply by it.
       quantity: priceEntries.quantity,
       isPromo: priceEntries.isPromo,
+      // The engine compares each store with itself.
+      storeId: priceEntries.storeId,
     })
     .from(priceEntries)
     .innerJoin(products, and(eq(priceEntries.productId, products.id), eq(products.userId, userId)))

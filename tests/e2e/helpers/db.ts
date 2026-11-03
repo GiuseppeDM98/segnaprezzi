@@ -95,3 +95,65 @@ export async function deleteProductsByName(email: string, names: string[]): Prom
     });
   });
 }
+
+/** One observation for insertPriceObservations; figures are the suite's own. */
+export interface PriceObservation {
+  product: string;
+  category: string;
+  store: string;
+  /** 'YYYY-MM'; the entry lands in the middle of that month. */
+  ym: string;
+  milli: number;
+}
+
+/**
+ * Give a throwaway user a price history directly, products and stores included.
+ *
+ * Why the database and not the forms: a dated history across months is the
+ * arrangement of a dashboard test, not its subject, and the forms always record
+ * today. Ids are random-shaped but stable within one call.
+ */
+export async function insertPriceObservations(
+  email: string,
+  observations: PriceObservation[],
+): Promise<void> {
+  const now = Date.now();
+  const idOf = (kind: string, name: string) =>
+    `e2e${kind}${name.replace(/\W/g, '')}`.padEnd(21, '0').slice(0, 21);
+  await withLocalClient(async (client) => {
+    const users = await client.execute({
+      sql: 'SELECT id FROM users WHERE email = ?',
+      args: [email],
+    });
+    const userId = String(users.rows[0].id);
+    for (const [index, observation] of observations.entries()) {
+      const productId = idOf('p', observation.product);
+      const storeId = idOf('s', observation.store);
+      await client.execute({
+        sql: `INSERT OR IGNORE INTO products (id, user_id, name, category, unit_kind, is_archived, created_at, updated_at)
+              VALUES (?, ?, ?, ?, 'weight', 0, ?, ?)`,
+        args: [productId, userId, observation.product, observation.category, now, now],
+      });
+      await client.execute({
+        sql: `INSERT OR IGNORE INTO stores (id, user_id, name, kind, created_at, updated_at)
+              VALUES (?, ?, ?, 'supermarket', ?, ?)`,
+        args: [storeId, userId, observation.store, now, now],
+      });
+      await client.execute({
+        sql: `INSERT INTO price_entries (id, user_id, product_id, store_id, recorded_at, total_price_cents, quantity, package_size, unit_price_milli, is_promo, source, currency, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, 0, 'manual', 'EUR', ?, ?)`,
+        args: [
+          idOf('e', `${index}${observation.product}`),
+          userId,
+          productId,
+          storeId,
+          Date.parse(`${observation.ym}-15T10:00:00Z`),
+          Math.round(observation.milli / 10),
+          observation.milli,
+          now,
+          now,
+        ],
+      });
+    }
+  });
+}

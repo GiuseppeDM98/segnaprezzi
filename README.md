@@ -27,7 +27,11 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 2. **Extract.** Claude Opus 5.5 reads each photo and pulls out the product, brand, category, total price, and unit price (€/kg, €/L, €/piece), normalized to comparable base units. You review every extraction before anything is saved — the AI proposes, you confirm.
 3. **Track.** The app buckets your entries by month, chains matched products into a personal CPI (base month = 100), and shows headline numbers ("your inflation: +4.2% YoY"), category breakdowns, per-product price histories, and a comparison against the official ISTAT index.
 
-**The honesty principle:** a personal index built from a few dozen products is statistically thin, and the app never pretends otherwise. Every number ships with its coverage stats — how many products were compared, which categories had data, how much was imputed — so you always know how much to trust what you see.
+**What the index measures:** how the prices of what you buy move, not where you shop. Each store is compared with itself, so buying the same bananas at a dearer supermarket this month is not inflation, and moving to a cheaper one for good is not deflation. What you paid at each store stays visible in the product's history.
+
+**Scan what you buy.** What you spend sets how much each category weighs in the index, so a tag you scan without buying inflates its category. If you buy more or less than the tag shows, for example loose bananas by weight or several packs, change the total and the size together in review: changing only the total changes the unit price.
+
+**The honesty principle:** a personal index built from a few dozen products is statistically thin, and the app never pretends otherwise. Every number ships with its coverage stats — how many products were compared, which categories had data, how many products still have no price this month — so you always know how much to trust what you see.
 
 ## Features
 
