@@ -5,7 +5,7 @@
  * hero's horizon, and the top movers with their sparkline points.
  *
  * Design: the official series is a static import of data/istat-nic.json
- * (AGENTS.md §4.27) — the dashboard never fetches ISTAT at runtime.
+ * (docs/guide/inflation-index.md §4.27) — the dashboard never fetches ISTAT at runtime.
  */
 
 import type { Db } from '@/lib/db/client';

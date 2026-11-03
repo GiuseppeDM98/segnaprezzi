@@ -148,7 +148,7 @@ The service worker is disabled under `pnpm dev`. To try the app offline or insta
 
 ## Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Start with [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) to understand the codebase's conventions, and note that all code follows [DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md) and [COMMENTS.md](COMMENTS.md).
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Start with [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md) to understand the codebase's conventions, read the guide in [`docs/guide/`](docs/guide/) for the domain you touch (auth, offline and PWA, capture, the index, dependencies), and note that all code follows [DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md) and [COMMENTS.md](COMMENTS.md).
 
 ## License
 

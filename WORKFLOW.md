@@ -209,7 +209,7 @@ What that collaudo established about how obligation 4 works in practice here:
   faster and prove more.
 - **Authenticating from a script**: `POST /api/auth/sign-in/email` works, but a
   bare Node `fetch()` must send an explicit `Origin` header or Better Auth
-  rejects it with `MISSING_OR_NULL_ORIGIN` — see `AGENTS.md` §4.19.
+  rejects it with `MISSING_OR_NULL_ORIGIN` — see `docs/guide/auth.md` §4.19.
 - **What genuinely could not be automated**, and was handed to the owner: the
   look and one-handed usability of the new screens on localhost. Note this is
   a sanity check, not an aesthetic verdict — the UI keeps evolving.

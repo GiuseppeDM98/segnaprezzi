@@ -11,7 +11,7 @@
  * stale computed field is exactly what a corrected typo leaves behind.
  *
  * The quantity's unit follows the selected fuel's `unitKind`: litres for the
- * liquid fuels, kilograms for methane (§11.1).
+ * liquid fuels, kilograms for methane.
  */
 import { ChevronDown, Fuel as FuelIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';

@@ -26,7 +26,7 @@ const createFuelEntrySchema = z.object({
   storeId: nanoidSchema.nullable(),
   recordedAt: epochMsSchema,
   unitPriceMilli: z.number().int().min(1).max(10_000), // ≤ €10 per base unit
-  /** Litres, or kilograms for methane (§11.1). → package_size */
+  /** Litres, or kilograms for methane. → package_size */
   quantity: z.number().min(0.1).max(200),
   totalPriceCents: z.number().int().min(1).max(50_000), // ≤ €500
 });

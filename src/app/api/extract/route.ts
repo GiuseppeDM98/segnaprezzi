@@ -26,7 +26,7 @@ export const maxDuration = 90;
 
 const BYTES_PER_MB = 1024 * 1024;
 
-/** Hard cap on the upload; compression (§4) should keep photos far below it. */
+/** Hard cap on the upload; client-side compression should keep photos far below it. */
 const MAX_PHOTO_BYTES = 5 * BYTES_PER_MB;
 
 const extractRequestSchema = z.object({

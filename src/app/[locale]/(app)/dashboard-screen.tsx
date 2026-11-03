@@ -34,7 +34,7 @@ import {
 import { Link } from '@/lib/i18n/navigation';
 import type { DashboardData } from '@/lib/services/dashboard';
 
-/** localStorage key of the ISTAT overlay toggle (persists per device, §5.1). */
+/** localStorage key of the ISTAT overlay toggle (persists per device). */
 const ISTAT_TOGGLE_KEY = 'segnaprezzi.dashboard.istat';
 
 export interface DashboardScreenProps {

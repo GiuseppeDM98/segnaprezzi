@@ -31,7 +31,7 @@ only if majors differ.
 | @libsql/client | 0.17.x | Turso (libSQL/SQLite) |
 | better-auth | 1.7.12 | Email + password auth |
 | next-intl | 4.13.x | i18n (`it` default, `en`) |
-| @serwist/next / serwist | 9.5.x | PWA service worker (webpack-only: see AGENTS.md §4.39) |
+| @serwist/next / serwist | 9.5.x | PWA service worker (webpack-only: see `docs/guide/offline-pwa.md` §4.39) |
 | @anthropic-ai/sdk | 0.120.x | `claude-opus-5-5` extraction (effort `high`) |
 | motion | 13.1.x | Spring-physics animation |
 | zod | 4.4.x | Boundary validation |
@@ -61,7 +61,7 @@ Layer/naming/error-handling rules: `DEVELOPMENT_GUIDELINES.md`.
 ## 3. Features / modules
 
 - **Tag scanning + AI extraction**: camera → WebP ≤400 KB → Vercel Blob → `claude-opus-5-5` (effort `high`, no `temperature`, 60 s gateway timeout, `maxDuration = 90`) → review screen → confirm. Nothing hits the DB unconfirmed. The shelf tag is the unit of capture because it is the one place a supermarket prints the unit price.
-- **Personal CPI engine**: matched-model relatives compared store by store (AGENTS.md §4.72), Jevons within category, expenditure-weighted across categories, chained index base=100, carry-forward imputation, coverage stats, top movers; `rebaseIstat` + committed `data/istat-nic.json` (1996-01 → latest, base 2025=100, refreshed by `pnpm istat:update`).
+- **Personal CPI engine**: matched-model relatives compared store by store (`docs/guide/inflation-index.md` §4.72), Jevons within category, expenditure-weighted across categories, chained index base=100, carry-forward imputation, coverage stats, top movers; `rebaseIstat` + committed `data/istat-nic.json` (1996-01 → latest, base 2025=100, refreshed by `pnpm istat:update`).
 - **Quick entry**: manual form (`/add/manual`, g/mL converted client-side) and fuel form (`/add/fuel`) with four quick picks — benzina, diesel, GPL, metano. Metano is sold per **kilogram**, so each pick carries its own `unit_kind`; renaming a pick's canonical name after entries exist is a data migration, not a copy edit.
 - **Dashboard + product histories**: index hero with its coverage line, trend chart with ISTAT overlay, category breakdown with «non rilevata», top movers, per-product price history, catalog with merge and delete, timeline, stores, settings — all in the design system recorded in `DESIGN.md`.
 - **Catalog housekeeping**: archive (keeps history, leaves suggestions), merge duplicates, or **delete** a product outright with every observation it carries — one transaction, behind a confirmation that states how many observations go and that the index is recomputed without them. Deleting entries, products or a whole account also deletes their photos from Blob; `pnpm photos:prune` reports orphans left by older versions.
@@ -83,21 +83,21 @@ says what it did not measure, and the index compares each store with itself.
 
 - **Dashboard**: the coverage line counts the products still without a price
   this month, and a category with no compared price reads «non rilevata»
-  (`PRODUCT.md`, `DESIGN.md`, AGENTS.md §4.73).
+  (`PRODUCT.md`, `DESIGN.md`, `docs/guide/inflation-index.md` §4.73).
 - **Index and movers**: a change of store alone is not inflation, and each store
-  keeps its own carried price. Why, and the accepted cost: AGENTS.md §4.72 and
-  the README. No migration.
+  keeps its own carried price. Why, and the accepted cost:
+  `docs/guide/inflation-index.md` §4.72 and the README. No migration.
 - **Dependencies**: `undici`, `glob` and `minimatch` upgraded, the third deroga;
   only the accepted `zod` advisory remains (`docs/guide/dipendenze.md`).
+- **Docs**: `AGENTS.md` is now the core, under 1000 lines; auth, offline and PWA,
+  capture and the index moved to `docs/guide/`, with block numbers kept.
 - **Collaudo**: closed on 2026-11-03, automated checks and the guided tour
   passed with nothing left open. Not read on production data: the owner checks
   the real dashboard after the merge.
 
 **Open / next:**
 
-1. `AGENTS.md` is ~1460 lines against the ~1000 guideline: a split of the
-   capture/offline domain into `docs/guide/` is a session of its own.
-2. This Mac: `pnpm` needs `corepack enable --install-directory ~/.local/bin`
+1. This Mac: `pnpm` needs `corepack enable --install-directory ~/.local/bin`
    and `export PATH="$HOME/.local/bin:$PATH"` (AGENTS.md §4.11); the Windows
    CRLF note (§4.31) is history here. The Vercel project is linked here
    (`.vercel/`, gitignored); Turso production credentials are "Sensitive" on
@@ -109,7 +109,9 @@ says what it did not measure, and the index compares each store with itself.
 ## 5. Session protocol
 
 1. **Before any coding**, read: `AGENTS.md`, `DEVELOPMENT_GUIDELINES.md`,
-   and `COMMENTS.md`.
+   and `COMMENTS.md`, plus the guide in `docs/guide/` for the domain you touch
+   (`auth.md`, `offline-pwa.md`, `capture.md`, `inflation-index.md`,
+   `dipendenze.md`).
 2. Canonical table/column/route/env names live in the code (Drizzle schema,
    Zod schemas, domain enums) — use them exactly. Money is integer only:
    `total_price_cents` (euro cents), `unit_price_milli` (milli-euros per base
@@ -145,7 +147,7 @@ says what it did not measure, and the index compares each store with itself.
 | Time | Epoch ms UTC in DB; month bucketing in Europe/Rome |
 | IDs | text nanoid(21), app-side |
 | Lint/tests | Biome; Vitest + Playwright — run locally, no CI workflow; the only Action is the monthly ISTAT refresh |
-| Index scope | Measures how prices move, not where you shop: each store against itself, a change of store reads 0% (AGENTS.md §4.72) |
+| Index scope | Measures how prices move, not where you shop: each store against itself, a change of store reads 0% (`docs/guide/inflation-index.md` §4.72) |
 | Registration | Open by default, `SIGNUP_ENABLED=false` closes it |
 | Currency | EUR only in v1 (`currency` column kept for later) |
 | License | MIT, public from first commit |
