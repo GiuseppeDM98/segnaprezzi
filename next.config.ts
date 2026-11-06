@@ -31,8 +31,8 @@ const withSerwist = withSerwistInit({
   // The SW caches aggressively and fights HMR; PWA behavior is verified
   // against production builds only (`pnpm build && pnpm start`).
   disable: process.env.NODE_ENV === 'development',
-  // We register manually in SwProvider so we own the update-toast flow
-  // (waiting worker → toast → SKIP_WAITING → single controlled reload).
+  // We register manually in SwProvider so registration waits for `load` and
+  // the app owns the update checks (on focus and hourly).
   register: false,
 });
 

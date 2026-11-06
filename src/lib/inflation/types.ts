@@ -22,15 +22,12 @@ export interface IndexEntry {
   category: CategoryId;
   /** Epoch milliseconds UTC. */
   recordedAt: number;
-  /** Integer euro cents for ONE package, as paid/displayed. */
-  totalPriceCents: number;
   /**
-   * Packages bought in this observation (a till line "2 x 1,29" → 2; always 1
-   * for every other source). Only expenditure weights use it — never the
-   * price means.
+   * Integer milli-euros per base unit (kg | L | piece). The only price the
+   * engine reads: what a package cost, and how many were bought, never enters
+   * the index (weights.ts was retired on 2026-11-06, every compared product
+   * counts the same).
    */
-  quantity: number;
-  /** Integer milli-euros per base unit (kg | L | piece). */
   unitPriceMilli: number;
   isPromo: boolean;
   /**

@@ -21,6 +21,7 @@ import { type ChangeEvent, type ReactNode, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { IconButton } from '@/components/ui/icon-button';
+import { useStickyActionBarHeight } from '@/components/ui/sticky-action-bar';
 import { useToast } from '@/components/ui/toast';
 import { cx } from '@/lib/cx';
 import { useAppMotion } from '@/lib/motion';
@@ -66,6 +67,10 @@ export function CameraView({
   } = useCamera();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
+  // The bottom chrome publishes its height so a toast (a failed shot, a
+  // failed retry) stacks above the shutter instead of on it. Only one of the
+  // two bottom blocks is mounted at a time, so one ref serves both.
+  const bottomChromeRef = useStickyActionBarHeight<HTMLDivElement>();
 
   // Why the catch: both handlers are fired from DOM events that nobody
   // awaits, so a rejection (a frame that will not compress, a full IndexedDB)
@@ -154,7 +159,9 @@ export function CameraView({
           </div>
           {/* The tray and the review CTA still apply: picked photos travel the
               same pipeline as captured ones. */}
-          <div className="flex flex-col gap-4 pb-2">{bottomBar({ isOnCamera: false })}</div>
+          <div ref={bottomChromeRef} className="flex flex-col gap-4 pb-2">
+            {bottomBar({ isOnCamera: false })}
+          </div>
           {fileInput}
         </div>
       ) : (
@@ -211,7 +218,10 @@ export function CameraView({
             )}
           </div>
 
-          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-4 bg-gradient-to-t from-camera/85 to-camera/0 px-4 pt-10 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]">
+          <div
+            ref={bottomChromeRef}
+            className="absolute inset-x-0 bottom-0 flex flex-col gap-4 bg-gradient-to-t from-camera/85 to-camera/0 px-4 pt-10 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]"
+          >
             {bottomBar({ isOnCamera: true })}
             <div className="flex items-center justify-center">
               <motion.button

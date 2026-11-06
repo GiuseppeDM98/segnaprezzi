@@ -75,7 +75,6 @@
       "body": "Comparing prices takes at least two months of the same product. Here's what you have so far.",
       "entries": "Entries",
       "products": "Products",
-      "spent": "Recorded spend",
       "chartPlaceholder": "Your index will trend here, month by month, with the ISTAT comparison."
     },
     "error": {
@@ -404,7 +403,6 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "session": "Trip",
-    "sessionTotal": "Trip total",
     "loadMore": "Load more",
     "end": "End of history",
     "empty": {
@@ -621,11 +619,6 @@
       "iosStep2": "Choose “Add to Home Screen”",
       "iosStep3": "Tap “Add”",
       "iosWarning": "Without installing, Safari may delete queued photos after 7 days of inactivity."
-    },
-    "update": {
-      "title": "New version available",
-      "action": "Update",
-      "later": "Later"
     }
   }
 }

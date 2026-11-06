@@ -75,7 +75,6 @@
       "body": "Per confrontare i prezzi servono almeno due mesi dello stesso prodotto. Intanto ecco cosa c'è già.",
       "entries": "Rilevazioni",
       "products": "Prodotti",
-      "spent": "Spesa registrata",
       "chartPlaceholder": "Qui vedrai l'andamento del tuo indice, mese per mese, con il confronto ISTAT."
     },
     "error": {
@@ -404,7 +403,6 @@
     "today": "Oggi",
     "yesterday": "Ieri",
     "session": "Spesa",
-    "sessionTotal": "Totale spesa",
     "loadMore": "Carica altre",
     "end": "Fine della cronologia",
     "empty": {
@@ -621,11 +619,6 @@
       "iosStep2": "Scegli «Aggiungi alla schermata Home»",
       "iosStep3": "Tocca «Aggiungi»",
       "iosWarning": "Senza installazione, Safari può cancellare le foto in coda dopo 7 giorni di inutilizzo."
-    },
-    "update": {
-      "title": "Nuova versione disponibile",
-      "action": "Aggiorna",
-      "later": "Più tardi"
     }
   }
 }

@@ -77,3 +77,28 @@ with nothing, so its category reads "not measured" (2026-11-03,
 link cannot pass 50% in a young series, because every price of the month before
 is real: the line that showed it looked like "about half" while nearly every
 product had no price this month. Count products (`coverage.ts`).
+
+## 4.75 Every compared product is one vote: the overall relative is the Jevons of the matched set, and nothing in the engine reads what a package cost.
+
+Until 2026-11-06 the categories were combined with expenditure weights, the
+trailing twelve months of `totalPriceCents × quantity` per category, ISTAT's
+Laspeyres idea on one person's basket. On this app's data that measured the
+wrong thing twice: an observation is a shelf tag, not a purchase, so the
+"expenditure" was the sum of the tags one happens to photograph; and a fuel
+fill-up is logged at the price of the whole tank, sixty euros against two for a
+packet of pasta, so the fuel category decided the headline alone. The owner's
+goal is to follow the prices of the things they keep buying, not what they
+spend, so the owner chose on 2026-11-06 that every compared product counts the
+same. The overall month-over-month relative is now the Jevons of every
+relative in the link, the same unweighted geometric mean the categories use
+inside (`relatives.ts`), so a category weighs as many products as it brings.
+The category series, the coverage figures and the movers are untouched; the
+worked example in `chain.test.ts` moved from 103.24 to 105.99 at its last
+month, with the food and fuel series bit-identical. `weights.ts` is gone and
+`IndexEntry` no longer carries `totalPriceCents` or `quantity`: the engine
+reads unit prices only. The DB column `quantity` stays (every write records
+1) because dropping it is a migration for nothing and the export still
+carries it. Accepted cost: a 10% rise in fuel moves the index exactly as much
+as a 10% rise in shampoo. The same decision removed the two figures that
+spoke of spending, «Spesa registrata» on the thin dashboard and «Totale
+spesa» on the history card.

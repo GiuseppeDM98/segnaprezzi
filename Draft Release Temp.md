@@ -17,13 +17,13 @@
 - Added the category breakdown (which parts of your shopping went up or down, and "not measured" where no new price could be compared yet) and the top movers — the five products that changed the most at the same stores, each with a tiny price line
 - Added a product catalog with search and category filters, an archive, and a merge tool to fold duplicate products together without losing any history
 - Added product pages: monthly price chart with promo markers, min/max/average/latest, where it's cheapest across your stores, and every observation — editable or deletable from a sheet
-- Added the history: every price you recorded, day by day, with shopping trips grouped under their total, and filters by category, store, promo and source
+- Added the history: every price you recorded, day by day, with shopping trips grouped under their store and time, and filters by category, store, promo and source
 - Added store management (supermarkets, fuel stations, other) and inline "create a store" from every picker
 - Added settings: include or exclude promotions from the index, how many months a missing price is carried forward, language, light/dark/system theme, data export, backup import, and account deletion
 - Redesigned the whole app as a printed statement — cream paper, green-bar rows, typewriter numbers that line up in columns — with a dark "print negative" theme, Italian and English, on phone, tablet and desktop
 - Redesigned the camera screen as a full-screen viewfinder with a store chip, torch toggle, photo tray with status chips, and a "Review (N)" button; the Scan button morphs into the camera
 - Redesigned the review screen: one card per photo, flagged cards say why, a product picker with suggestions and catalog search, and a confirm bar that shows the running total and what is still missing
-- Added an offline pill that tells you how many photos are waiting on your phone, and a success toast when they are synced
+- Added an offline pill that tells you how many photos are waiting on your phone, and a success toast when they are synced — everywhere but on the camera screen, where the photo tray already shows it and nothing should come between you and the next shot
 - Login and signup now reveal one field at a time, show inline errors, and let you peek at the password
 
 - segnaprezzi can now be installed like an app — from Chrome with one tap, from iPhone with step-by-step instructions for Safari's share sheet — and opens full screen, without a browser bar
@@ -33,7 +33,7 @@
 - Uploads that fail keep retrying on their own, spacing attempts out instead of hammering a bad connection, and only ask you to step in after five tries
 - The review screen now fills in by itself: each price tag turns into an editable card the moment it has been read, while the ones still uploading wait there as their own photo
 - The dashboard now says so when you are offline and the numbers you are looking at were computed earlier
-- When a new version of the app is available it offers to update instead of reloading under you — your half-finished review is never lost
+- A new version of the app takes over the next time you open it, with no prompt and never a reload under you — your half-finished review is never lost
 
 - Added deleting a product: from its own screen, from a row in the catalog, or several at once from the selection bar. The confirmation tells you how many price observations will go with it and that your index will be recalculated without them — archiving is still there when you want to keep the history
 
@@ -41,6 +41,7 @@
 
 - Fixed the review screen refusing to confirm a photo without saying why. The card now names what is missing ("choose which product this is"), and the confirm button takes you to it instead of sitting there greyed out
 - Fixed the confirm bar being covered by the sync toast, which could swallow the tap on the button underneath it
+- Fixed toasts on the camera screen landing on the shutter; they now stack above the camera controls
 - Fixed the shelf-tag review card cutting off the unit price and the "Volume" option on a phone-sized screen
 - Fixed the product page scrolling sideways
 - Fixed disabled buttons being unreadable — pale text on a pale orange fill
@@ -97,7 +98,7 @@
 - Added the sync engine behind the photo queue, with its own tests: five attempts spaced 1, 2, 4 and 8 seconds apart, at most two uploads at a time, one drain at a time across the page and the background worker, and the same photo id on every attempt so a retry can never duplicate an entry
 - The end-to-end suite now runs against a real production build with the service worker installed, covering offline capture, reconnection, backoff and the offline fallback page
 
-- Added the personal inflation engine: your entries are bucketed into calendar months (Italian time), each product is compared with itself at the same store month over month (so a change of store alone is never inflation), products within a category are combined with a geometric mean, and categories are weighted by what you actually spent over the last twelve months — giving a chained index (first month = 100) with month-over-month, year-over-year and since-start figures, per-category series, and your top risers and fallers
+- Added the personal inflation engine: your entries are bucketed into calendar months (Italian time), each product is compared with itself at the same store month over month (so a change of store alone is never inflation), and every compared product counts the same, whatever it cost, so a fuel fill-up can never outvote your groceries and a tag you scanned without buying inflates nothing — giving a chained index (first month = 100) with month-over-month, year-over-year and since-start figures, per-category series, and your top risers and fallers
 - Added honesty stats next to every index number — how many products were compared, how many categories, how many still have no price this month, which months had nothing to compare, and how many suspicious jumps were capped — so a thin history never looks more solid than it is
 - Added carry-forward and outlier guards: a missing month is filled from the last known price for up to two months (configurable; 0 turns it off), a promo-only month still counts when promos are excluded from the index, and one implausible jump (a €/100 g tag read as €/kg) can move the index by at most a factor of five for one month
 - Added the official ISTAT NIC index as bundled data (all items, monthly since 1996, in the current 2025 = 100 base) so the "you vs Italy" comparison works offline, plus a maintenance command and a monthly GitHub workflow that refresh it from ISTAT's data service and open a pull request with the diff
@@ -106,6 +107,5 @@
 - Every screen passes automated accessibility checks (axe) in both themes on phone and desktop, and scores 100 on Lighthouse accessibility
 - Charts are hand-drawn SVG with a hidden data table for screen readers — no charting library
 
-- The index now counts quantities: an observation that records several packages weighs that many times in what you spent, without counting as several price observations
 - Added an accessibility end-to-end suite and a desktop Playwright project alongside the mobile one
 - Self-hosters following the main branch: the latest database migration drops the receipt-import tables that briefly existed there, together with any observations they produced — export your data before applying it

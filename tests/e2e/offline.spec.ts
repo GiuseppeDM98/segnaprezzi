@@ -130,6 +130,15 @@ test('should drain the queue on reconnect and confirm the entries', async ({ pag
 
   // Reconnecting is enough: no button, no refresh.
   await expect(page.getByTestId('photo-status-extracted')).toHaveCount(2);
+  // The tray already said it: on the camera the "synced" toast is not raised,
+  // and the camera's bottom chrome publishes the height any other toast must
+  // clear to stay off the shutter (docs/guide/offline-pwa.md §4.76).
+  await expect(page.getByTestId('toast-success')).toHaveCount(0);
+  expect(
+    await page.evaluate(() =>
+      document.documentElement.style.getPropertyValue('--sticky-action-bar-height'),
+    ),
+  ).toMatch(/^\d+px$/);
 
   await page.getByTestId('review-cta').click();
   const cards = page.getByTestId('review-card');

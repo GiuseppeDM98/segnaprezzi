@@ -1,7 +1,6 @@
 /**
  * How the timeline lays entries out: one group per calendar day, and inside
- * a day, the entries of one shopping session folded into a single block that
- * carries the session's total. Pure — no imports; the caller supplies the
+ * a day, the entries of one shopping session folded into a single block. Pure — no imports; the caller supplies the
  * calendar (Europe/Rome day distance) so the grouping is testable without a
  * clock or a time zone database.
  */
@@ -13,7 +12,6 @@ export interface GroupableEntry {
   recordedAt: number;
   /** The shopping session the entry was confirmed in, or null for a standalone entry. */
   sessionId: string | null;
-  totalPriceCents: number;
   store: { name: string } | null;
 }
 
@@ -26,7 +24,6 @@ export interface SessionBlock<E extends GroupableEntry> {
   storeName: string | null;
   /** Epoch ms of the run's earliest entry. */
   startedAt: number;
-  totalCents: number;
   entries: E[];
 }
 
@@ -51,8 +48,7 @@ export interface HistoryDayGroup<E extends GroupableEntry> {
 
 /**
  * Group newest-first entries by calendar day; inside a day, consecutive
- * entries of the same shopping session fold into one session block with
- * their summed total, and consecutive standalone entries share a plain block.
+ * entries of the same shopping session fold into one session block, and consecutive standalone entries share a plain block.
  *
  * Only consecutive entries fold: a standalone entry recorded in the middle of
  * a session splits it into two runs, because the timeline is in time order
@@ -79,7 +75,6 @@ export function groupEntriesByDay<E extends GroupableEntry>(
     if (entry.sessionId) {
       if (lastBlock?.kind === 'session' && lastBlock.sessionId === entry.sessionId) {
         lastBlock.entries.push(entry);
-        lastBlock.totalCents += entry.totalPriceCents;
         lastBlock.startedAt = Math.min(lastBlock.startedAt, entry.recordedAt);
       } else {
         group.blocks.push({
@@ -88,7 +83,6 @@ export function groupEntriesByDay<E extends GroupableEntry>(
           sessionId: entry.sessionId,
           storeName: entry.store?.name ?? null,
           startedAt: entry.recordedAt,
-          totalCents: entry.totalPriceCents,
           entries: [entry],
         });
       }

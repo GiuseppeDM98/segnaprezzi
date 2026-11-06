@@ -9,7 +9,6 @@
 import { motion } from 'motion/react';
 import { type ReactNode, useEffect, useState } from 'react';
 
-import { SwUpdateToast } from '@/components/pwa/sw-update-toast';
 import { TabBar } from '@/components/ui/tab-bar';
 import { ToastOutlet, ToastProvider } from '@/components/ui/toast';
 import { cx } from '@/lib/cx';
@@ -54,10 +53,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       {!isImmersive && <TabBar isHidden={isBarHidden} />}
       <OfflineBanner />
-      <SwUpdateToast />
-      {/* The lift clears whatever sticky action bar is currently on screen —
-          without it the toast sat on the confirm button and ate the tap. */}
-      <ToastOutlet className="bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+var(--sticky-action-bar-height,0px))] rail:bottom-[calc(1.5rem+var(--sticky-action-bar-height,0px))]" />
+      {/* The lift clears whatever bottom chrome is on screen — a sticky action
+          bar, or the camera's controls on /scan — without it the toast sat on
+          the confirm button, or on the shutter, and ate the tap. */}
+      <ToastOutlet
+        className={
+          isImmersive
+            ? 'bottom-[calc(0.5rem+var(--sticky-action-bar-height,0px))]'
+            : 'bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+var(--sticky-action-bar-height,0px))] rail:bottom-[calc(1.5rem+var(--sticky-action-bar-height,0px))]'
+        }
+      />
     </ToastProvider>
   );
 }

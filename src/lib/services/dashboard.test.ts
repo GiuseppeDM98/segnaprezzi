@@ -62,7 +62,6 @@ describe('getDashboardData', () => {
       state: 'thin',
       entryCount: 2,
       productCount: 1,
-      totalSpentCents: 458 + 229,
     });
   });
 

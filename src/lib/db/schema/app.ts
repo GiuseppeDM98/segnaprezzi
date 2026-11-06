@@ -143,11 +143,11 @@ export const priceEntries = sqliteTable(
     }),
     recordedAt: integer('recorded_at', { mode: 'timestamp_ms' }).notNull(),
     totalPriceCents: integer('total_price_cents').notNull(),
-    // Why: packages bought in one observation. Two rows would double-weight
-    // that month's mean; a quantity keeps the mean honest while letting the
-    // inflation engine's expenditure weights count what was actually spent.
-    // Every current write path records 1; the column stays because the
-    // engine's weights read it.
+    // Why: packages bought in one observation, a leftover of the retired
+    // receipt import (two till lines would double-weight a month's mean).
+    // Every write path records 1 and nothing reads it since the index stopped
+    // weighting by expenditure (2026-11-06); the column stays because dropping
+    // it is a migration for no gain and the v2/v3 export still carries it.
     quantity: integer('quantity').notNull().default(1),
     packageSize: real('package_size').notNull(),
     unitPriceMilli: integer('unit_price_milli').notNull(),

@@ -74,9 +74,9 @@ export function clampRelative(relative: number): { value: number; wasClamped: bo
  * Jevons index: the unweighted geometric mean of price relatives,
  * exp(mean(ln r)).
  *
- * Teacher: inside a category we have no quantity data per product-month pair
- * that we can trust (a user may photograph a tag without buying three packs),
- * so the relatives are combined unweighted — exactly ISTAT's situation inside
+ * Teacher: we have no quantity data per product-month pair that we can trust
+ * (a user may photograph a tag without buying three packs), so the relatives
+ * are combined unweighted, inside a category and across the whole basket — exactly ISTAT's situation inside
  * its elementary aggregates, and ISTAT's answer is the same: the Jevons index.
  * The obvious alternative, the arithmetic mean of relatives (Carli index),
  * has a systematic upward bias because it fails the time-reversal test:

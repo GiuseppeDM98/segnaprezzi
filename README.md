@@ -29,7 +29,7 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 
 **What the index measures:** how the prices of what you buy move, not where you shop. Each store is compared with itself, so buying the same bananas at a dearer supermarket this month is not inflation, and moving to a cheaper one for good is not deflation. What you paid at each store stays visible in the product's history.
 
-**Scan what you buy.** What you spend sets how much each category weighs in the index, so a tag you scan without buying inflates its category. If you buy more or less than the tag shows, for example loose bananas by weight or several packs, change the total and the size together in review: changing only the total changes the unit price.
+**Every product is one vote.** The index does not weigh categories by what you spend: a fill-up and a packet of pasta move it by the same amount for the same percentage change, and a tag you scan without buying inflates nothing. The app tracks prices, never your spending. If a tag shows a size you did not buy, for example loose bananas by weight, change the total and the size together in review: changing only the total changes the unit price.
 
 **The honesty principle:** a personal index built from a few dozen products is statistically thin, and the app never pretends otherwise. Every number ships with its coverage stats — how many products were compared, which categories had data, how many products still have no price this month — so you always know how much to trust what you see.
 
@@ -37,7 +37,7 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 
 - [x] **Tag scanning** — photograph shelf price tags; Claude Opus 5.5 extracts product, total price, and unit price with a review-before-save flow
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
-- [x] **Personal CPI** — chained monthly index with category breakdown, expenditure-share weighting, and a one-tap ISTAT comparison rebased to your own starting month, on a dashboard that leads with your year-over-year number and its coverage line
+- [x] **Personal CPI** — chained monthly index with category breakdown, every compared product weighing the same, and a one-tap ISTAT comparison rebased to your own starting month, on a dashboard that leads with your year-over-year number and its coverage line
 - [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, duplicate-product merging, and deleting a product with its observations when you want it gone for good
 - [x] **History & stores** — every observation day by day with shopping trips grouped under their total, filters by category/store/promo/source, and store management
 - [x] **Promo tracking** — flag discounts, loyalty prices, coupons, and bundles; choose whether promos count toward your index
