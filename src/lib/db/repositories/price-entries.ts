@@ -282,8 +282,10 @@ export async function listPriceEntries(
 
 /**
  * Minimal projection of ALL of the user's entries for the inflation engine:
- * monthly bucketing needs (productId, recordedAt, unitPriceMilli,
- * isPromo); category weights need (category, totalPriceCents, quantity). The
+ * monthly bucketing needs (productId, recordedAt, unitPriceMilli, isPromo),
+ * the category series need `category`, the store-by-store comparison
+ * `storeId`. What a package cost is deliberately not projected: the engine
+ * weighs every compared product the same, so it has no use for it. The
  * DB's Date surfaces here as epoch ms — IndexEntry.recordedAt is a number,
  * and the repository does the mapping. Ordered by recorded_at ascending.
  * Includes entries of archived products — archiving hides a product from
@@ -298,10 +300,6 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
       category: products.category,
       recordedAt: priceEntries.recordedAt,
       unitPriceMilli: priceEntries.unitPriceMilli,
-      totalPriceCents: priceEntries.totalPriceCents,
-      // Packages bought in one observation: the monthly mean ignores it,
-      // the expenditure weights multiply by it.
-      quantity: priceEntries.quantity,
       isPromo: priceEntries.isPromo,
       // The engine compares each store with itself.
       storeId: priceEntries.storeId,

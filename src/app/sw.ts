@@ -12,8 +12,9 @@
  * - Vercel Blob photo thumbnails: StaleWhileRevalidate, LRU-capped at 50.
  *
  * skipWaiting is deliberately NOT automatic: a new SW activating mid-session
- * would break lazy-loaded chunks. The page shows an update toast and posts
- * SKIP_WAITING only when the user accepts.
+ * would break lazy-loaded chunks. The waiting worker takes over when the
+ * browser next opens the app with no page of the old one left; nobody is
+ * asked (2026-11-06, the update toast was retired as noise).
  */
 import { defaultCache } from '@serwist/next/worker';
 import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist';
@@ -105,14 +106,6 @@ const serwist = new Serwist({
       },
     ],
   },
-});
-
-// Update flow: the page posts SKIP_WAITING only after the user accepts the
-// update toast (never automatically).
-self.addEventListener('message', (event) => {
-  if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') {
-    void self.skipWaiting();
-  }
 });
 
 // Background Sync (progressive enhancement, Chromium-only): drain the photo

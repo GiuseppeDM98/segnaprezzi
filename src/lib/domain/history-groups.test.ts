@@ -18,7 +18,7 @@ function entry(
     id,
     recordedAt,
     sessionId: null,
-    totalPriceCents: 100,
+
     store: null,
     ...overrides,
   };
@@ -53,9 +53,9 @@ describe('groupEntriesByDay', () => {
     // Arrange
     const store = { name: 'Esselunga' };
     const entries = [
-      entry('a', NOW + 3_000, { sessionId: 's1', totalPriceCents: 250, store }),
-      entry('b', NOW + 2_000, { sessionId: 's1', totalPriceCents: 199, store }),
-      entry('c', NOW + 1_000, { sessionId: 's1', totalPriceCents: 51, store }),
+      entry('a', NOW + 3_000, { sessionId: 's1', store }),
+      entry('b', NOW + 2_000, { sessionId: 's1', store }),
+      entry('c', NOW + 1_000, { sessionId: 's1', store }),
     ];
 
     // Act
@@ -68,7 +68,6 @@ describe('groupEntriesByDay', () => {
       sessionId: 's1',
       storeName: 'Esselunga',
       startedAt: NOW + 1_000,
-      totalCents: 500,
     });
     expect(day.blocks[0].entries.map((item) => item.id)).toEqual(['a', 'b', 'c']);
   });
@@ -106,8 +105,8 @@ describe('groupEntriesByDay', () => {
   test('should split a session that crosses midnight into one block per day', () => {
     // Arrange
     const entries = [
-      entry('a', NOW + 1_000, { sessionId: 's1', totalPriceCents: 300 }),
-      entry('b', NOW - 1_000, { sessionId: 's1', totalPriceCents: 200 }),
+      entry('a', NOW + 1_000, { sessionId: 's1' }),
+      entry('b', NOW - 1_000, { sessionId: 's1' }),
     ];
 
     // Act
@@ -119,9 +118,7 @@ describe('groupEntriesByDay', () => {
       ['session'],
     ]);
     expect(
-      groups
-        .flatMap((group) => group.blocks)
-        .map((block) => block.kind === 'session' && block.totalCents),
-    ).toEqual([300, 200]);
+      groups.flatMap((group) => group.blocks).map((block) => block.entries.map((item) => item.id)),
+    ).toEqual([['a'], ['b']]);
   });
 });

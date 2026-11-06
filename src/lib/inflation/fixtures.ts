@@ -27,8 +27,6 @@ export function buildEntry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     productId: 'pasta',
     category: 'food',
     recordedAt: atTenUtc('2026-03-07'),
-    totalPriceCents: 119,
-    quantity: 1,
     unitPriceMilli: 2380,
     isPromo: false,
     storeId: null,
@@ -49,6 +47,8 @@ export function buildProduct(overrides: Partial<IndexProduct> = {}): IndexProduc
 /**
  * The worked example used across the engine's tests, verbatim: three products, four months,
  * thirteen entries. Its numbers are the acceptance contract of the engine.
+ * Package prices are left out on purpose: the engine never reads them.
+ * Package prices are left out on purpose: the engine never reads them.
  */
 export function buildWorkedExample(): { entries: IndexEntry[]; products: IndexProduct[] } {
   const products: IndexProduct[] = [
@@ -57,46 +57,38 @@ export function buildWorkedExample(): { entries: IndexEntry[]; products: IndexPr
     buildProduct({ id: 'diesel', name: 'Diesel', brand: null, category: 'fuel' }),
   ];
 
-  const pasta = (date: string, totalPriceCents: number, unitPriceMilli: number, isPromo = false) =>
+  const pasta = (date: string, unitPriceMilli: number, isPromo = false) =>
     buildEntry({
       productId: 'pasta',
       category: 'food',
       recordedAt: atTenUtc(date),
-      totalPriceCents,
       unitPriceMilli,
       isPromo,
     });
-  const oil = (date: string, totalPriceCents: number, unitPriceMilli: number) =>
-    buildEntry({
-      productId: 'oil',
-      category: 'food',
-      recordedAt: atTenUtc(date),
-      totalPriceCents,
-      unitPriceMilli,
-    });
-  const diesel = (date: string, totalPriceCents: number, unitPriceMilli: number) =>
+  const oil = (date: string, unitPriceMilli: number) =>
+    buildEntry({ productId: 'oil', category: 'food', recordedAt: atTenUtc(date), unitPriceMilli });
+  const diesel = (date: string, unitPriceMilli: number) =>
     buildEntry({
       productId: 'diesel',
       category: 'fuel',
       recordedAt: atTenUtc(date),
-      totalPriceCents,
       unitPriceMilli,
     });
 
   const entries: IndexEntry[] = [
-    pasta('2026-03-07', 119, 2380),
-    pasta('2026-03-21', 109, 2180, true),
-    pasta('2026-04-11', 125, 2500),
-    pasta('2026-06-05', 129, 2580),
-    oil('2026-03-14', 799, 7990),
-    oil('2026-04-11', 849, 8490),
-    oil('2026-05-09', 829, 8290),
-    oil('2026-06-05', 819, 8190),
-    diesel('2026-03-02', 5405, 1689),
-    diesel('2026-03-19', 5097, 1699),
-    diesel('2026-04-16', 5348, 1725),
-    diesel('2026-05-14', 5772, 1749),
-    diesel('2026-06-11', 5217, 1739),
+    pasta('2026-03-07', 2380),
+    pasta('2026-03-21', 2180, true),
+    pasta('2026-04-11', 2500),
+    pasta('2026-06-05', 2580),
+    oil('2026-03-14', 7990),
+    oil('2026-04-11', 8490),
+    oil('2026-05-09', 8290),
+    oil('2026-06-05', 8190),
+    diesel('2026-03-02', 1689),
+    diesel('2026-03-19', 1699),
+    diesel('2026-04-16', 1725),
+    diesel('2026-05-14', 1749),
+    diesel('2026-06-11', 1739),
   ];
 
   return { entries, products };

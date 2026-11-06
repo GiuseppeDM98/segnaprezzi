@@ -198,28 +198,25 @@ describe('computePersonalCpi', () => {
     expect(result.coverage.productsCompared).toBe(0);
   });
 
-  it('should count a single-observation product in weights but not in price change', () => {
-    // Arrange: a one-off expensive purchase in food, a +10% mover in fuel.
+  it('should carry a single-observation product flat and let it damp the move', () => {
+    // Arrange: a one-off purchase in food, a +10% mover in fuel.
     const entries = [
       buildEntry({
         productId: 'tv',
         category: 'food',
         recordedAt: midMonth('2026-03'),
-        totalPriceCents: 100000,
         unitPriceMilli: 100000,
       }),
       buildEntry({
         productId: 'diesel',
         category: 'fuel',
         recordedAt: midMonth('2026-03'),
-        totalPriceCents: 1000,
         unitPriceMilli: 1000,
       }),
       buildEntry({
         productId: 'diesel',
         category: 'fuel',
         recordedAt: midMonth('2026-04'),
-        totalPriceCents: 1100,
         unitPriceMilli: 1100,
       }),
     ];
@@ -231,15 +228,44 @@ describe('computePersonalCpi', () => {
     // Act
     const result = computePersonalCpi({ entries, products, settings: DEFAULT_SETTINGS });
 
-    // Assert: the carried-forward tv contributes a relative of 1 with weight
-    // 100000/102100, damping the fuel move; nothing throws.
-    const foodWeight = 100000 / 102100;
-    const expectedRelative = foodWeight * 1 + (1 - foodWeight) * 1.1;
-    expect(result.series[1].index).toBeCloseTo(expectedRelative * 100, 8);
+    // Assert: the carried-forward tv is one vote at a relative of 1 beside
+    // the diesel's 1.1, so the overall link is their Jevons; nothing throws.
+    expect(result.series[1].index).toBeCloseTo(Math.sqrt(1.1) * 100, 8);
     expect(result.series[1].index).toBeGreaterThan(100);
     expect(result.series[1].index).toBeLessThan(110);
     expect(result.coverage.productsCompared).toBe(2);
     expect(result.coverage.productsWithoutLatestPrice).toBe(1);
+  });
+
+  it('should give every compared product one vote, whatever its category', () => {
+    // Arrange: two food products at +10% each, one fuel product flat.
+    const entries = [
+      ['bread', 'food', 1000, 1100],
+      ['oil', 'food', 8000, 8800],
+      ['diesel', 'fuel', 1700, 1700],
+    ].flatMap(([productId, category, march, april]) =>
+      [march, april].map((unitPriceMilli, offset) =>
+        buildEntry({
+          productId: productId as string,
+          category: category as IndexEntry['category'],
+          recordedAt: midMonth(addMonthsToYm('2026-03', offset)),
+          unitPriceMilli: unitPriceMilli as number,
+        }),
+      ),
+    );
+    const products = [
+      buildProduct({ id: 'bread' }),
+      buildProduct({ id: 'oil' }),
+      buildProduct({ id: 'diesel', category: 'fuel' }),
+    ];
+
+    // Act
+    const result = computePersonalCpi({ entries, products, settings: DEFAULT_SETTINGS });
+
+    // Assert: the Jevons of three relatives, not the mean of two category
+    // relatives — food brings two votes, fuel one.
+    expect(result.series[1].index).toBeCloseTo(Math.cbrt(1.1 * 1.1 * 1) * 100, 10);
+    expect(result.series[1].index).not.toBeCloseTo(((1.1 + 1) / 2) * 100, 2);
   });
 
   it('should start a category series at 100 in the month the category first appears', () => {
@@ -250,7 +276,6 @@ describe('computePersonalCpi', () => {
         productId: 'diesel',
         category: 'fuel',
         recordedAt: midMonth(addMonthsToYm('2026-03', offset)),
-        totalPriceCents: 5000,
         unitPriceMilli,
       }),
     );
@@ -317,10 +342,10 @@ describe('computePersonalCpi', () => {
     expect(result.headline?.yoyPct).toBeCloseTo(12.6825, 4);
   });
 
-  it('should fall back to equal weights when matched categories have no trailing expenditure', () => {
+  it('should stay finite and flat while every price is carried for over a year', () => {
     // Arrange (pathological carryForwardMonths > 11): both products are
-    // observed in month 1 only and carried forward for 14 months, so the
-    // 13→14 link is matched but its trailing expenditure window is empty.
+    // observed in month 1 only and carried forward for 14 months, so every
+    // link up to 13→14 is matched on imputed prices alone.
     const entries = [
       buildEntry({
         productId: 'pasta',
@@ -366,9 +391,9 @@ describe('computePersonalCpi', () => {
     // Assert — final series
     const expectedSeries: MonthPoint[] = [
       { ym: '2026-03', index: 100.0, momPct: 0.0, yoyPct: null },
-      { ym: '2026-04', index: 102.5149, momPct: 2.5149, yoyPct: null },
-      { ym: '2026-05', index: 103.6355, momPct: 1.0931, yoyPct: null },
-      { ym: '2026-06', index: 103.2405, momPct: -0.3812, yoyPct: null },
+      { ym: '2026-04', index: 105.8637, momPct: 5.8637, yoyPct: null },
+      { ym: '2026-05', index: 105.5107, momPct: -0.3335, yoyPct: null },
+      { ym: '2026-06', index: 105.9911, momPct: 0.4553, yoyPct: null },
     ];
     expect(result.series).toHaveLength(4);
     for (const [position, expected] of expectedSeries.entries()) {
@@ -377,9 +402,9 @@ describe('computePersonalCpi', () => {
 
     // headline
     expect(result.headline?.latestYm).toBe('2026-06');
-    expect(result.headline?.momPct).toBeCloseTo(-0.3812, 4);
+    expect(result.headline?.momPct).toBeCloseTo(0.4553, 4);
     expect(result.headline?.yoyPct).toBeNull();
-    expect(result.headline?.sinceStartPct).toBeCloseTo(3.2405, 4);
+    expect(result.headline?.sinceStartPct).toBeCloseTo(5.9911, 4);
 
     // category series
     const expectedFood = [100.0, 107.9402, 106.6612, 107.6988];
@@ -459,7 +484,6 @@ describe('computePersonalCpi', () => {
                 productId,
                 category,
                 recordedAt: midMonth(addMonthsToYm('2025-01', offset)),
-                totalPriceCents: Math.floor(random() * 10000),
                 unitPriceMilli,
                 isPromo: random() < 0.3,
               }),

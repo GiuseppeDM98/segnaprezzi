@@ -1,87 +1,26 @@
 'use client';
 
 /**
- * Service worker registration and the update handshake.
+ * Service worker registration and update checks.
  *
- * Design: registration is manual (`register: false` in next.config.ts) so
- * the app owns when a new worker takes over. A worker that activated on its
- * own mid-session would swap the build's lazy chunks under a page that is
- * still asking for the old ones — hence the deliberate three-step handshake:
- * a waiting worker only becomes the controller after the user accepts, and
- * only then does the page reload, exactly once.
- *
- * The state lives at module scope rather than in React because separate
- * subtrees need it: the provider in the root layout starts it, the toast
- * inside the app shell renders it.
+ * Design: registration is manual (`register: false` in next.config.ts) so it
+ * waits for `load` instead of competing with the first paint, and so the app
+ * owns how often a new deploy is looked for. What happens once a new worker
+ * is found is left to the browser: with `skipWaiting: false` in sw.ts it
+ * installs, parks, and takes over the next time the app opens with no page
+ * of the old worker left. Nobody is asked — the update toast that used to
+ * announce the waiting worker was retired on 2026-11-06 as noise. The cost
+ * is that an installed app kept alive in the background for days runs the
+ * old build for as long; the pages themselves are NetworkFirst, so what the
+ * user reads is fresh either way.
  */
 
 /** Long-lived installed sessions still need to learn about new deploys. */
 const UPDATE_POLL_MS = 60 * 60 * 1000;
 
-let registration: ServiceWorkerRegistration | null = null;
-let waitingWorker: ServiceWorker | null = null;
-/** Set only by applyServiceWorkerUpdate — the guard against a surprise reload. */
-let hasAcceptedUpdate = false;
-let hasReloaded = false;
-/** Dismissal is per app start: the toast returns on the next one, not sooner. */
-let isDismissed = false;
-
-const subscribers = new Set<() => void>();
-
-function notify(): void {
-  for (const subscriber of subscribers) {
-    subscriber();
-  }
-}
-
-function setWaitingWorker(worker: ServiceWorker): void {
-  waitingWorker = worker;
-  notify();
-}
-
 /**
- * Announce the worker an update installs, once it has finished installing
- * and is parked waiting. Also picks up a worker installed on a previous
- * visit and parked ever since.
- *
- * @returns Disposer that detaches the updatefound listener and the
- *   statechange listener of every installing worker it has watched.
- */
-function watchForUpdate(swRegistration: ServiceWorkerRegistration): () => void {
-  if (swRegistration.waiting) {
-    setWaitingWorker(swRegistration.waiting);
-  }
-
-  const stateListeners = new Map<ServiceWorker, () => void>();
-
-  function handleUpdateFound(): void {
-    const installing = swRegistration.installing;
-    if (!installing) {
-      return;
-    }
-    const handleStateChange = (): void => {
-      // A controller already present means this is an update, not the
-      // first install — only then is there something to announce.
-      if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-        setWaitingWorker(installing);
-      }
-    };
-    installing.addEventListener('statechange', handleStateChange);
-    stateListeners.set(installing, handleStateChange);
-  }
-
-  swRegistration.addEventListener('updatefound', handleUpdateFound);
-  return () => {
-    swRegistration.removeEventListener('updatefound', handleUpdateFound);
-    for (const [worker, handleStateChange] of stateListeners) {
-      worker.removeEventListener('statechange', handleStateChange);
-    }
-    stateListeners.clear();
-  };
-}
-
-/**
- * Register `/sw.js` and watch for an update.
+ * Register `/sw.js`, then check for a new deploy whenever the app comes back
+ * into view and once an hour.
  *
  * @returns Disposer that detaches every listener and timer.
  */
@@ -90,18 +29,11 @@ export function startServiceWorker(): () => void {
     return () => {};
   }
 
-  let stopWatchingForUpdate: (() => void) | null = null;
-  let isStopped = false;
+  let registration: ServiceWorkerRegistration | null = null;
 
   async function register(): Promise<void> {
     try {
       registration = await navigator.serviceWorker.register('/sw.js');
-      // Disposed while registering (a StrictMode remount, an unmount): watch
-      // nothing, since the disposer has already run and could not detach it.
-      if (isStopped) {
-        return;
-      }
-      stopWatchingForUpdate = watchForUpdate(registration);
     } catch (error) {
       // An unsupported or insecure context is not an app failure: the site
       // simply runs without offline support.
@@ -113,19 +45,14 @@ export function startServiceWorker(): () => void {
     void register();
   }
 
-  function handleControllerChange(): void {
-    if (!hasAcceptedUpdate || hasReloaded) {
-      return;
-    }
-    hasReloaded = true;
-    window.location.reload();
+  function checkForUpdate(): void {
+    // Offline, or the server is down — the next check will do.
+    void registration?.update().catch(() => {});
   }
 
   function handleVisibilityChange(): void {
     if (document.visibilityState === 'visible') {
-      void registration?.update().catch(() => {
-        // Offline, or the server is down — the next check will do.
-      });
+      checkForUpdate();
     }
   }
 
@@ -136,44 +63,12 @@ export function startServiceWorker(): () => void {
   } else {
     window.addEventListener('load', handleLoad);
   }
-  navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
   document.addEventListener('visibilitychange', handleVisibilityChange);
-  const pollTimer = window.setInterval(() => {
-    // Same as the visibility check: a failed poll waits for the next one.
-    void registration?.update().catch(() => {});
-  }, UPDATE_POLL_MS);
+  const pollTimer = window.setInterval(checkForUpdate, UPDATE_POLL_MS);
 
   return () => {
-    isStopped = true;
-    stopWatchingForUpdate?.();
     window.removeEventListener('load', handleLoad);
-    navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.clearInterval(pollTimer);
   };
-}
-
-export function subscribeToSwUpdate(onChange: () => void): () => void {
-  subscribers.add(onChange);
-  return () => subscribers.delete(onChange);
-}
-
-/** True while a new worker is installed, waiting, and not yet declined. */
-export function hasWaitingUpdate(): boolean {
-  return waitingWorker !== null && !isDismissed;
-}
-
-/** Accept the update: the worker skips waiting, then controllerchange reloads. */
-export function applyServiceWorkerUpdate(): void {
-  if (!waitingWorker) {
-    return;
-  }
-  hasAcceptedUpdate = true;
-  waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-}
-
-/** Decline for now: the worker stays parked and the toast stops asking. */
-export function dismissServiceWorkerUpdate(): void {
-  isDismissed = true;
-  notify();
 }

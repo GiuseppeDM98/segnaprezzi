@@ -27,7 +27,6 @@ import {
   type AppLocale,
   formatCount,
   formatIndexValue,
-  formatMoney,
   formatMonth,
   formatPct,
 } from '@/lib/format';
@@ -315,7 +314,6 @@ function ThinDashboard({ data }: { data: ThinData }) {
   const facts = [
     { label: t('thin.entries'), value: formatCount(data.entryCount, locale) },
     { label: t('thin.products'), value: formatCount(data.productCount, locale) },
-    { label: t('thin.spent'), value: formatMoney(data.totalSpentCents, locale) },
   ];
   return (
     <div className="flex flex-col gap-8" data-testid="dashboard-thin">

@@ -9,8 +9,7 @@
  * triggers, and the capture of `beforeinstallprompt` (which fires early and
  * is lost forever if nobody claims it).
  *
- * It renders only the install sheets. The update toast lives inside the app
- * shell instead, because it needs the toast provider (SwUpdateToast).
+ * It renders only the install sheets.
  */
 import { type ReactNode, useEffect, useState } from 'react';
 import { startSyncEngine } from '@/lib/offline/sync';

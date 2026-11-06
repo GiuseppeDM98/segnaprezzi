@@ -32,8 +32,8 @@ seconds.
 Official inflation is computed on a national basket that is nobody's basket.
 segnaprezzi's mechanism — which a generic expense tracker cannot truthfully
 copy — is a real CPI methodology (matched-model relatives, Jevons within
-category, expenditure-weighted across categories, carry-forward imputation,
-coverage stats, each store compared with itself) applied to one person's own shelf observations, with the
+category and over every compared product, no expenditure weights,
+carry-forward imputation, coverage stats, each store compared with itself) applied to one person's own shelf observations, with the
 ISTAT series rebased onto the user's own base month for a like-for-like
 comparison. Private per user, offline-first, self-hostable.
 

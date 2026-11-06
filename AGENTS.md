@@ -86,8 +86,8 @@ export function calculateUnitPriceMilli(totalPriceCents: number, packageSize: nu
 - The **only** place floats are legitimate: index math in `src/lib/inflation/`
   (price relatives and means are ratios, not money) and `package_size`
   (a physical quantity, stored as `real`). Sums of integer money stay exact in a
-  double, so monthly means and expenditure totals are bit-identical for any input
-  order; the logs and weighted sums iterate in sorted order for the same reason.
+  double, so monthly means are bit-identical for any input order; the logs
+  iterate in sorted order for the same reason.
 - Zod schemas for money fields are `z.number().int().positive()` — a float
   reaching a `*_cents`/`*_milli` field is a validation bug at the boundary.
 
@@ -330,7 +330,7 @@ Namespace map **[decided]** — top-level keys of both message files:
 | `offline` | Offline banner, queue/sync status |
 | `categories` | One label per taxonomy id (`food`, …, `other`) |
 | `units` | Unit labels and formats (kg, L, piece, €/kg, €/L) |
-| `pwa` | Install prompt, update toast |
+| `pwa` | Install prompt and install sheets |
 
 ### 1.12 Design tokens (semantic only)
 
@@ -608,9 +608,9 @@ reused, so a block that moved to a guide keeps its number there.
 | Guide | Read it when you touch | Blocks |
 |---|---|---|
 | `docs/guide/auth.md` | Better Auth config, its schema, sign-in from scripts or tests | §3.5, §4.2, §4.16, §4.19, §4.42, §4.69 |
-| `docs/guide/offline-pwa.md` | photo queue, sync, service worker, manifest, icons | §4.3, §4.9, §4.39, §4.40, §4.43–§4.48 |
+| `docs/guide/offline-pwa.md` | photo queue, sync, service worker, manifest, icons, toasts over the camera | §4.3, §4.9, §4.39, §4.40, §4.43–§4.48, §4.76 |
 | `docs/guide/capture.md` | AI gateway, prompt, Blob, price invariant, photo deletion | §4.7, §4.51, §4.54, §4.59, §4.61, §4.63, §4.64–§4.66, §4.70 |
-| `docs/guide/inflation-index.md` | index engine, coverage figures, ISTAT series and its workflow | §4.27, §4.29, §4.71–§4.73 |
+| `docs/guide/inflation-index.md` | index engine, coverage figures, ISTAT series and its workflow | §4.27, §4.29, §4.71–§4.73, §4.75 |
 
 **Authentication (Better Auth).** After `pnpm auth:generate`, always run
 `pnpm db:generate`, or the DB has no auth tables (§4.2), and diff the result
@@ -630,7 +630,9 @@ offline behavior can only be tested with `pnpm build && pnpm start` (§4.3,
 regenerate it on retry, never let the server mint ids for queued items (§4.9).
 Adding a locale means an entry in `next.config.ts`'s
 `additionalPrecacheEntries` and in `src/app/sw.ts`'s `fallbacks` list (§4.40).
-In Vitest, fake `Date` only around Dexie, never the timers (§4.43). The rest —
+In Vitest, fake `Date` only around Dexie, never the timers (§4.43). A new
+service worker is never announced: it takes over at the next app start, and
+`skipWaiting` stays off so it never swaps chunks under a live page (§4.76). The rest —
 the happy-dom `FormData` workaround, Serwist's event and matcher types, the
 installability test, the favicon conflict — in `docs/guide/offline-pwa.md`.
 
@@ -649,7 +651,9 @@ examples in prompts, the prune tool's guard — in `docs/guide/capture.md`.
 with itself: every store keeps its own carried price, a product's relative is
 the Jevons of the stores priced in both months, and a price seen only at a new
 store reads 0% (§4.72). `isPriceCompared` is not `!isToImputed`, and coverage
-counts products, never a share of prices (§4.73). The dashboard loads
+counts products, never a share of prices (§4.73). The overall relative is the
+Jevons of every compared product: no expenditure weights, nothing in the engine
+reads what a package cost (§4.75). The dashboard loads
 `data/istat-nic.json` as a static import and never fetches ISTAT at runtime;
 ISTAT is always queried with a narrow key (§4.27). `update-istat.yml` needs a
 repository setting, not a token, to open its pull request (§4.71). The rest —
@@ -716,7 +720,19 @@ touched file ("Formatter would have printed…") on a diff that looks unchanged.
 Open with `newline=''`, write bytes, or normalize CRLF→LF over `git status` files
 before `pnpm lint`. Biome's `--write` does the reverse: it rewrites a CRLF file
 to LF, so convert it back and count CRs with `tr -cd '\r' | wc -c` (what
-`grep -c $'\r$'` gets wrong in Git Bash).
+`grep -c $'\r$'` gets wrong in Git Bash). The index is LF throughout (`git ls-files --eol`);
+with `core.autocrlf=true` the checkout is CRLF and `pnpm lint` fails about
+twenty of those files as they come out of git (2026-11-06). On Windows run
+`pnpm lint:fix` first: it rewrites the checkout to LF, which is content-neutral
+for git — `git status` may list the files, `git add` normalizes them and the
+commit holds no change. Never `git checkout` them back to CRLF to quiet the
+status: that is what made the gate red.
+
+**4.77 `pnpm typecheck` reads `.next/types`, so a stale build output fails it
+on routes that no longer exist.** A `.next/` left by an older checkout (the
+retired receipt pages, 2026-11-06) breaks `tsc --noEmit` with `Cannot find
+module '../../../src/app/[locale]/(app)/add/receipt/page.js'` while the source
+tree is fine. `rm -rf .next` and run it again; the directory is gitignored.
 
 **4.38 The impeccable decision page needs an unsandboxed shell.**
 `serve-question.mjs --start` binds a local port and daemonizes, so run it and

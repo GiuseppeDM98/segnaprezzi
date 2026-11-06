@@ -64,7 +64,6 @@ export type DashboardData =
       state: 'thin';
       entryCount: number;
       productCount: number;
-      totalSpentCents: number;
     }
   | {
       state: 'ready';
@@ -95,10 +94,6 @@ export async function getDashboardData(db: Db, userId: string): Promise<Dashboar
       state: 'thin',
       entryCount: inputs.entries.length,
       productCount: new Set(inputs.entries.map((entry) => entry.productId)).size,
-      totalSpentCents: inputs.entries.reduce(
-        (sum, entry) => sum + entry.totalPriceCents * entry.quantity,
-        0,
-      ),
     };
   }
 

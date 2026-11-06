@@ -17,6 +17,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
 
 import { useToast } from '@/components/ui/toast';
+import { usePathname } from '@/lib/i18n/navigation';
 import { useAppMotion } from '@/lib/motion';
 import { useOnlineStatus } from '@/lib/offline/use-online-status';
 import { useQueueStatus } from '@/lib/offline/use-queue-status';
@@ -26,6 +27,7 @@ type ConnectivityState = 'online' | 'offline' | 'syncing';
 export function OfflineBanner() {
   const t = useTranslations('offline');
   const { toast } = useToast();
+  const pathname = usePathname();
   const { isReduced, spring, fade } = useAppMotion();
   const isOnline = useOnlineStatus();
   const { queuedCount, uploadingCount, hasPendingWork } = useQueueStatus();
@@ -34,8 +36,11 @@ export function OfflineBanner() {
   const pendingCount = queuedCount + uploadingCount;
 
   // "Synced" is only worth saying to someone who watched it sync — not to
-  // someone who never had a queue in the first place.
+  // someone who never had a queue in the first place, and not on the camera,
+  // where the tray already shows every photo's status and a toast would land
+  // between the user and the next shot (2026-11-06).
   const hasBeenSyncing = useRef(false);
+  const isOnCamera = pathname === '/scan';
   useEffect(() => {
     if (state === 'syncing') {
       hasBeenSyncing.current = true;
@@ -43,9 +48,11 @@ export function OfflineBanner() {
     }
     if (state === 'online' && hasBeenSyncing.current) {
       hasBeenSyncing.current = false;
-      toast({ kind: 'success', message: t('synced') });
+      if (!isOnCamera) {
+        toast({ kind: 'success', message: t('synced') });
+      }
     }
-  }, [state, t, toast]);
+  }, [state, isOnCamera, t, toast]);
 
   const isVisible = state !== 'online';
 

@@ -19,7 +19,11 @@ import { useCallback } from 'react';
 
 import { cx } from '@/lib/cx';
 
-/** Read by the toast outlet in `app-shell.tsx`; absent while no bar is mounted. */
+/**
+ * Read by the toast outlet in `app-shell.tsx`; absent while no bar is mounted.
+ * The camera's bottom chrome on /scan publishes through the same variable:
+ * whatever sits at the bottom edge, the toast must clear it.
+ */
 export const STICKY_ACTION_BAR_HEIGHT_VAR = '--sticky-action-bar-height';
 
 /**

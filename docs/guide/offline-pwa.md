@@ -93,3 +93,24 @@ claim `/favicon.ico` and Next fails the build with a conflicting-public-file
 error. The icon pipeline writes the `public/` one, so the App Router
 convention file was deleted; `generateMetadata` declares `/favicon.ico`
 explicitly.
+
+## 4.76 A new service worker is never announced, and no toast lands on the shutter.
+
+The update toast («Nuova versione disponibile», persistent, with «Più tardi»
+and «Aggiorna») came back at every deploy and the owner retired it on
+2026-11-06. `sw-registration.ts` now only registers `/sw.js` and calls
+`update()` on focus and hourly; `skipWaiting` stays `false` in `sw.ts`, so the
+new worker installs, parks, and takes over when the browser next opens the app
+with no page of the old worker left — the browser's own rule, nothing to code.
+Our `SKIP_WAITING` message handler went with the toast; the string is still
+in the built `sw.js` because Serwist installs its own listener for that
+message whenever `skipWaiting` is false (a probe tripped on it on 2026-11-06),
+and nothing posts it any more. Accepted cost: an
+installed app kept alive in the background runs the old build until it is
+really closed; the pages are NetworkFirst, so the content is fresh regardless.
+Same session, second part: the toast outlet is anchored 4.5 rem off the
+bottom edge, which on `/scan` is the shutter. The camera's bottom chrome
+(either branch, live feed or fallback) publishes its height through
+`useStickyActionBarHeight`, and `AppShell` anchors the outlet 0.5 rem above it
+on that route; the «Tutto sincronizzato» toast is not raised on `/scan` at all
+(`offline-banner.tsx`), because the tray already shows every photo's status.

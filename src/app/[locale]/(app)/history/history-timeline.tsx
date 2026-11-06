@@ -3,7 +3,7 @@
 /**
  * The timeline itself: the loaded entries grouped by Europe/Rome day, each
  * day under its heading ("Today", "Yesterday", then the date), the entries
- * of one shopping session folded into a card with the session total, and
+ * of one shopping session folded into a card under its store and time, and
  * standalone entries as plain rows. The grouping rule is pure and lives in
  * src/lib/domain/history-groups.ts; this file owns the labels and the rows.
  * It loads nothing: what comes after the last day (the pagination sentinel
@@ -80,14 +80,6 @@ export function HistoryTimeline({ entries, now, onOpenEntry, footer }: HistoryTi
                       </span>
                       <span className="truncate font-sans font-medium text-[15px] text-text">
                         {block.storeName ?? tDetail('noStore')}
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 flex-col items-end">
-                      <span className="font-mono text-[11px] text-text-muted uppercase tracking-wide">
-                        {t('sessionTotal')}
-                      </span>
-                      <span className="font-mono font-semibold text-[15px] text-text tabular-nums">
-                        {formatMoney(block.totalCents, locale)}
                       </span>
                     </span>
                   </div>

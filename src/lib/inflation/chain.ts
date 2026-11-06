@@ -1,12 +1,15 @@
 /**
- * Jevons aggregation within categories, expenditure-weighted aggregation
- * across them, chaining, and the computePersonalCpi orchestrator — the
- * engine's single entry point.
+ * Jevons aggregation over the matched products, per category and overall,
+ * chaining, and the computePersonalCpi orchestrator — the engine's single
+ * entry point.
  *
- * Design: matched-model Jevons within categories, expenditure-weighted
- * across them, chained month over month — the same structure as ISTAT's NIC
- * (elementary aggregates → weighted upper-level aggregation → annual
- * chaining), at monthly granularity and on a single person's basket.
+ * Design: matched-model relatives, Jevons within each category for the
+ * category series and Jevons over every matched product for the overall
+ * index, chained month over month. ISTAT's NIC weights its categories by
+ * expenditure; this index does not, by the owner's decision of 2026-11-06:
+ * it tracks the prices of the things one person keeps buying, and a fill-up
+ * worth sixty euros must not outvote thirty tags worth two. Every compared
+ * product is one vote, whatever it cost and however many were bought.
  *
  * Teacher: why chained — a fixed-base index (compare every month directly to
  * month 1) dies the moment the basket changes, and a personal basket changes
@@ -37,11 +40,6 @@ import type {
   MonthPoint,
   PersonalCpiResult,
 } from './types';
-import {
-  computeCategoryWeights,
-  computeMonthlyExpenditure,
-  computeTrailingExpenditure,
-} from './weights';
 
 /** Level of every chained series at its base month. */
 export const BASE_INDEX = 100;
@@ -105,11 +103,11 @@ export function chainSeries(
  *
  * Preconditions (enforced by the caller at the boundary): every
  * entry.productId exists in `products`; unitPriceMilli > 0;
- * totalPriceCents >= 0; carryForwardMonths is an integer >= 0.
+ * carryForwardMonths is an integer >= 0.
  * Never throws on empty input — it returns an empty series and a null
  * headline.
  *
- * All arithmetic on relatives, means, weights and index levels uses floats —
+ * All arithmetic on relatives, means and index levels uses floats —
  * these are ratios, not money. Nothing is rounded here; the
  * display layer rounds.
  */
@@ -140,10 +138,9 @@ export function computePersonalCpi(input: {
     settings.carryForwardMonths,
   );
   const categoryByProduct = new Map(entries.map((entry) => [entry.productId, entry.category]));
-  const monthlyExpenditure = computeMonthlyExpenditure(bucketedEntries);
 
   // Guide: one link per consecutive month pair — matched relatives, Jevons
-  // per category, expenditure weights, overall relative.
+  // per category, Jevons over every matched product for the overall relative.
   const overallRelativeByYm = new Map<string, number>();
   const categoryRelativesByYm = new Map<string, Map<CategoryId, number>>();
   const comparedMonthsByCategory = new Map<CategoryId, string[]>();
@@ -170,17 +167,13 @@ export function computePersonalCpi(input: {
       continue;
     }
 
-    // R(m) = Σ w_c(m) · R_c(m): the arithmetic weighted mean of category
-    // relatives — the Laspeyres-style aggregation across categories.
-    const weights = computeCategoryWeights(
-      computeTrailingExpenditure(monthlyExpenditure, link.toYm),
-      categoryRelatives.keys(),
+    // R(m): the Jevons of every matched product's relative, so a category
+    // weighs as many products as it brings and no product weighs more than
+    // another. link.relatives is sorted by productId (float determinism).
+    overallRelativeByYm.set(
+      link.toYm,
+      computeJevons(link.relatives.map(({ relative }) => relative)),
     );
-    let overallRelative = 0;
-    for (const [category, weight] of weights) {
-      overallRelative += weight * (categoryRelatives.get(category) ?? 1);
-    }
-    overallRelativeByYm.set(link.toYm, overallRelative);
   }
 
   // Guide: chain the overall and the per-category series, then the
