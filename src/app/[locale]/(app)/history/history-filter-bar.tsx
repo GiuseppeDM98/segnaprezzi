@@ -7,7 +7,7 @@
  * chip with a value shows that value and a remove button; promo is a plain
  * toggle with no picker, since it has only two states.
  */
-import { Check, Store as StoreIcon, Tag as TagIcon } from 'lucide-react';
+import { Check, Tag as TagIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type Dispatch, type SetStateAction, useState } from 'react';
 
@@ -18,14 +18,12 @@ import { CATEGORY_IDS, type CategoryId } from '@/lib/domain/categories';
 import { ENTRY_SOURCES, type EntrySource } from '@/lib/domain/entries';
 import type { HistoryFilters } from '@/lib/services/history';
 
-type PickerKind = 'category' | 'store' | 'source' | null;
+type PickerKind = 'category' | 'source' | null;
 
 export interface HistoryFilterBarProps {
   filters: HistoryFilters;
   /** The screen's state setter: every change is applied as an updater on the current filters. */
   onFiltersChange: Dispatch<SetStateAction<HistoryFilters>>;
-  /** The user's stores, offered by the store picker and used to name the selected one. */
-  stores: Array<{ id: string; name: string }>;
 }
 
 /**
@@ -33,14 +31,11 @@ export interface HistoryFilterBarProps {
  * open (the sheets portal to the body, so they can live beside the chips).
  * Picking a value, or "any", applies it and closes the sheet.
  */
-export function HistoryFilterBar({ filters, onFiltersChange, stores }: HistoryFilterBarProps) {
+export function HistoryFilterBar({ filters, onFiltersChange }: HistoryFilterBarProps) {
   const t = useTranslations('history');
   const tDetail = useTranslations('productDetail');
   const tCategories = useTranslations('categories');
   const [picker, setPicker] = useState<PickerKind>(null);
-  const storeName = filters.storeId
-    ? stores.find((store) => store.id === filters.storeId)?.name
-    : undefined;
 
   return (
     <>
@@ -60,19 +55,6 @@ export function HistoryFilterBar({ filters, onFiltersChange, stores }: HistoryFi
           data-testid="filter-category"
         >
           {filters.category ? tCategories(filters.category) : t('filters.category')}
-        </Chip>
-        <Chip
-          variant="filter"
-          isSelected={Boolean(filters.storeId)}
-          onClick={() => setPicker('store')}
-          onRemove={
-            filters.storeId ? () => onFiltersChange(({ storeId: _s, ...rest }) => rest) : undefined
-          }
-          removeLabel={t('filters.remove', { filter: t('filters.store') })}
-          icon={<StoreIcon />}
-          data-testid="filter-store"
-        >
-          {storeName ?? t('filters.store')}
         </Chip>
         <Chip
           variant="filter"
@@ -112,25 +94,6 @@ export function HistoryFilterBar({ filters, onFiltersChange, stores }: HistoryFi
           onPick={(value) => {
             onFiltersChange(({ category: _c, ...rest }) =>
               value ? { ...rest, category: value as CategoryId } : rest,
-            );
-            setPicker(null);
-          }}
-        />
-      </Sheet>
-      <Sheet
-        isOpen={picker === 'store'}
-        onClose={() => setPicker(null)}
-        title={t('filters.pickStore')}
-      >
-        <PickerList
-          options={[
-            { value: '', label: t('filters.anyStore') },
-            ...stores.map((store) => ({ value: store.id, label: store.name })),
-          ]}
-          selected={filters.storeId ?? ''}
-          onPick={(value) => {
-            onFiltersChange(({ storeId: _s, ...rest }) =>
-              value ? { ...rest, storeId: value } : rest,
             );
             setPicker(null);
           }}

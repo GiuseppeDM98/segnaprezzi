@@ -62,9 +62,9 @@ test.describe('seed user (dev@segnaprezzi.local)', () => {
     const response = await page.request.get('/api/export');
     expect(response.status()).toBe(200);
     const payload = await response.json();
-    const storeNames = payload.stores.map((store: { name: string }) => store.name);
-    expect(storeNames).toContain('Esselunga Viale Papiniano');
-    expect(storeNames).not.toContain('Coop Via Roma');
+    const productNames = payload.products.map((product: { name: string }) => product.name);
+    expect(productNames).toContain('Spaghetti n.5 500g');
+    expect(productNames).not.toContain('Yogurt bianco 4×125g');
   });
 
   test('should clear the session and redirect protected routes to /login again after logout', async ({
@@ -97,8 +97,8 @@ test.describe('second seed user (dev2@segnaprezzi.local)', () => {
     const response = await page.request.get('/api/export');
     expect(response.status()).toBe(200);
     const payload = await response.json();
-    const storeNames = payload.stores.map((store: { name: string }) => store.name);
-    expect(storeNames).toContain('Coop Via Roma');
-    expect(storeNames).not.toContain('Esselunga Viale Papiniano');
+    const productNames = payload.products.map((product: { name: string }) => product.name);
+    expect(productNames).toContain('Yogurt bianco 4×125g');
+    expect(productNames).not.toContain('Spaghetti n.5 500g');
   });
 });

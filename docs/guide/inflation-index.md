@@ -52,31 +52,44 @@ After enabling it the same workflow opened PR #15 unchanged. The CI workflow
 two unformatted files and a deprecated `biome.json` key that `pnpm lint`
 reproduces locally, and the gate is the local one (AGENTS.md §3.1).
 
-## 4.72 The index compares each store with itself, and only carrying each store's price forward keeps that honest.
+## 4.72 A product has one price a month, wherever it was bought: the index no longer knows stores.
 
-One product is logged across stores
-(the same GPL at two stations, the same bananas at two supermarkets), so a mean
-across stores reads a change of store as inflation. Comparing only the stores
-seen in both months is the obvious fix and it is wrong: with both stores in
-March, the dear one alone in April and the cheap one alone in May, the index
-loses the step down and never gets it back. Each store therefore keeps its own
-carried price, and a product's relative is the Jevons of the stores priced in
-both months. A price seen only at a new store compares with nothing and reads
-0%, the owner's call of 2026-11-03; the accepted cost is that moving for good
-to a dearer or cheaper store does not move the index (README, "What the index
-measures"). With `carryForwardMonths = 0` the cross-store ratio is the fallback.
-One store returns its ratio untouched, so a single-store history stays
-bit-identical. Fixed in `relatives.test.ts`, "store-by-store comparison".
+From 2026-11-03 to 2026-11-12 the index compared each store with itself: every
+store kept its own carried price, a product's relative was the Jevons of the
+stores priced in both months, and a price seen only at a new store read 0%. The
+owner reversed it on 2026-11-12: «a me a lungo termine mi interessa la mia
+inflazione», and shopping at several stores is part of how one buys, so the
+index must follow what is paid for a product wherever it is bought. Two things
+the store-by-store index did on real use weighed in: a move to a dearer store
+never reached the index, and a product alternated among three stores was seldom
+compared at all, because each store needed its own second price within
+`carryForwardMonths`.
 
-## 4.73 "This month's price is real" and "a new price was compared" are two different facts, and neither is a share of prices.
+A product's monthly price is now the mean of every observation of the month
+(`computeObservedMeans`) and its relative is this month's price over last
+month's (`relatives.ts`). The accepted cost is noise: a month bought at the
+dearer store reads as a rise and the next one as a fall. It is not drift, as
+long as the product keeps a price every month: its links multiply to latest
+price over first price whatever happened in between, so the level only knows
+those two. Fixed in `relatives.test.ts`, "one price per product". The movers
+use the same means, so a product bought dearer elsewhere is a mover.
 
-`isPriceCompared` is not
-`!isToImputed`: a price seen only at a new store is observed and still compares
-with nothing, so its category reads "not measured" (2026-11-03,
-`dashboard.test.ts`). A carried-forward share counted over the 2·n prices of a
-link cannot pass 50% in a young series, because every price of the month before
-is real: the line that showed it looked like "about half" while nearly every
-product had no price this month. Count products (`coverage.ts`).
+The removal went all the way down: no `stores` table, no `store_id` (migration
+0003), no store picker, filter, page or comparison, no `IndexEntry.storeId`.
+The worked example in `chain.test.ts` did not move: it never had stores.
+
+## 4.73 "This month's price is real" is what makes a category measured, and coverage counts products, never a share of prices.
+
+A category reads "not measured" in a month where none of its products has a
+new price: a carried-forward price is compared with itself and says nothing
+(`recordComparedCategories` in `chain.ts`, `dashboard.test.ts`). While
+stores were compared one by one (§4.72) a real price could also compare with
+nothing, and the relative carried a separate `isPriceCompared` flag; with one
+price per product that flag was exactly `!isToImputed` and is gone. A
+carried-forward share counted over the 2·n prices of a link cannot pass 50% in
+a young series, because every price of the month before is real: the line that
+showed it looked like "about half" while nearly every product had no price this
+month. Count products (`coverage.ts`).
 
 ## 4.75 Every compared product is one vote: the overall relative is the Jevons of the matched set, and nothing in the engine reads what a package cost.
 

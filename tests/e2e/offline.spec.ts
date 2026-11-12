@@ -52,7 +52,7 @@ const EXTRACTION_BODY = {
 
 /** Open the capture screen and wait until its client half is live: the
  *  no-camera fallback only renders once the camera hook has run, so its
- *  presence proves the file input's change handler is attached (AGENTS §4.24). */
+ *  presence proves the file input's change handler is attached (docs/guide/e2e.md §4.24). */
 async function openScanScreen(page: Page): Promise<void> {
   await page.goto('/scan');
   await expect(page.getByTestId('camera-fallback')).toBeVisible();

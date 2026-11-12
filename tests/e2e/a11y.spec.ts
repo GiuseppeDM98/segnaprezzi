@@ -23,7 +23,6 @@ const AUTHENTICATED_ROUTES = [
   '/products',
   `/products/${seedId('seed-prod-spaghetti')}`,
   '/history',
-  '/stores',
   '/settings',
   '/add/manual',
   '/add/fuel',

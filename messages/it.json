@@ -85,7 +85,6 @@
   "scan": {
     "title": "Spesa in corso",
     "close": "Chiudi la fotocamera",
-    "chooseStore": "Scegli negozio",
     "torchOn": "Accendi la torcia",
     "torchOff": "Spegni la torcia",
     "review": "Controlla ({count})",
@@ -101,15 +100,6 @@
         "retry": "Riprova",
         "useLibrary": "Carica una foto"
       }
-    },
-    "storePicker": {
-      "label": "Punto vendita",
-      "title": "Dove sei?",
-      "none": "Nessuno",
-      "search": "Cerca un negozio",
-      "create": "Crea «{query}»",
-      "manage": "Gestisci negozi",
-      "createError": "Impossibile creare «{name}»"
     },
     "tray": {
       "label": "Foto della spesa",
@@ -152,7 +142,6 @@
   "review": {
     "title": "Controlla la spesa",
     "caption": "{count, plural, one {# foto} other {# foto}} · {date}",
-    "captionWithStore": "{store} · {date}",
     "flagged": "Da controllare ({count})",
     "showAll": "Tutte",
     "needsReview": "Da controllare",
@@ -225,9 +214,6 @@
     "brand": "Marca",
     "category": "Categoria",
     "unitKind": "Si vende a",
-    "store": "Punto vendita",
-    "noStore": "Nessuno (acquisto generico)",
-    "manageStores": "Gestisci negozi",
     "date": "Data e ora",
     "priceTitle": "Prezzo",
     "detailsTitle": "Dettagli",
@@ -253,9 +239,6 @@
       "gpl": "GPL",
       "metano": "Metano"
     },
-    "station": "Distributore",
-    "noStation": "Nessuno",
-    "manageStations": "Gestisci distributori",
     "date": "Data e ora",
     "total": "Totale",
     "submit": "Salva",
@@ -343,11 +326,9 @@
       "mean": "Media",
       "last": "Ultimo"
     },
-    "storesTitle": "Dove costa meno",
     "best": "Migliore",
     "entriesTitle": "Rilevazioni",
     "promo": "Promo",
-    "noStore": "Senza negozio",
     "source": {
       "photo": "Da foto",
       "manual": "A mano",
@@ -356,7 +337,6 @@
     "entry": {
       "title": "Rilevazione",
       "date": "Data e ora",
-      "store": "Punto vendita",
       "total": "Prezzo pagato",
       "size": "Confezione",
       "unitPrice": "Prezzo unitario",
@@ -388,16 +368,13 @@
     "filters": {
       "label": "Filtri",
       "category": "Categoria",
-      "store": "Negozio",
       "promoOnly": "Solo promo",
       "source": "Origine",
       "clear": "Togli i filtri",
       "remove": "Togli il filtro {filter}",
       "anyCategory": "Tutte le categorie",
-      "anyStore": "Tutti i negozi",
       "anySource": "Tutte le origini",
       "pickCategory": "Filtra per categoria",
-      "pickStore": "Filtra per negozio",
       "pickSource": "Filtra per origine"
     },
     "today": "Oggi",
@@ -412,41 +389,10 @@
     },
     "filteredEmpty": {
       "title": "Niente con questi filtri",
-      "body": "Allenta un filtro: categoria, negozio, promo o origine."
+      "body": "Allenta un filtro: categoria, promo o origine."
     },
     "error": {
       "title": "Non riesco a caricare la cronologia",
-      "body": "Riprova tra un momento."
-    }
-  },
-  "stores": {
-    "title": "Negozi",
-    "add": "Aggiungi negozio",
-    "addTitle": "Nuovo negozio",
-    "editTitle": "Modifica negozio",
-    "name": "Nome",
-    "namePlaceholder": "Esselunga Viale Papiniano",
-    "chain": "Catena",
-    "city": "Città",
-    "kind": "Tipo",
-    "kinds": {
-      "supermarket": "Supermercato",
-      "fuel_station": "Distributore",
-      "other": "Altro"
-    },
-    "entryCount": "{count, plural, =0 {nessuna rilevazione} one {# rilevazione} other {# rilevazioni}}",
-    "saved": "Negozio salvato",
-    "deleted": "Negozio eliminato",
-    "delete": "Elimina negozio",
-    "deleteConfirm": "Le rilevazioni restano, ma senza negozio.",
-    "saveError": "Non salvato. Riprova.",
-    "empty": {
-      "title": "Nessun negozio",
-      "body": "I negozi rendono confrontabili i prezzi tra supermercati.",
-      "cta": "Aggiungi il primo"
-    },
-    "error": {
-      "title": "Non riesco a caricare i negozi",
       "body": "Riprova tra un momento."
     }
   },
@@ -458,7 +404,7 @@
       "logout": "Esci",
       "deleteAccount": "Elimina account",
       "deleteTitle": "Eliminare l'account?",
-      "deleteBody": "Verranno cancellati per sempre tutti i tuoi dati: prodotti, negozi, rilevazioni, foto e impostazioni. Non c'è modo di tornare indietro. Se vuoi conservarli, esporta prima un backup.",
+      "deleteBody": "Verranno cancellati per sempre tutti i tuoi dati: prodotti, rilevazioni, foto e impostazioni. Non c'è modo di tornare indietro. Se vuoi conservarli, esporta prima un backup.",
       "deletePassword": "Per confermare, inserisci la password",
       "deleteConfirm": "Elimina tutto",
       "deleteError": "Non sono riuscito a eliminare l'account. Controlla la password e riprova."
@@ -486,16 +432,14 @@
     "data": {
       "title": "Dati",
       "export": "Esporta i tuoi dati",
-      "exportHelp": "Un file JSON con tutto: prodotti, negozi, rilevazioni, impostazioni.",
+      "exportHelp": "Un file JSON con tutto: prodotti, rilevazioni, impostazioni.",
       "exportError": "Esportazione non riuscita. Riprova.",
       "import": "Importa un backup",
       "importHelp": "Un export di segnaprezzi. I dati vengono uniti ai tuoi, mai sovrascritti in blocco.",
       "importing": "Importo…",
-      "imported": "Importati: {entries, plural, one {# rilevazione} other {# rilevazioni}}, {products, plural, one {# prodotto} other {# prodotti}}, {stores, plural, one {# negozio} other {# negozi}}",
+      "imported": "Importati: {entries, plural, one {# rilevazione} other {# rilevazioni}}, {products, plural, one {# prodotto} other {# prodotti}}",
       "importInvalid": "File non valido. Serve un export di segnaprezzi.",
-      "importError": "Importazione non riuscita. Riprova.",
-      "stores": "Negozi",
-      "storesHelp": "Gestisci supermercati e distributori."
+      "importError": "Importazione non riuscita. Riprova."
     },
     "info": {
       "title": "Info",
@@ -542,10 +486,8 @@
     "INVALID_DATE": "La data non è valida",
     "INVALID_PRICE": "Il prezzo non è valido",
     "INVALID_SIZE": "La quantità non è valida",
-    "INVALID_STORE_KIND": "Questo punto vendita non è un distributore",
     "INCONSISTENT_FUEL_PRICES": "I numeri non tornano — ricontrollane uno",
     "SESSION_NOT_FOUND": "Spesa non trovata",
-    "STORE_NOT_FOUND": "Punto vendita non trovato",
     "PRODUCT_NOT_FOUND": "Prodotto non trovato",
     "SESSION_CLOSED": "Questa spesa è già conclusa",
     "PHOTO_TOO_LARGE": "Questa foto è troppo grande",

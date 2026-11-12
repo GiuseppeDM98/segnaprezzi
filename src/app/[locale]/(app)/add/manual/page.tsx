@@ -13,7 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Manual price entry. Online-only: the form is built around
- * the user's existing catalog and stores, which it needs to resolve before
+ * the user's existing catalog, which it needs to resolve before
  * anything can be saved.
  */
 export default async function AddManualPage() {

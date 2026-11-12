@@ -12,14 +12,12 @@ import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { CATEGORY_IDS } from '@/lib/domain/categories';
 import { ENTRY_SOURCES } from '@/lib/domain/entries';
-import { nanoidSchema } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
 import { type HistoryPage, listHistoryPage } from '@/lib/services/history';
 
 const historyPageSchema = z.object({
   filters: z.object({
     category: z.enum(CATEGORY_IDS).optional(),
-    storeId: nanoidSchema.optional(),
     isPromo: z.literal(true).optional(),
     source: z.enum(ENTRY_SOURCES).optional(),
   }),

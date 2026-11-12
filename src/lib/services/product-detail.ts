@@ -1,8 +1,7 @@
 /**
  * Read model of the product detail screen: the product, its
  * monthly unit-price series (Europe/Rome months, mean per month, promo
- * months marked), the min/max/mean/last tiles, the per-store comparison and
- * the full entry list. Plain JSON out — it feeds Client Components.
+ * months marked), the min/max/mean/last tiles and the full entry list. Plain JSON out — it feeds Client Components.
  */
 import { deleteOwnedPhotos } from '@/lib/blob/photo-storage';
 import type { Db } from '@/lib/db/client';
@@ -14,18 +13,16 @@ import {
   updatePriceEntry as updatePriceEntryRow,
 } from '@/lib/db/repositories/price-entries';
 import { getProductById } from '@/lib/db/repositories/products';
-import { getStoreById } from '@/lib/db/repositories/stores';
 import type { CategoryId } from '@/lib/domain/categories';
 import type { EntrySource, PromoKind } from '@/lib/domain/entries';
 import type { UnitKind } from '@/lib/domain/units';
-import { NotFoundError, StoreNotFoundError } from '@/lib/errors';
+import { NotFoundError } from '@/lib/errors';
 import { computeMonthlyMeans } from '@/lib/inflation';
 
 export interface EntrySummary {
   id: string;
   /** Epoch ms UTC. */
   recordedAt: number;
-  store: { id: string; name: string } | null;
   totalPriceCents: number;
   packageSize: number;
   unitPriceMilli: number;
@@ -42,13 +39,6 @@ export interface ProductStat {
   recordedAt?: number;
 }
 
-export interface StoreComparison {
-  storeId: string;
-  storeName: string;
-  latestUnitPriceMilli: number;
-  recordedAt: number;
-}
-
 export interface ProductDetail {
   product: {
     id: string;
@@ -63,8 +53,6 @@ export interface ProductDetail {
   /** Months containing at least one promo observation, with that month's promo mean. */
   promoMarkers: Array<{ month: string; value: number }>;
   stats: { min: ProductStat; max: ProductStat; mean: ProductStat; last: ProductStat } | null;
-  /** Cheapest first; only populated when ≥ 2 stores have observations. */
-  storeComparison: StoreComparison[];
   entries: EntrySummary[];
 }
 
@@ -93,7 +81,6 @@ export async function getProductDetail(
     monthlySeries: computeMonthlyMeans(entries),
     promoMarkers: computeMonthlyMeans(entries, (entry) => entry.isPromo),
     stats: buildStats(entries),
-    storeComparison: buildStoreComparison(entries),
     entries,
   };
 }
@@ -106,7 +93,6 @@ export function toEntrySummary(row: PriceEntryWithProduct): EntrySummary {
   return {
     id: row.id,
     recordedAt: row.recordedAt.getTime(),
-    store: row.store,
     totalPriceCents: row.totalPriceCents,
     packageSize: row.packageSize,
     unitPriceMilli: row.unitPriceMilli,
@@ -149,32 +135,8 @@ function buildStats(entries: EntrySummary[]): ProductDetail['stats'] {
   };
 }
 
-/** Latest price per store, cheapest first; empty unless two or more stores compare. */
-function buildStoreComparison(entries: EntrySummary[]): StoreComparison[] {
-  const latestByStore = new Map<string, StoreComparison>();
-  // Newest first: the first time we meet a store is its latest observation.
-  for (const entry of entries) {
-    if (!entry.store || latestByStore.has(entry.store.id)) {
-      continue;
-    }
-    latestByStore.set(entry.store.id, {
-      storeId: entry.store.id,
-      storeName: entry.store.name,
-      latestUnitPriceMilli: entry.unitPriceMilli,
-      recordedAt: entry.recordedAt,
-    });
-  }
-  if (latestByStore.size < 2) {
-    return [];
-  }
-  return [...latestByStore.values()].sort(
-    (a, b) => a.latestUnitPriceMilli - b.latestUnitPriceMilli,
-  );
-}
-
 export interface EditEntryInput {
   recordedAt: number;
-  storeId: string | null;
   totalPriceCents: number;
   packageSize: number;
   unitPriceMilli: number;
@@ -187,7 +149,6 @@ export interface EditEntryInput {
  * on the next dashboard read — nothing is cached.
  *
  * @throws NotFoundError when the entry is not the user's
- * @throws StoreNotFoundError when the new store is not the user's
  */
 export async function updatePriceEntry(
   db: Db,
@@ -195,15 +156,8 @@ export async function updatePriceEntry(
   entryId: string,
   input: EditEntryInput,
 ): Promise<void> {
-  if (input.storeId) {
-    const store = await getStoreById(db, userId, input.storeId);
-    if (!store) {
-      throw new StoreNotFoundError(input.storeId);
-    }
-  }
   const updated = await updatePriceEntryRow(db, userId, entryId, {
     recordedAt: new Date(input.recordedAt),
-    storeId: input.storeId,
     totalPriceCents: input.totalPriceCents,
     packageSize: input.packageSize,
     unitPriceMilli: input.unitPriceMilli,

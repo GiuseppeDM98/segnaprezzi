@@ -16,8 +16,6 @@ export interface MatchCandidate {
   id: string;
   name: string;
   brand: string | null;
-  /** True when the product has a recent entry at the capture store (the caller sets the window). */
-  hasRecentEntryAtStore: boolean;
 }
 
 export type { ProductSuggestion };
@@ -27,7 +25,6 @@ const SUGGESTION_THRESHOLD = 0.4;
 /** Most suggestions any review card shows. */
 export const MAX_SUGGESTIONS = 3;
 const EXACT_BRAND_BONUS = 0.15;
-const STORE_RECENCY_BONUS = 0.05;
 
 /**
  * Normalize a product name for comparison: lowercase, strip diacritics
@@ -70,11 +67,10 @@ export function calculateDiceSimilarity(a: string, b: string): number {
 /**
  * Rank catalog candidates against an extraction.
  *
- * rawScore = dice("brand name" vs "brand name") + bonuses:
- * +0.15 when both brands are present and equal after normalization,
- * +0.05 when the candidate was recently bought at the same store.
+ * rawScore = dice("brand name" vs "brand name") + 0.15 when both brands are
+ * present and equal after normalization.
  * The ≥ 0.4 threshold and the ranking use the UNCAPPED rawScore — so the
- * recency bonus still breaks ties between perfect dice matches — while the
+ * brand bonus still breaks ties between perfect dice matches — while the
  * reported `score` field is capped at 1. Top 3 returned.
  */
 export function suggestProductMatches(
@@ -91,9 +87,6 @@ export function suggestProductMatches(
     const candidateBrand = candidate.brand === null ? null : normalizeProductName(candidate.brand);
     if (targetBrand !== null && targetBrand !== '' && targetBrand === candidateBrand) {
       rawScore += EXACT_BRAND_BONUS;
-    }
-    if (candidate.hasRecentEntryAtStore) {
-      rawScore += STORE_RECENCY_BONUS;
     }
 
     return {

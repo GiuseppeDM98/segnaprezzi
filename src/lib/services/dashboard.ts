@@ -54,7 +54,7 @@ export interface DashboardMover {
   brand: string | null;
   category: CategoryId;
   ratio: number;
-  /** Monthly mean unit prices between the mover's from and to months, on the stores it compares. */
+  /** Monthly mean unit prices between the mover's from and to months. */
   sparkline: number[];
 }
 
@@ -199,12 +199,7 @@ function buildMovers(
   }
   const brandById = new Map(products.map((product) => [product.id, product.brand] as const));
   return top.map((mover) => {
-    // Why the mover's stores only: the line must tell the same story as the
-    // badge beside it, which compares those stores and no others.
-    const series = computeMonthlyMeans(
-      entries,
-      (entry) => entry.productId === mover.productId && mover.storeIds.includes(entry.storeId),
-    );
+    const series = computeMonthlyMeans(entries, (entry) => entry.productId === mover.productId);
     return {
       productId: mover.productId,
       name: mover.name,

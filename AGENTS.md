@@ -47,7 +47,7 @@ Ground rules:
   never UUIDs.
 - All timestamps are `integer` epoch **milliseconds UTC**, Drizzle
   `{ mode: 'timestamp_ms' }`. Booleans are `integer` 0/1.
-- Enums are code-defined string unions (`stores.kind`, `products.category`,
+- Enums are code-defined string unions (`products.category`,
   `products.unit_kind`, `shopping_sessions.status`, `price_entries.promo_kind`,
   `price_entries.source`) — no DB enum tables.
 
@@ -189,11 +189,12 @@ traces without each one setting `this.name`.
 
 - **Codes**: `NOT_FOUND`, `VALIDATION_FAILED`, `UNAUTHORIZED`,
   `EXTRACTION_FAILED`, `INTERNAL`; for capture `INVALID_INPUT`, `INVALID_DATE`,
-  `INVALID_PRICE`, `INVALID_SIZE`, `INVALID_STORE_KIND`,
-  `INCONSISTENT_FUEL_PRICES`, `SESSION_NOT_FOUND`, `STORE_NOT_FOUND`,
+  `INVALID_PRICE`, `INVALID_SIZE`,
+  `INCONSISTENT_FUEL_PRICES`, `SESSION_NOT_FOUND`,
   `PRODUCT_NOT_FOUND`, `SESSION_CLOSED`, `PHOTO_TOO_LARGE`,
   `UNSUPPORTED_PHOTO_TYPE`, `EXTRACTION_UNAVAILABLE`. The seven `RECEIPT_*` codes
-  left with receipt import. A new code follows the checklist in §2.3.
+  left with receipt import, `STORE_NOT_FOUND` and `INVALID_STORE_KIND` with the
+  stores (2026-11-12). A new code follows the checklist in §2.3.
 - **HTTP**: `HTTP_STATUS_BY_CODE` in `src/app/api/route-errors.ts`, one
   exhaustive `Record<DomainErrorCode, number>` shared by every route handler, so
   the compiler catches a code without a status. `NOT_FOUND` → 404,
@@ -259,13 +260,13 @@ condition. No exceptions, not even "the id is already unique". This is the
 single invariant that prevents cross-user data leaks; it is cheaper to
 enforce mechanically than to reason about per-query.
 
-The shape is `getStoreById(db, userId, storeId)` in
-`src/lib/db/repositories/stores.ts`:
-`.where(and(eq(stores.userId, userId), eq(stores.id, storeId)))`, returning
-`rows[0] ?? null`.
+The shape is `getProductById(db, userId, productId)` in
+`src/lib/db/repositories/products.ts`:
+`.where(and(eq(products.userId, userId), eq(products.id, productId)))`,
+returning `product ?? null`.
 
 - Repository modules are named **by aggregate, plural, kebab-case, no
-  `Repository` suffix**: `price-entries.ts`, `products.ts`, `stores.ts`,
+  `Repository` suffix**: `price-entries.ts`, `products.ts`,
   `shopping-sessions.ts`, `settings.ts`.
 - Read functions are `get*` (single row, returns `null` when missing) and
   `list*` (collections) — **never `find*`**. Writes are
@@ -323,7 +324,6 @@ Namespace map **[decided]** — top-level keys of both message files:
 | `products` | Catalog, merge flow |
 | `productDetail` | Product detail screen, per-product price history |
 | `history` | Entries timeline, filters |
-| `stores` | Store management |
 | `settings` | Profile, language, theme, index options, export |
 | `auth` | Login, signup, signup-disabled notice |
 | `errors` | One message per `DomainErrorCode`, keyed verbatim (`errors.NOT_FOUND`) |
@@ -491,7 +491,7 @@ the matching `errors.<CODE>` message to **both** `messages/it.json` and
 `messages/en.json`, and give it a status in `HTTP_STATUS_BY_CODE`
 (`src/app/api/route-errors.ts`).
 
-**Adding an enum value** (e.g. `promo_kind`, `source`, `store.kind`): update
+**Adding an enum value** (e.g. `promo_kind`, `source`): update
 the Zod schema at every boundary that accepts it, both message files if it is
 user-visible, and the extraction schema/prompt if the AI can emit it.
 
@@ -537,7 +537,7 @@ these scripts.
 | `typecheck` | `tsc --noEmit` | Always run before declaring a task done; `next build` alone is not the type gate. |
 | `test` | `vitest run` | Full unit/integration suite, single pass. |
 | `test:watch` | `vitest` | TDD loop while implementing (essential for the inflation engine). |
-| `test:e2e` | `playwright test` | Critical-path E2E + axe. Four projects (`mobile`, `desktop`, `offline-queue`, `pwa`); runs `pnpm build && pnpm start` itself (§4.41). `PORT=3100 pnpm test:e2e` when :3000 is taken (§4.32). |
+| `test:e2e` | `playwright test` | Critical-path E2E + axe. Four projects (`mobile`, `desktop`, `offline-queue`, `pwa`); runs `pnpm build && pnpm start` itself (`docs/guide/e2e.md` §4.41). `PORT=3100 pnpm test:e2e` when :3000 is taken (§4.32). |
 | `db:generate` | `drizzle-kit generate` | After every schema change: emits SQL migration into `drizzle/`. |
 | `db:migrate` | `drizzle-kit migrate` | Apply pending migrations to the DB in `TURSO_DATABASE_URL`. |
 | `db:studio` | `drizzle-kit studio` | Browse/edit data in a local GUI while debugging. |
@@ -611,6 +611,7 @@ reused, so a block that moved to a guide keeps its number there.
 | `docs/guide/offline-pwa.md` | photo queue, sync, service worker, manifest, icons, toasts over the camera | §4.3, §4.9, §4.39, §4.40, §4.43–§4.48, §4.76 |
 | `docs/guide/capture.md` | AI gateway, prompt, Blob, price invariant, photo deletion | §4.7, §4.51, §4.54, §4.59, §4.61, §4.63, §4.64–§4.66, §4.70 |
 | `docs/guide/inflation-index.md` | index engine, coverage figures, ISTAT series and its workflow | §4.27, §4.29, §4.71–§4.73, §4.75 |
+| `docs/guide/e2e.md` | a Playwright spec, its config or global setup, an E2E failure | §4.14, §4.20, §4.24, §4.25, §4.32, §4.33, §4.41, §4.52, §4.58, §4.60, §4.67, §4.74 |
 
 **Authentication (Better Auth).** After `pnpm auth:generate`, always run
 `pnpm db:generate`, or the DB has no auth tables (§4.2), and diff the result
@@ -647,18 +648,29 @@ the review screens, the fuel form and every write ask, and its tolerance
 scales with the package size (§4.63). The rest — the dev Blob token, worked
 examples in prompts, the prune tool's guard — in `docs/guide/capture.md`.
 
-**Personal inflation index and ISTAT series.** The index compares each store
-with itself: every store keeps its own carried price, a product's relative is
-the Jevons of the stores priced in both months, and a price seen only at a new
-store reads 0% (§4.72). `isPriceCompared` is not `!isToImputed`, and coverage
+**Personal inflation index and ISTAT series.** A product has one price
+a month, the mean of every observation wherever it was bought, and its
+relative is this month over last month: the app has no stores since
+2026-11-12, and a month at a dearer shop is noise, not drift (§4.72). A
+category is measured only where a price of the month is real, and coverage
 counts products, never a share of prices (§4.73). The overall relative is the
 Jevons of every compared product: no expenditure weights, nothing in the engine
 reads what a package cost (§4.75). The dashboard loads
 `data/istat-nic.json` as a static import and never fetches ISTAT at runtime;
 ISTAT is always queried with a narrow key (§4.27). `update-istat.yml` needs a
 repository setting, not a token, to open its pull request (§4.71). The rest —
-the SDMX dataflows and headers, the worked store example, removing the
+the SDMX dataflows and headers, why the stores went, removing the
 engine's dead branches (§4.29) — in `docs/guide/inflation-index.md`.
+
+**End-to-end suite (Playwright).** The suite runs against a production build
+that it starts itself, and a dev server must not run beside it (§4.41). A spec
+that owns a throwaway account is `serial`, because `beforeAll` runs once per
+worker (§4.74). Fixture names are invented and disjoint across suites that
+share a seed user, the noun included (§4.60), and a suite that writes as the
+second seed user leaves the account as it found it (§4.67). Prefer a
+`data-testid` to `getByRole('alert')` or a repeated text (§4.25, §4.58). The
+rest — locale pinning, hydration before `setInputFiles`, the port, axe and
+the route fade — in `docs/guide/e2e.md`.
 
 ### Setup and tooling
 
@@ -733,6 +745,17 @@ on routes that no longer exist.** A `.next/` left by an older checkout (the
 retired receipt pages, 2026-11-06) breaks `tsc --noEmit` with `Cannot find
 module '../../../src/app/[locale]/(app)/add/receipt/page.js'` while the source
 tree is fine. `rm -rf .next` and run it again; the directory is gitignored.
+
+**4.78 SQLite cannot `DROP COLUMN` a column named in a table-level `FOREIGN
+KEY`, and drizzle-kit generates exactly that.** Removing `store_id`
+(2026-11-12) it wrote `ALTER TABLE … DROP COLUMN`, which fails with `unknown
+column "store_id" in foreign key definition`; `pnpm db:migrate` exits non-zero
+without printing it. Rebuild the table by hand (`drizzle/0003_drop_stores.sql`
+is the model, header included). The migrator runs a file in one transaction,
+where `PRAGMA foreign_keys` is a no-op: dropping a table another one still
+points at fires its `ON DELETE`, so create the child against the NEW parent,
+drop both old tables, then rename. Rehearse on a filled copy before production
+and compare the rows, not just the row counts.
 
 **4.38 The impeccable decision page needs an unsandboxed shell.**
 `serve-question.mjs --start` binds a local port and daemonizes, so run it and
@@ -880,92 +903,11 @@ would find no element.
 
 ### Testing
 
-**4.14 Pin the Playwright browser locale, or the root-path smoke test is
-flaky.** next-intl negotiates from `Accept-Language` when no `theme`/locale cookie
-is set, and a host's `en-US` outranks the Italian default at `/`, failing
-`tests/e2e/smoke.spec.ts`. `playwright.config.ts` → `projects[].use.locale = 'it-IT'`
-on every project; `mobile`, `offline-queue` and `pwa` share one `mobileDevice`
-literal. WebKit was deliberately left out: it is not Safari, so
-`beforeinstallprompt` absence, the 7-day storage eviction and the real share sheet
-stay owner checks on a real device.
-
-**4.20 Next.js dev (Turbopack) can return a truncated response when several
-Playwright workers race to be the first request to compile a route.** The symptom
-is "Unexpected end of JSON input" server-side. Largely historical since §4.41. The
-warm-up in `tests/e2e/global-setup.ts` stays but is no longer load bearing; a new
-route need not join it. The hazard remains for anything driving `next dev` from
-parallel clients.
-
-**4.24 Playwright must wait for hydration before `setInputFiles` on `/scan`.**
-`page.goto()` resolves on server HTML, with the camera panel in its `idle` branch
-and no change handler attached, and setting the file silently does nothing. Assert `data-testid="camera-fallback"` is visible
-first. The race appears only under parallel load.
-
-**4.25 `getByRole('alert')` is never unique in this app.** Next.js renders
-`<div role="alert" id="__next-route-announcer__">`, which breaks strict mode.
-Target the specific `data-testid`.
-
 **4.26 `vitest.config.ts` pins the environment variables the unit suite runs
 with.** Modules importing `src/lib/env.ts` fail fast on a missing variable, so the
 `test.env` block keeps the suite off a developer's `.env.local`. The values are
 placeholders on purpose: a real `ANTHROPIC_API_KEY` must never be reachable from a
 test run, and every network call is mocked.
-
-**4.32 Playwright's `baseURL` must follow the dev server's port, and Better
-Auth must agree.** `next dev` silently moves to :3001, and `reuseExistingServer`
-would then test the *other* app. `playwright.config.ts` reads `PORT`
-(`PORT=3001 pnpm test:e2e`), starts its own server and passes `BETTER_AUTH_URL`.
-Outside Playwright, on a non-default port, set `BETTER_AUTH_URL` to that origin or
-sign-out 403s and looks like an auth bug.
-
-**4.33 axe measures contrast on rendered pixels — let the 150 ms route
-cross-fade finish first.** `AppShell` fades `<main>` in, and a half-transparent
-page fails `color-contrast` on every text node. `tests/e2e/a11y.spec.ts` waits for `main` to reach
-opacity 1 before `AxeBuilder` runs. The accent (`--color-accent`, 3.3:1) is for
-fills and icons, not words: hence `--color-accent-ink` (§1.12).
-
-**4.41 The whole E2E suite runs against a production build, and a dev server
-must not run beside it.** The service worker exists only there, so the single
-`webServer` is `pnpm build && pnpm start`. Two Next processes sharing one `.next`
-corrupt each other's generated types (`.next/dev/types/root-params.d.ts`), and the
-build then fails to type-check. `mobile` and `desktop` set
-`serviceWorkers: 'block'`.
-
-**4.52 `test.beforeEach` in a `describe.configure({ mode: 'serial' })` group
-wipes the state the next test depends on.** A serial group whose second test reads
-what the first wrote needs `beforeAll` for its reset; Playwright re-runs it on a
-retry of the group, so the fixture stays idempotent.
-
-**4.58 A message that is true in two places at once breaks a `getByText`
-locator.** "1 da completare" appeared on the review card and in the confirm bar,
-failing strict mode. Fixed editorially: the count belongs to the bar, the card says
-"Da completare". Same class as §4.25: prefer a `data-testid` unless the string is
-structurally unique.
-
-**4.60 Spy words must be disjoint across E2E suites that share a seed user.** The
-scan review's suggestions fuzzy-match the seed user's whole catalog, so a product
-from a parallel spec can capture an assertion ("Fenicottero in scatola E2E" once
-did). Invented names keep fixtures away from real data (`WORKFLOW.md` obligation
-1) and must keep them away from each other: the delete suite owns "vombato" and
-"axolotl". **The same applies inside one file**: "Pesto narvalo 190g" and "Pesto
-capibara 190g" still match, so vary the noun too. The symptom is a card stuck on
-`needs-product`, which reads like a matcher bug.
-
-**4.67 Every E2E suite that writes as the second seed user leaves the account
-as it found it, because the thin dashboard is a state, not a page.** `a11y.spec.ts`
-expects `dashboard-thin` for `dev2`, which `getDashboardData` shows only below two
-months of series; a fixture from another month flipped it under `fullyParallel`
-(seen 2026-10-27). `quick-entry` and `delete-product` clean up in `afterAll`. A new
-flow suite owes the same `afterAll`, and a fixture dated outside the current month
-is the tell.
-
-**4.74 With `fullyParallel`, a `beforeAll` runs once per worker, so a spec that
-recreates its account there deletes it under another worker's login.** The symptom
-is `loginViaApi failed: 500` in a test that does nothing wrong. A spec owning a
-throwaway account declares `mode: 'serial'` (`dashboard-coverage.spec.ts`,
-2026-11-03). Two more traps from that spec: a category section holds the visible
-list and a screen-reader table, so scope a text count to the `ol`; and
-`not.toContainText('0,0%')` also rejects `+10,0%`.
 
 ## 5. Definition of Done
 
@@ -985,7 +927,7 @@ Every task, not just a large feature, is done only when:
 
 | Document | What it governs | When to read |
 |---|---|---|
-| `docs/guide/*.md` | Domain narratives: auth, offline and PWA, capture, the index, dependencies (`dipendenze.md`) | When you touch that domain |
+| `docs/guide/*.md` | Domain narratives: auth, offline and PWA, capture, the index, the E2E suite, dependencies (`dipendenze.md`) | When you touch that domain |
 | `DEVELOPMENT_GUIDELINES.md` | Layers, naming, errors, testing, security, performance | Once fully; re-check when unsure |
 | `COMMENTS.md` | Comment types and discipline | Before writing any code with comments |
 | `DESIGN.md` | Tokens, typography, layout vocabulary, animation, anti-patterns — generated by the impeccable documenter from the shipped UI build | **Mandatory before any UI work** |

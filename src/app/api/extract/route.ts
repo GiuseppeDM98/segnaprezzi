@@ -13,7 +13,6 @@ import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { PHOTO_MEDIA_TYPES, type PhotoMediaType } from '@/lib/domain/photos';
 import { nanoidSchema } from '@/lib/domain/schemas';
-import { STORE_KINDS } from '@/lib/domain/stores';
 import { extractPhotoEntry } from '@/lib/services/extract-photo-entry';
 import { errorResponse, toErrorResponse } from '../route-errors';
 
@@ -32,8 +31,6 @@ const MAX_PHOTO_BYTES = 5 * BYTES_PER_MB;
 const extractRequestSchema = z.object({
   photoId: nanoidSchema,
   sessionId: nanoidSchema,
-  storeId: nanoidSchema.optional(),
-  storeKind: z.enum(STORE_KINDS).optional(),
 });
 
 export async function POST(request: Request): Promise<Response> {
@@ -45,8 +42,6 @@ export async function POST(request: Request): Promise<Response> {
     const fields = extractRequestSchema.safeParse({
       photoId: formData.get('photoId'),
       sessionId: formData.get('sessionId'),
-      storeId: formData.get('storeId') ?? undefined,
-      storeKind: formData.get('storeKind') ?? undefined,
     });
     if (!fields.success) {
       return errorResponse('INVALID_INPUT', fields.error.message);
@@ -61,8 +56,6 @@ export async function POST(request: Request): Promise<Response> {
       userId,
       photoId: fields.data.photoId,
       sessionId: fields.data.sessionId,
-      storeId: fields.data.storeId ?? null,
-      storeKind: fields.data.storeKind ?? null,
       photoBytes: await photo.file.arrayBuffer(),
       photoContentType: photo.mediaType,
     });

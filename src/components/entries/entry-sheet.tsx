@@ -16,7 +16,6 @@ import { Chip } from '@/components/ui/chip';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import type { EntrySource, PromoKind } from '@/lib/domain/entries';
@@ -34,7 +33,6 @@ import {
 export interface EntrySheetEntry {
   id: string;
   recordedAt: number;
-  store: { id: string; name: string } | null;
   totalPriceCents: number;
   packageSize: number;
   unitPriceMilli: number;
@@ -47,7 +45,6 @@ export interface EntrySheetEntry {
 
 export interface EntrySheetSaveInput {
   recordedAt: number;
-  storeId: string | null;
   totalPriceCents: number;
   packageSize: number;
   unitPriceMilli: number;
@@ -58,7 +55,6 @@ export interface EntrySheetSaveInput {
 export interface EntrySheetProps {
   entry: EntrySheetEntry | null;
   onClose: () => void;
-  stores: Array<{ id: string; name: string }>;
   onSave: (entryId: string, input: EntrySheetSaveInput) => Promise<boolean>;
   onDelete: (entryId: string) => Promise<boolean>;
 }
@@ -69,7 +65,7 @@ export const SOURCE_ICONS: Record<EntrySource, typeof Camera> = {
   fuel: Fuel,
 };
 
-export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySheetProps) {
+export function EntrySheet({ entry, onClose, onSave, onDelete }: EntrySheetProps) {
   const t = useTranslations('productDetail');
   const tCommon = useTranslations('common');
   const tReview = useTranslations('review');
@@ -90,7 +86,6 @@ export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySh
       entry
         ? {
             recordedAt: entry.recordedAt,
-            storeId: entry.store?.id ?? null,
             totalPriceCents: entry.totalPriceCents,
             packageSize: entry.packageSize,
             unitPriceMilli: entry.unitPriceMilli,
@@ -164,7 +159,6 @@ export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySh
             <>
               <dl className="zebra -mx-2 rounded-control font-mono text-[14px] tabular-nums">
                 <Row label={t('entry.date')} value={formatDateTime(entry.recordedAt, locale)} />
-                <Row label={t('entry.store')} value={entry.store?.name ?? t('noStore')} />
                 <Row label={t('entry.total')} value={formatMoney(entry.totalPriceCents, locale)} />
                 <Row
                   label={t('entry.size')}
@@ -244,19 +238,6 @@ export function EntrySheet({ entry, onClose, stores, onSave, onDelete }: EntrySh
                     onChange={(event) =>
                       setDraft({ ...draft, recordedAt: new Date(event.target.value).getTime() })
                     }
-                  />
-                )}
-              </Field>
-              <Field label={t('entry.store')}>
-                {(controlProps) => (
-                  <Select
-                    {...controlProps}
-                    value={draft.storeId ?? ''}
-                    onChange={(event) =>
-                      setDraft({ ...draft, storeId: event.target.value || null })
-                    }
-                    placeholderOption={t('noStore')}
-                    options={stores.map((store) => ({ value: store.id, label: store.name }))}
                   />
                 )}
               </Field>

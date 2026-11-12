@@ -16,32 +16,20 @@
  * priced (observed or imputed) in BOTH months — the matched set. This is
  * the matched-model principle used by every statistical office.
  *
- * Design: the same principle applies to stores. Bananas at 1,50 at one store
- * and 1,80 at another, a month apart, are not a 20% rise: nobody changed a
- * price. So a product's relative compares each store with itself and takes the
- * Jevons of those store relatives; the mean across stores is only the fallback
- * for two months with no store in common.
+ * Design: a product is one thing wherever it is bought. Its price in a month
+ * is the mean of everything observed that month (bucketing.ts), and the
+ * relative divides one month's price by the previous month's. The owner's
+ * call of 2026-11-12: the index is the inflation of what this person pays, so
+ * buying the same bananas at a dearer shop this month is part of it. Until
+ * that date each shop was compared with itself.
  *
- * Why stores carry their prices forward: comparing only the stores observed in
- * both months would make the index drift for good. With both stores seen in
- * March, only the dearer one in April and only the cheaper one in May, the
- * April relative is 1 and the May relative falls back on 1,50/1,80: −17%, and a
- * later month with both stores would never give it back, though no price moved.
- * With each store's last known price still in play, every one of those links is
- * 1 and a real move is delayed, never lost — the argument of imputeCarryForward,
- * one level down.
- *
- * The accepted cost: moving to a dearer store for good does not count as
- * inflation. The index measures how prices move, not where the user shops.
+ * The accepted cost: a month bought at a dearer shop reads as a rise and the
+ * next month at the cheaper one as a fall. Chaining gives it back — a
+ * product's links multiply to latest price / first price whatever happened in
+ * between — so where one shops adds noise to a month, never drift to the level.
  */
 import type { CategoryId } from '@/lib/domain/categories';
-import type {
-  MonthLink,
-  MonthlyPrice,
-  PriceTable,
-  ProductRelative,
-  StorePriceTable,
-} from './types';
+import type { MonthLink, PriceTable, ProductRelative } from './types';
 
 /**
  * Outlier bounds for a single month-over-month relative.
@@ -99,37 +87,6 @@ export function computeJevons(relatives: readonly number[]): number {
 }
 
 /**
- * One product's unclamped relative across a month pair: the Jevons of the
- * stores priced in both months, or the ratio of the cross-store prices when no
- * store is.
- *
- * A single shared store returns its ratio as is, so a product always seen in
- * one store gets exactly the relative it would have with no store data at all.
- */
-function computeProductRelative(
-  storePrices: PriceTable,
-  prices: { from: MonthlyPrice; to: MonthlyPrice },
-  fromYm: string,
-  toYm: string,
-): { relative: number; isPriceCompared: boolean } {
-  const storeRelatives: number[] = [];
-  let hasNewPrice = false;
-  for (const storeKey of [...storePrices.keys()].sort()) {
-    const from = storePrices.get(storeKey)?.get(fromYm);
-    const to = storePrices.get(storeKey)?.get(toYm);
-    if (from && to) {
-      storeRelatives.push(to.value / from.value);
-      hasNewPrice ||= !to.isImputed;
-    }
-  }
-  if (storeRelatives.length === 0) {
-    return { relative: prices.to.value / prices.from.value, isPriceCompared: !prices.to.isImputed };
-  }
-  const relative = storeRelatives.length === 1 ? storeRelatives[0] : computeJevons(storeRelatives);
-  return { relative, isPriceCompared: hasNewPrice };
-}
-
-/**
  * The matched set of one consecutive month pair: one clamped relative per
  * product priced in both `fromYm` and `toYm`.
  *
@@ -140,7 +97,6 @@ function computeProductRelative(
  */
 export function computeMonthLink(
   priceTable: PriceTable,
-  storePriceTable: StorePriceTable,
   categoryByProduct: ReadonlyMap<string, CategoryId>,
   fromYm: string,
   toYm: string,
@@ -156,13 +112,7 @@ export function computeMonthLink(
     if (!from || !to || !category) {
       continue;
     }
-    const { relative, isPriceCompared } = computeProductRelative(
-      storePriceTable.get(productId) ?? new Map(),
-      { from, to },
-      fromYm,
-      toYm,
-    );
-    const { value, wasClamped } = clampRelative(relative);
+    const { value, wasClamped } = clampRelative(to.value / from.value);
     if (wasClamped) {
       clampedCount += 1;
     }
@@ -172,7 +122,6 @@ export function computeMonthLink(
       relative: value,
       isFromImputed: from.isImputed,
       isToImputed: to.isImputed,
-      isPriceCompared,
     });
   }
   return { fromYm, toYm, relatives, clampedCount };

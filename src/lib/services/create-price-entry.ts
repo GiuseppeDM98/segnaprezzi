@@ -12,7 +12,6 @@
 import type { Db, DbTransaction } from '@/lib/db/client';
 import { createPriceEntry as insertPriceEntry } from '@/lib/db/repositories/price-entries';
 import { createProduct, listProducts, listProductsByIds } from '@/lib/db/repositories/products';
-import { getStoreById } from '@/lib/db/repositories/stores';
 import type { EntrySource, PromoKind } from '@/lib/domain/entries';
 import { type FuelQuickPickKey, getFuelQuickPick } from '@/lib/domain/fuel-products';
 import { centsToMilli, isUnitPriceConsistent } from '@/lib/domain/money';
@@ -27,9 +26,7 @@ import {
   InvalidDateError,
   InvalidPriceError,
   InvalidSizeError,
-  InvalidStoreKindError,
   ProductNotFoundError,
-  StoreNotFoundError,
 } from '@/lib/errors';
 import { normalizeProductName } from './match-products';
 
@@ -45,7 +42,6 @@ const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 
 export interface CreatePriceEntryInput {
   product: ProductPick;
-  storeId: string | null;
   sessionId?: string | null;
   /** Epoch milliseconds UTC. */
   recordedAt: number;
@@ -69,7 +65,7 @@ export interface CreatePriceEntryResult {
  * @param userId - Always from the server session
  * @returns The new entry id and the product it was attached to
  * @throws InvalidDateError, InvalidPriceError, InvalidSizeError on range violations
- * @throws StoreNotFoundError, ProductNotFoundError when a reference is not the user's
+ * @throws ProductNotFoundError when an `existing` product pick is not the user's
  */
 export async function createPriceEntry(
   db: Db | DbTransaction,
@@ -77,13 +73,11 @@ export async function createPriceEntry(
   input: CreatePriceEntryInput,
 ): Promise<CreatePriceEntryResult> {
   assertEntryValues(input);
-  await assertStoreBelongsToUser(db, userId, input.storeId);
 
   const { productIds } = await resolveProductPicks(db, userId, [input.product]);
 
   const entry = await insertPriceEntry(db, userId, {
     productId: productIds[0],
-    storeId: input.storeId,
     sessionId: input.sessionId ?? null,
     recordedAt: new Date(input.recordedAt),
     totalPriceCents: input.totalPriceCents,
@@ -176,21 +170,6 @@ function buildProductKey(name: string, brand: string | null): string {
   return `${normalizeProductName(brand ?? '')}|${normalizeProductName(name)}`;
 }
 
-/** Throw StoreNotFoundError unless the store is absent or the user's own. */
-async function assertStoreBelongsToUser(
-  db: Db | DbTransaction,
-  userId: string,
-  storeId: string | null,
-): Promise<void> {
-  if (!storeId) {
-    return;
-  }
-  const store = await getStoreById(db, userId, storeId);
-  if (!store) {
-    throw new StoreNotFoundError(storeId);
-  }
-}
-
 /**
  * Business-rule ranges enforced here. Zod already rejected the wrong
  * shapes at the boundary; these are the rules Zod cannot express — the date
@@ -223,7 +202,6 @@ function assertEntryValues(input: CreatePriceEntryInput): void {
 
 export interface CreateFuelEntryInput {
   fuel: FuelQuickPickKey;
-  storeId: string | null;
   /** Epoch milliseconds UTC. */
   recordedAt: number;
   unitPriceMilli: number;
@@ -242,7 +220,6 @@ export interface CreateFuelEntryInput {
  * other write applies to the unit-price invariant, with the litres (or kg)
  * as the package size.
  *
- * @throws InvalidStoreKindError when the store is not a fuel station
  * @throws InconsistentFuelPricesError when the three numbers cannot all be true
  */
 export async function createFuelEntry(
@@ -250,8 +227,6 @@ export async function createFuelEntry(
   userId: string,
   input: CreateFuelEntryInput,
 ): Promise<CreatePriceEntryResult> {
-  await assertFuelStation(db, userId, input.storeId);
-
   if (!isUnitPriceConsistent(input.totalPriceCents, input.quantity, input.unitPriceMilli)) {
     const derivedMilli = input.unitPriceMilli * input.quantity;
     const totalMilli = centsToMilli(input.totalPriceCents);
@@ -273,7 +248,6 @@ export async function createFuelEntry(
       category: 'fuel',
       unitKind: pick.unitKind,
     },
-    storeId: input.storeId,
     recordedAt: input.recordedAt,
     totalPriceCents: input.totalPriceCents,
     packageSize: input.quantity,
@@ -282,22 +256,4 @@ export async function createFuelEntry(
     promoKind: null,
     source: 'fuel',
   });
-}
-
-/** A fuel entry may only be attached to a store of kind 'fuel_station'. */
-async function assertFuelStation(
-  db: Db | DbTransaction,
-  userId: string,
-  storeId: string | null,
-): Promise<void> {
-  if (!storeId) {
-    return;
-  }
-  const store = await getStoreById(db, userId, storeId);
-  if (!store) {
-    throw new StoreNotFoundError(storeId);
-  }
-  if (store.kind !== 'fuel_station') {
-    throw new InvalidStoreKindError(`Store ${storeId} is a ${store.kind}, not a fuel station`);
-  }
 }

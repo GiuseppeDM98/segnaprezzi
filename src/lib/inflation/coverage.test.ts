@@ -18,7 +18,6 @@ describe('computeCoverage', () => {
           relative: 1,
           isFromImputed: false,
           isToImputed: false,
-          isPriceCompared: true,
         },
         {
           productId: 'oil',
@@ -26,7 +25,6 @@ describe('computeCoverage', () => {
           relative: 1,
           isFromImputed: false,
           isToImputed: false,
-          isPriceCompared: true,
         },
         {
           productId: 'pasta',
@@ -34,7 +32,6 @@ describe('computeCoverage', () => {
           relative: 1,
           isFromImputed: true,
           isToImputed: false,
-          isPriceCompared: true,
         },
       ],
     };
@@ -70,7 +67,6 @@ describe('computeCoverage', () => {
           relative: 1,
           isFromImputed: true,
           isToImputed: true,
-          isPriceCompared: false,
         },
       ],
     };

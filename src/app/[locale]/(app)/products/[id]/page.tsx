@@ -6,7 +6,6 @@ import { cache } from 'react';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { nanoidSchema } from '@/lib/domain/schemas';
-import { listHistoryStoreOptions } from '@/lib/services/history';
 import { getProductDetail } from '@/lib/services/product-detail';
 import { ProductDetailScreen } from './product-detail-screen';
 
@@ -53,13 +52,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
   const user = await requireUserCached();
-  const [detail, stores] = await Promise.all([
-    getProductDetailCached(db, user.id, id),
-    listHistoryStoreOptions(db, user.id),
-  ]);
+  const detail = await getProductDetailCached(db, user.id, id);
   if (!detail) {
     notFound();
   }
 
-  return <ProductDetailScreen detail={detail} stores={stores} />;
+  return <ProductDetailScreen detail={detail} />;
 }

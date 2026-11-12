@@ -4,7 +4,7 @@
  * Client half of Settings, one printed section per concern: account,
  * index (optimistic toggles that roll back on failure), preferences
  * (language switches the [locale] segment, theme writes the cookie the
- * root layout reads pre-paint), data (install, export / import, stores) and
+ * root layout reads pre-paint), data (install, export / import) and
  * info. The screen owns the state and every action call; the index,
  * preferences and data sections and the delete-account sheet render
  * beside it, in files of their own.
@@ -145,7 +145,6 @@ export function SettingsScreen({ email, indexSettings, appVersion, repoUrl }: Se
       message: t('data.imported', {
         entries: result.data.entries,
         products: result.data.products,
-        stores: result.data.stores,
       }),
     });
     router.refresh();

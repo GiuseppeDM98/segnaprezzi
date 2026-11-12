@@ -3,7 +3,7 @@
 /**
  * The timeline itself: the loaded entries grouped by Europe/Rome day, each
  * day under its heading ("Today", "Yesterday", then the date), the entries
- * of one shopping session folded into a card under its store and time, and
+ * of one shopping session folded into a card under its time, and
  * standalone entries as plain rows. The grouping rule is pure and lives in
  * src/lib/domain/history-groups.ts; this file owns the labels and the rows.
  * It loads nothing: what comes after the last day (the pagination sentinel
@@ -40,7 +40,6 @@ export interface HistoryTimelineProps {
 /** Render the entries as day sections of session cards and plain rows. */
 export function HistoryTimeline({ entries, now, onOpenEntry, footer }: HistoryTimelineProps) {
   const t = useTranslations('history');
-  const tDetail = useTranslations('productDetail');
   const locale = useLocale() as AppLocale;
 
   const groups = groupEntriesByDay(entries, (epochMs) => calendarDaysBetween(epochMs, now));
@@ -74,13 +73,8 @@ export function HistoryTimeline({ entries, now, onOpenEntry, footer }: HistoryTi
                   data-testid="session-card"
                 >
                   <div className="flex items-center justify-between gap-3 border-border border-b border-dashed px-3 py-2">
-                    <span className="flex min-w-0 flex-col">
-                      <span className="font-mono text-[11px] text-text-muted uppercase tracking-wide">
-                        {t('session')} · {formatTime(block.startedAt, locale)}
-                      </span>
-                      <span className="truncate font-sans font-medium text-[15px] text-text">
-                        {block.storeName ?? tDetail('noStore')}
-                      </span>
+                    <span className="font-mono text-[11px] text-text-muted uppercase tracking-wide">
+                      {t('session')} · {formatTime(block.startedAt, locale)}
                     </span>
                   </div>
                   <ul className="zebra">
@@ -116,10 +110,7 @@ export function HistoryTimeline({ entries, now, onOpenEntry, footer }: HistoryTi
   );
 }
 
-/**
- * One entry as a tappable row. Inside a session card the store is already in
- * the card header, so only a standalone row names it.
- */
+/** One entry as a tappable row; a standalone one takes the page gutter. */
 function EntryRow({
   entry,
   locale,
@@ -161,11 +152,6 @@ function EntryRow({
               </Chip>
             )}
           </span>
-          {isStandalone && entry.store && (
-            <span className="truncate font-sans text-[12px] text-text-muted">
-              {entry.store.name}
-            </span>
-          )}
         </span>
         <span className="flex shrink-0 flex-col items-end font-mono tabular-nums">
           <span className="font-semibold text-[14px] text-text">

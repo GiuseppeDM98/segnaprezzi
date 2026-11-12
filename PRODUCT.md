@@ -33,7 +33,8 @@ Official inflation is computed on a national basket that is nobody's basket.
 segnaprezzi's mechanism — which a generic expense tracker cannot truthfully
 copy — is a real CPI methodology (matched-model relatives, Jevons within
 category and over every compared product, no expenditure weights,
-carry-forward imputation, coverage stats, each store compared with itself) applied to one person's own shelf observations, with the
+carry-forward imputation, coverage stats, one price per product per month
+wherever it was bought) applied to one person's own shelf observations, with the
 ISTAT series rebased onto the user's own base month for a like-for-like
 comparison. Private per user, offline-first, self-hostable.
 
@@ -43,7 +44,7 @@ comparison. Private per user, offline-first, self-hostable.
   (even on the way home with no signal). Quick forms exist for fuel (at the
   pump, one-handed) and manual entries. The shelf tag is the unit of
   capture: it is the one place a supermarket prints the unit price.
-- Reading happens at home: dashboard, product histories, timeline, stores.
+- Reading happens at home: dashboard, product histories, timeline.
 - Mobile-first PWA at 390 × 844; tablet (≥ 768) and desktop rail (≥ 1024)
   are secondary. Both light and dark themes are first-class.
 - Italian is the reference voice (informal "tu", supermarket words — prezzi,
@@ -85,7 +86,7 @@ verb.
 
 ## Evidence on Hand
 
-- Real demo data: `pnpm db:seed` — 13 products across 6 categories, 2 stores,
+- Real demo data: `pnpm db:seed` — 13 products across 6 categories,
   fuel fill-ups, promos, across 14 months so the 12-month trend and the
   year-over-year headline render on real engine output.
 - Real official series: `data/istat-nic.json` (ISTAT NIC, 1996-01 → 2026-07,

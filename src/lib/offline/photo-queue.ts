@@ -47,13 +47,11 @@ export function createSessionId(): string {
 /** Add a freshly compressed photo to the queue, status 'queued'. */
 export async function enqueuePendingPhoto(input: {
   sessionId: string;
-  storeId?: string;
   blob: Blob;
 }): Promise<PendingPhoto> {
   const photo: PendingPhoto = {
     id: nanoid(),
     sessionId: input.sessionId,
-    storeId: input.storeId,
     blob: input.blob,
     status: 'queued',
     attempts: 0,

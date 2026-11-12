@@ -85,7 +85,6 @@
   "scan": {
     "title": "Shopping trip",
     "close": "Close the camera",
-    "chooseStore": "Choose store",
     "torchOn": "Turn torch on",
     "torchOff": "Turn torch off",
     "review": "Review ({count})",
@@ -101,15 +100,6 @@
         "retry": "Try again",
         "useLibrary": "Upload a photo"
       }
-    },
-    "storePicker": {
-      "label": "Store",
-      "title": "Where are you?",
-      "none": "None",
-      "search": "Search stores",
-      "create": "Create “{query}”",
-      "manage": "Manage stores",
-      "createError": "Couldn’t create “{name}”"
     },
     "tray": {
       "label": "Trip photos",
@@ -152,7 +142,6 @@
   "review": {
     "title": "Review the trip",
     "caption": "{count, plural, one {# photo} other {# photos}} · {date}",
-    "captionWithStore": "{store} · {date}",
     "flagged": "Needs a look ({count})",
     "showAll": "All",
     "needsReview": "Needs a look",
@@ -225,9 +214,6 @@
     "brand": "Brand",
     "category": "Category",
     "unitKind": "Sold by",
-    "store": "Store",
-    "noStore": "None (generic purchase)",
-    "manageStores": "Manage stores",
     "date": "Date and time",
     "priceTitle": "Price",
     "detailsTitle": "Details",
@@ -253,9 +239,6 @@
       "gpl": "LPG",
       "metano": "CNG"
     },
-    "station": "Station",
-    "noStation": "None",
-    "manageStations": "Manage stations",
     "date": "Date and time",
     "total": "Total",
     "submit": "Save",
@@ -343,11 +326,9 @@
       "mean": "Average",
       "last": "Latest"
     },
-    "storesTitle": "Where it's cheapest",
     "best": "Best",
     "entriesTitle": "Entries",
     "promo": "Promo",
-    "noStore": "No store",
     "source": {
       "photo": "From photo",
       "manual": "By hand",
@@ -356,7 +337,6 @@
     "entry": {
       "title": "Entry",
       "date": "Date and time",
-      "store": "Store",
       "total": "Price paid",
       "size": "Package",
       "unitPrice": "Unit price",
@@ -388,16 +368,13 @@
     "filters": {
       "label": "Filters",
       "category": "Category",
-      "store": "Store",
       "promoOnly": "Promo only",
       "source": "Source",
       "clear": "Clear filters",
       "remove": "Remove the {filter} filter",
       "anyCategory": "All categories",
-      "anyStore": "All stores",
       "anySource": "All sources",
       "pickCategory": "Filter by category",
-      "pickStore": "Filter by store",
       "pickSource": "Filter by source"
     },
     "today": "Today",
@@ -412,41 +389,10 @@
     },
     "filteredEmpty": {
       "title": "Nothing with these filters",
-      "body": "Loosen a filter: category, store, promo or source."
+      "body": "Loosen a filter: category, promo or source."
     },
     "error": {
       "title": "Couldn't load your history",
-      "body": "Try again in a moment."
-    }
-  },
-  "stores": {
-    "title": "Stores",
-    "add": "Add store",
-    "addTitle": "New store",
-    "editTitle": "Edit store",
-    "name": "Name",
-    "namePlaceholder": "Esselunga Viale Papiniano",
-    "chain": "Chain",
-    "city": "City",
-    "kind": "Type",
-    "kinds": {
-      "supermarket": "Supermarket",
-      "fuel_station": "Fuel station",
-      "other": "Other"
-    },
-    "entryCount": "{count, plural, =0 {no entries} one {# entry} other {# entries}}",
-    "saved": "Store saved",
-    "deleted": "Store deleted",
-    "delete": "Delete store",
-    "deleteConfirm": "Its entries are kept, without a store.",
-    "saveError": "Not saved. Try again.",
-    "empty": {
-      "title": "No stores",
-      "body": "Stores make prices comparable across supermarkets.",
-      "cta": "Add the first one"
-    },
-    "error": {
-      "title": "Couldn't load your stores",
       "body": "Try again in a moment."
     }
   },
@@ -458,7 +404,7 @@
       "logout": "Sign out",
       "deleteAccount": "Delete account",
       "deleteTitle": "Delete your account?",
-      "deleteBody": "All your data will be erased for good: products, stores, entries, photos and settings. There is no way back. If you want to keep them, export a backup first.",
+      "deleteBody": "All your data will be erased for good: products, entries, photos and settings. There is no way back. If you want to keep them, export a backup first.",
       "deletePassword": "Type your password to confirm",
       "deleteConfirm": "Delete everything",
       "deleteError": "Couldn't delete the account. Check the password and try again."
@@ -486,16 +432,14 @@
     "data": {
       "title": "Data",
       "export": "Export your data",
-      "exportHelp": "One JSON file with everything: products, stores, entries, settings.",
+      "exportHelp": "One JSON file with everything: products, entries, settings.",
       "exportError": "Export failed. Try again.",
       "import": "Import a backup",
       "importHelp": "A segnaprezzi export. Data is merged into yours, never wiped.",
       "importing": "Importing…",
-      "imported": "Imported: {entries, plural, one {# entry} other {# entries}}, {products, plural, one {# product} other {# products}}, {stores, plural, one {# store} other {# stores}}",
+      "imported": "Imported: {entries, plural, one {# entry} other {# entries}}, {products, plural, one {# product} other {# products}}",
       "importInvalid": "Invalid file. It must be a segnaprezzi export.",
-      "importError": "Import failed. Try again.",
-      "stores": "Stores",
-      "storesHelp": "Manage supermarkets and fuel stations."
+      "importError": "Import failed. Try again."
     },
     "info": {
       "title": "About",
@@ -542,10 +486,8 @@
     "INVALID_DATE": "The date is not valid",
     "INVALID_PRICE": "The price is not valid",
     "INVALID_SIZE": "The quantity is not valid",
-    "INVALID_STORE_KIND": "This store is not a fuel station",
     "INCONSISTENT_FUEL_PRICES": "The numbers don't add up — re-check one of them",
     "SESSION_NOT_FOUND": "Shopping trip not found",
-    "STORE_NOT_FOUND": "Store not found",
     "PRODUCT_NOT_FOUND": "Product not found",
     "SESSION_CLOSED": "This shopping trip is already finished",
     "PHOTO_TOO_LARGE": "This photo is too large",

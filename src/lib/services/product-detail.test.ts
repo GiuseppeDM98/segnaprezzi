@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '@/lib/db/client';
 import { createPriceEntry } from '@/lib/db/repositories/price-entries';
 import { createProduct } from '@/lib/db/repositories/products';
-import { createStore } from '@/lib/db/repositories/stores';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { listHistoryPage } from './history';
 import { deletePriceEntry, getProductDetail, updatePriceEntry } from './product-detail';
@@ -34,18 +33,15 @@ describe('getProductDetail', () => {
     expect(await getProductDetail(db, userId, foreign.id)).toBeNull();
   });
 
-  it('should build monthly means, promo markers, stats and the per-store comparison', async () => {
-    const esselunga = await createStore(db, userId, { name: 'Esselunga', kind: 'supermarket' });
-    const carrefour = await createStore(db, userId, { name: 'Carrefour', kind: 'supermarket' });
+  it('should build monthly means, promo markers and stats', async () => {
     const product = await createProduct(db, userId, {
       name: 'Latte',
       category: 'food',
       unitKind: 'volume',
     });
-    const add = (iso: string, milli: number, storeId: string | null, isPromo = false) =>
+    const add = (iso: string, milli: number, isPromo = false) =>
       createPriceEntry(db, userId, {
         productId: product.id,
-        storeId,
         recordedAt: new Date(iso),
         totalPriceCents: Math.round(milli / 10),
         packageSize: 1,
@@ -54,10 +50,10 @@ describe('getProductDetail', () => {
         promoKind: isPromo ? 'discount' : null,
         source: 'manual',
       });
-    await add('2026-03-05T10:00:00Z', 1600, esselunga.id);
-    await add('2026-03-18T10:00:00Z', 1800, esselunga.id);
-    await add('2026-04-05T10:00:00Z', 1500, esselunga.id, true);
-    await add('2026-04-12T17:00:00Z', 1900, carrefour.id);
+    await add('2026-03-05T10:00:00Z', 1600);
+    await add('2026-03-18T10:00:00Z', 1800);
+    await add('2026-04-05T10:00:00Z', 1500, true);
+    await add('2026-04-12T17:00:00Z', 1900);
 
     const detail = await getProductDetail(db, userId, product.id);
 
@@ -72,13 +68,6 @@ describe('getProductDetail', () => {
       mean: { unitPriceMilli: 1700 },
       last: { unitPriceMilli: 1900, recordedAt: Date.parse('2026-04-12T17:00:00Z') },
     });
-    // Cheapest first, by each store's LATEST observation.
-    expect(detail?.storeComparison.map((row) => [row.storeName, row.latestUnitPriceMilli])).toEqual(
-      [
-        ['Esselunga', 1500],
-        ['Carrefour', 1900],
-      ],
-    );
     expect(detail?.entries.map((entry) => entry.unitPriceMilli)).toEqual([1900, 1500, 1800, 1600]);
   });
 });
@@ -103,7 +92,6 @@ describe('entry edits', () => {
 
     await updatePriceEntry(db, userId, entry.id, {
       recordedAt: Date.parse('2026-04-06T10:00:00Z'),
-      storeId: null,
       totalPriceCents: 239,
       packageSize: 0.5,
       unitPriceMilli: 4780,
@@ -143,7 +131,6 @@ describe('entry edits', () => {
     await expect(
       updatePriceEntry(db, userId, foreign.id, {
         recordedAt: Date.now(),
-        storeId: null,
         totalPriceCents: 1,
         packageSize: 1,
         unitPriceMilli: 1,

@@ -13,12 +13,9 @@
  * The quantity's unit follows the selected fuel's `unitKind`: litres for the
  * liquid fuels, kilograms for methane.
  */
-import { ChevronDown, Fuel as FuelIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useState } from 'react';
 
-import { StorePickerSheet } from '@/components/capture/store-picker-sheet';
-import { useStoreOptions } from '@/components/capture/use-store-options';
 import { ScreenHeader } from '@/components/layout/screen-header';
 import { Button } from '@/components/ui/button';
 import { Chip } from '@/components/ui/chip';
@@ -29,7 +26,6 @@ import { SectionHeading } from '@/components/ui/section-heading';
 import { StickyActionBar } from '@/components/ui/sticky-action-bar';
 import { useToast } from '@/components/ui/toast';
 import { callAction } from '@/lib/call-action';
-import { cx } from '@/lib/cx';
 import { FUEL_QUICK_PICKS, type FuelQuickPickKey } from '@/lib/domain/fuel-products';
 import {
   calculateFuelQuantity,
@@ -42,17 +38,11 @@ import {
 } from '@/lib/domain/money';
 import { formatDateTimeLocalValue, parseDateTimeLocalValue } from '@/lib/format';
 import { useRouter } from '@/lib/i18n/navigation';
-import type { FuelEntryContext } from '@/lib/services/capture-context';
-import { createStore } from '../../stores/actions';
 import { createFuelEntry } from './actions';
 
 type FuelField = 'unitPrice' | 'quantity' | 'total';
 
-export interface FuelEntryFormProps {
-  context: FuelEntryContext;
-}
-
-export function FuelEntryForm({ context }: FuelEntryFormProps) {
+export function FuelEntryForm() {
   const t = useTranslations('addFuel');
   const tCommon = useTranslations('common');
   const tErrors = useTranslations('errors');
@@ -60,13 +50,6 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
   const { toast } = useToast();
 
   const [fuel, setFuel] = useState<FuelQuickPickKey>(FUEL_QUICK_PICKS[0].key);
-  const { stores: stations, createStore: handleCreateStation } = useStoreOptions(
-    context.stations,
-    createStore,
-    'fuel_station',
-  );
-  const [storeId, setStoreId] = useState<string | null>(context.defaultStationId);
-  const [isStationPickerOpen, setIsStationPickerOpen] = useState(false);
   const [recordedAtLocal, setRecordedAtLocal] = useState(() =>
     formatDateTimeLocalValue(Date.now()),
   );
@@ -83,7 +66,6 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
   const derivedField = editOrder[2];
   const triple = deriveTriple(inputs, derivedField);
   const selectedPick = FUEL_QUICK_PICKS.find((pick) => pick.key === fuel) ?? FUEL_QUICK_PICKS[0];
-  const selectedStation = stations.find((station) => station.id === storeId) ?? null;
 
   function handleFieldChange(field: FuelField, value: number | null): void {
     setInputs((current) => ({ ...current, [field]: value }));
@@ -121,7 +103,6 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
       'createFuelEntry',
       createFuelEntry({
         fuel,
-        storeId,
         recordedAt,
         unitPriceMilli: triple.unitPriceMilli,
         quantity: triple.quantity,
@@ -205,21 +186,6 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
         </section>
 
         <section className="flex flex-col gap-4">
-          <SectionHeading>{t('station')}</SectionHeading>
-          <button
-            type="button"
-            onClick={() => setIsStationPickerOpen(true)}
-            data-testid="station-picker"
-            className="flex h-11 items-center justify-between gap-2 rounded-control border border-border bg-surface px-3 text-left font-sans text-base text-text"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <FuelIcon aria-hidden="true" className="size-4 shrink-0 text-text-muted" />
-              <span className={cx('truncate', !selectedStation && 'text-text-muted')}>
-                {selectedStation?.name ?? t('noStation')}
-              </span>
-            </span>
-            <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-text-muted" />
-          </button>
           <Field
             label={t('date')}
             error={errorCode === 'INVALID_DATE' ? tErrors('INVALID_DATE') : null}
@@ -266,17 +232,6 @@ export function FuelEntryForm({ context }: FuelEntryFormProps) {
           </Button>
         </div>
       </StickyActionBar>
-
-      <StorePickerSheet
-        isOpen={isStationPickerOpen}
-        onClose={() => setIsStationPickerOpen(false)}
-        stores={stations}
-        selectedId={storeId}
-        onSelect={setStoreId}
-        onCreate={handleCreateStation}
-        noneLabel={t('noStation')}
-        title={t('station')}
-      />
     </form>
   );
 }

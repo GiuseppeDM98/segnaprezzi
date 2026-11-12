@@ -9,29 +9,29 @@ describe('callAction', () => {
 
   test('should pass a successful result through unchanged', async () => {
     // Arrange
-    const call = Promise.resolve({ ok: true as const, data: { id: 'store-1' } });
+    const call = Promise.resolve({ ok: true as const, data: { id: 'product-1' } });
 
     // Act
-    const result = await callAction('createStore', call);
+    const result = await callAction('createProduct', call);
 
     // Assert
-    expect(result).toEqual({ ok: true, data: { id: 'store-1' } });
+    expect(result).toEqual({ ok: true, data: { id: 'product-1' } });
   });
 
   test('should pass a failed result through unchanged', async () => {
     // Arrange
     const call = Promise.resolve({
       ok: false as const,
-      error: { code: 'STORE_NOT_FOUND' as const, message: 'Store x not found' },
+      error: { code: 'PRODUCT_NOT_FOUND' as const, message: 'Product x not found' },
     });
 
     // Act
-    const result = await callAction('updateStore', call);
+    const result = await callAction('updateProduct', call);
 
     // Assert
     expect(result).toEqual({
       ok: false,
-      error: { code: 'STORE_NOT_FOUND', message: 'Store x not found' },
+      error: { code: 'PRODUCT_NOT_FOUND', message: 'Product x not found' },
     });
   });
 
@@ -41,14 +41,14 @@ describe('callAction', () => {
     const cause = new TypeError('Failed to fetch');
 
     // Act
-    const result = await callAction('deleteStore', Promise.reject(cause));
+    const result = await callAction('deleteProduct', Promise.reject(cause));
 
     // Assert
     expect(result).toEqual({
       ok: false,
       error: { code: 'INTERNAL', message: 'Action request failed' },
     });
-    expect(log).toHaveBeenCalledWith('deleteStore request failed', { cause });
+    expect(log).toHaveBeenCalledWith('deleteProduct request failed', { cause });
   });
 });
 
@@ -58,13 +58,13 @@ describe('describeActionError', () => {
   test('should show the translated cause for a known error code', () => {
     // Act
     const message = describeActionError(
-      { code: 'STORE_NOT_FOUND', message: 'dev text' },
+      { code: 'PRODUCT_NOT_FOUND', message: 'dev text' },
       translateError,
       'Not saved',
     );
 
     // Assert
-    expect(message).toBe('errors.STORE_NOT_FOUND');
+    expect(message).toBe('errors.PRODUCT_NOT_FOUND');
   });
 
   test('should show the screen fallback for an INTERNAL error', () => {

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '@/lib/db/client';
 import { listPriceEntries } from '@/lib/db/repositories/price-entries';
 import { createProduct, listProducts } from '@/lib/db/repositories/products';
-import { createStore, listStores } from '@/lib/db/repositories/stores';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { exportUserData } from './export';
 import { getIndexSettings, importUserData, updateIndexSettings } from './settings';
@@ -42,7 +41,6 @@ describe('importUserData', () => {
   });
 
   it('should round-trip an export: rows are merged by id, existing ones updated', async () => {
-    const store = await createStore(db, userId, { name: 'Esselunga', kind: 'supermarket' });
     const product = await createProduct(db, userId, {
       name: 'Latte',
       category: 'food',
@@ -65,7 +63,6 @@ describe('importUserData', () => {
         {
           id: 'entry0000000000000001',
           productId: product.id,
-          storeId: store.id,
           sessionId: null,
           recordedAt: '2026-04-10T10:00:00.000Z',
           totalPriceCents: 179,
@@ -88,10 +85,65 @@ describe('importUserData', () => {
     expect(products[0]).toMatchObject({ name: 'Latte intero', brand: 'Granarolo' });
     const page = await listPriceEntries(db, userId);
     expect(page.entries).toHaveLength(1);
-    expect(page.entries[0]).toMatchObject({ id: 'entry0000000000000001', storeId: store.id });
+    expect(page.entries[0]).toMatchObject({ id: 'entry0000000000000001' });
     // Importing the same file again is idempotent.
     await importUserData(db, userId, await exportUserData(db, userId));
     expect((await listPriceEntries(db, userId)).entries).toHaveLength(1);
+  });
+
+  it('should accept a v3 backup and ignore the stores it carries', async () => {
+    const product = await createProduct(db, userId, {
+      name: 'Latte',
+      category: 'food',
+      unitKind: 'volume',
+    });
+    const base = await exportUserData(db, userId);
+
+    const result = await importUserData(db, userId, {
+      ...base,
+      schemaVersion: 3,
+      stores: [
+        { id: 'store0000000000000001', name: 'Quokka', chain: null, city: null, kind: 'other' },
+      ],
+      shoppingSessions: [
+        {
+          id: 'sess00000000000000001',
+          storeId: 'store0000000000000001',
+          status: 'completed',
+          startedAt: '2026-04-10T09:00:00.000Z',
+          completedAt: '2026-04-10T10:00:00.000Z',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry0000000000000005',
+          productId: product.id,
+          storeId: 'store0000000000000001',
+          sessionId: 'sess00000000000000001',
+          recordedAt: '2026-04-10T10:00:00.000Z',
+          totalPriceCents: 179,
+          quantity: 1,
+          packageSize: 1,
+          unitPriceMilli: 1790,
+          isPromo: false,
+          promoKind: null,
+          source: 'photo',
+          currency: 'EUR',
+          photoUrl: null,
+          aiConfidence: null,
+          aiModel: null,
+          aiRawJson: null,
+        },
+      ],
+    });
+
+    expect(result).toEqual({ products: 1, sessions: 1, entries: 1, skippedEntries: 0 });
+    const page = await listPriceEntries(db, userId);
+    expect(page.entries[0]).toMatchObject({
+      id: 'entry0000000000000005',
+      sessionId: 'sess00000000000000001',
+    });
+    expect((await exportUserData(db, userId)).schemaVersion).toBe(4);
   });
 
   it('should accept a v2 backup, skipping its receipt entries and ignoring its aliases', async () => {
@@ -104,7 +156,6 @@ describe('importUserData', () => {
     const entry = (id: string, source: string) => ({
       id,
       productId: product.id,
-      storeId: null,
       sessionId: null,
       receiptId: null,
       recordedAt: '2026-04-10T10:00:00.000Z',
@@ -150,7 +201,6 @@ describe('importUserData', () => {
   });
 
   it("should never overwrite or link another user's rows", async () => {
-    const foreignStore = await createStore(db, otherUserId, { name: 'Coop', kind: 'supermarket' });
     const foreignProduct = await createProduct(db, otherUserId, {
       name: 'Yogurt',
       category: 'food',
@@ -160,7 +210,6 @@ describe('importUserData', () => {
 
     const result = await importUserData(db, userId, {
       ...base,
-      stores: [{ id: foreignStore.id, name: 'Hijacked', chain: null, city: null, kind: 'other' }],
       products: [
         {
           id: foreignProduct.id,
@@ -176,7 +225,6 @@ describe('importUserData', () => {
         {
           id: 'entry0000000000000002',
           productId: foreignProduct.id,
-          storeId: foreignStore.id,
           sessionId: null,
           recordedAt: '2026-04-10T10:00:00.000Z',
           totalPriceCents: 179,
@@ -195,8 +243,6 @@ describe('importUserData', () => {
     });
 
     expect(result.skippedEntries).toBe(1);
-    expect(await listStores(db, userId)).toHaveLength(0);
-    expect((await listStores(db, otherUserId))[0].name).toBe('Coop');
     expect((await listProducts(db, otherUserId))[0].name).toBe('Yogurt');
     expect((await listPriceEntries(db, userId)).entries).toHaveLength(0);
   });

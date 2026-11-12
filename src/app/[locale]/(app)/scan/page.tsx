@@ -13,8 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * The capture screen. The server half only
- * resolves what the device cannot know on its own — the user's stores and
- * whether a spesa was left open on another device; everything about the
+ * resolves what the device cannot know on its own — whether a spesa was
+ * left open on another device; everything about the
  * current spesa lives in the browser so the shutter keeps working with no
  * connectivity. Immersive: the app shell renders no tab bar here.
  */

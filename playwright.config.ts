@@ -25,7 +25,7 @@ import { defineConfig } from '@playwright/test';
 const port = Number(process.env.PORT ?? 3000);
 const baseURL = `http://localhost:${port}`;
 
-/** Shared phone emulation; every project pins the locale (see AGENTS.md §4.14). */
+/** Shared phone emulation; every project pins the locale (see docs/guide/e2e.md §4.14). */
 const mobileDevice = {
   browserName: 'chromium',
   viewport: { width: 390, height: 844 },
@@ -91,7 +91,7 @@ export default defineConfig({
     timeout: 300_000,
     env: {
       // Better Auth rejects requests whose origin is not the configured one,
-      // so the server has to agree with the port the tests use (§4.32).
+      // so the server has to agree with the port the tests use (docs/guide/e2e.md §4.32).
       BETTER_AUTH_URL: baseURL,
     },
   },

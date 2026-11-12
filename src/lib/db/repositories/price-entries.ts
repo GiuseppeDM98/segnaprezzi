@@ -11,8 +11,6 @@ import {
   type Product,
   priceEntries,
   products,
-  type Store,
-  stores,
 } from '@/lib/db/schema/app';
 import type { CategoryId } from '@/lib/domain/categories';
 import type { EntrySource } from '@/lib/domain/entries';
@@ -74,7 +72,7 @@ export async function getPriceEntryById(
   return entry ?? null;
 }
 
-/** Apply a partial correction (prices, promo flags, product/store links); null if not found. */
+/** Apply a partial correction (prices, promo flags, the product link); null if not found. */
 export async function updatePriceEntry(
   db: Db,
   userId: string,
@@ -100,7 +98,6 @@ export async function deletePriceEntry(db: Db, userId: string, entryId: string):
 
 export interface ListPriceEntriesOptions {
   productId?: string;
-  storeId?: string;
   category?: CategoryId;
   /** Inclusive lower bound on recorded_at. */
   recordedFrom?: Date;
@@ -117,8 +114,6 @@ export interface ListPriceEntriesOptions {
 
 export interface PriceEntryWithProduct extends PriceEntry {
   product: Pick<Product, 'id' | 'name' | 'brand' | 'category' | 'unitKind'>;
-  /** The store summary, or null for generic purchases / deleted stores. */
-  store: Pick<Store, 'id' | 'name'> | null;
 }
 
 export interface PriceEntriesPage {
@@ -150,7 +145,7 @@ function decodePriceEntriesCursor(cursor: string): { ms: number; id: string } {
 }
 
 /**
- * The entry + product summary + store columns that every "entry with its
+ * The entry + product summary columns that every "entry with its
  * product" read selects, already joined and user-scoped. The caller adds
  * WHERE / ORDER BY / LIMIT and maps each row with toPriceEntryWithProduct.
  */
@@ -166,8 +161,6 @@ function selectPriceEntriesWithProduct(db: Db, userId: string) {
           category: products.category,
           unitKind: products.unitKind,
         },
-        storeId: stores.id,
-        storeName: stores.name,
       })
       .from(priceEntries)
       // Defense in depth: both the FK join and products.userId are checked,
@@ -176,26 +169,15 @@ function selectPriceEntriesWithProduct(db: Db, userId: string) {
         products,
         and(eq(priceEntries.productId, products.id), eq(products.userId, userId)),
       )
-      // The store is optional (generic purchases) and user-scoped the same way.
-      .leftJoin(stores, and(eq(priceEntries.storeId, stores.id), eq(stores.userId, userId)))
   );
 }
 
-/** One row of selectPriceEntriesWithProduct, before mapping. */
-interface PriceEntryJoinRow {
+/** Fold a joined row into the PriceEntryWithProduct shape. */
+function toPriceEntryWithProduct(row: {
   entry: PriceEntry;
   product: PriceEntryWithProduct['product'];
-  storeId: string | null;
-  storeName: string | null;
-}
-
-/** Fold a joined row into the PriceEntryWithProduct shape (store null when absent). */
-function toPriceEntryWithProduct(row: PriceEntryJoinRow): PriceEntryWithProduct {
-  return {
-    ...row.entry,
-    product: row.product,
-    store: row.storeId && row.storeName ? { id: row.storeId, name: row.storeName } : null,
-  };
+}): PriceEntryWithProduct {
+  return { ...row.entry, product: row.product };
 }
 
 /**
@@ -209,9 +191,6 @@ function buildPriceEntryConditions(userId: string, options: ListPriceEntriesOpti
 
   if (options.productId) {
     conditions.push(eq(priceEntries.productId, options.productId));
-  }
-  if (options.storeId) {
-    conditions.push(eq(priceEntries.storeId, options.storeId));
   }
   if (options.category) {
     conditions.push(eq(products.category, options.category));
@@ -283,8 +262,7 @@ export async function listPriceEntries(
 /**
  * Minimal projection of ALL of the user's entries for the inflation engine:
  * monthly bucketing needs (productId, recordedAt, unitPriceMilli, isPromo),
- * the category series need `category`, the store-by-store comparison
- * `storeId`. What a package cost is deliberately not projected: the engine
+ * the category series need `category`. What a package cost is deliberately not projected: the engine
  * weighs every compared product the same, so it has no use for it. The
  * DB's Date surfaces here as epoch ms — IndexEntry.recordedAt is a number,
  * and the repository does the mapping. Ordered by recorded_at ascending.
@@ -301,8 +279,6 @@ export async function listEntriesForIndex(db: Db, userId: string): Promise<Index
       recordedAt: priceEntries.recordedAt,
       unitPriceMilli: priceEntries.unitPriceMilli,
       isPromo: priceEntries.isPromo,
-      // The engine compares each store with itself.
-      storeId: priceEntries.storeId,
     })
     .from(priceEntries)
     .innerJoin(products, and(eq(priceEntries.productId, products.id), eq(products.userId, userId)))
@@ -353,34 +329,6 @@ export async function listPriceEntryIdsBySession(
     .where(and(eq(priceEntries.userId, userId), eq(priceEntries.sessionId, sessionId)))
     .orderBy(asc(priceEntries.recordedAt));
   return rows.map((row) => row.id);
-}
-
-/**
- * Product ids the user has bought at one store since a given moment.
- *
- * Feeds the store-recency bonus of the product matcher: something you
- * bought at this very supermarket last month is a far likelier match for a
- * tag photographed here than an equally-named product you bought elsewhere.
- * Deliberately one DISTINCT query for the whole catalog — never one query
- * per candidate.
- */
-export async function listProductIdsWithEntriesAtStoreSince(
-  db: Db,
-  userId: string,
-  storeId: string,
-  since: Date,
-): Promise<string[]> {
-  const rows = await db
-    .selectDistinct({ productId: priceEntries.productId })
-    .from(priceEntries)
-    .where(
-      and(
-        eq(priceEntries.userId, userId),
-        eq(priceEntries.storeId, storeId),
-        gte(priceEntries.recordedAt, since),
-      ),
-    );
-  return rows.map((row) => row.productId);
 }
 
 export interface LatestProductEntry {
@@ -437,25 +385,6 @@ export async function listLatestEntriesPerProduct(
   }));
 }
 
-/** Number of observations per store, keyed by store id (stores with none are absent). */
-export async function countPriceEntriesByStore(
-  db: Db,
-  userId: string,
-): Promise<Map<string, number>> {
-  const rows = await db
-    .select({ storeId: priceEntries.storeId, total: count() })
-    .from(priceEntries)
-    .where(eq(priceEntries.userId, userId))
-    .groupBy(priceEntries.storeId);
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    if (row.storeId) {
-      counts.set(row.storeId, Number(row.total));
-    }
-  }
-  return counts;
-}
-
 /**
  * Number of observations per product, keyed by product id (products with
  * none are absent, so a missing key reads as zero).
@@ -476,9 +405,8 @@ export async function countPriceEntriesByProduct(
 }
 
 /**
- * Every observation of one product, newest first, with the store name —
- * the product detail screen needs the whole history for its chart, stats
- * and per-store comparison. Deliberately unpaginated: a single product
+ * Every observation of one product, newest first — the product detail
+ * screen needs the whole history for its chart and stats. Deliberately unpaginated: a single product
  * accumulates tens of entries a year, not thousands.
  */
 export async function listPriceEntriesForProduct(
@@ -496,7 +424,7 @@ export async function listPriceEntriesForProduct(
 /**
  * Insert-or-update entries by id for the backup import; foreign ids are
  * skipped by the user_id guard. Callers must have verified that every
- * reference (product, store, session) belongs to the user first —
+ * reference (product, session) belongs to the user first —
  * the FK only checks existence, not ownership.
  */
 export async function upsertPriceEntries(
@@ -514,7 +442,6 @@ export async function upsertPriceEntries(
       target: priceEntries.id,
       set: {
         productId: sql`excluded.product_id`,
-        storeId: sql`excluded.store_id`,
         sessionId: sql`excluded.session_id`,
         recordedAt: sql`excluded.recorded_at`,
         totalPriceCents: sql`excluded.total_price_cents`,

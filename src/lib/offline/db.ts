@@ -20,7 +20,6 @@ export interface PendingPhoto {
    *  and names the Blob path — the idempotency key of the whole pipeline. */
   id: string;
   sessionId: string;
-  storeId?: string;
   /** Compressed image from compressPhoto(): image/webp, or image/jpeg on Safari < 17. */
   blob: Blob;
   status: PendingPhotoStatus;

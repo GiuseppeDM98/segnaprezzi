@@ -16,7 +16,6 @@ const BLOB_URL = 'https://store.public.blob.vercel-storage.com/users/u/photos/p.
 function input(overrides: Record<string, unknown> = {}) {
   return {
     sessionId: 'sess0000000000000000A',
-    storeId: null,
     entries: [
       {
         id: 'photo000000000000001A',

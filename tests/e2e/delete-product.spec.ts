@@ -16,7 +16,7 @@ import { deleteProductsByName } from './helpers/db';
  * Runs as the second seed user, whose catalog no other spec asserts on — with
  * spy words of its own ("vombato", "axolotl"), disjoint from every other
  * suite's, so no product this suite creates can be captured by another
- * suite's fuzzy match (AGENTS.md §4.60).
+ * suite's fuzzy match (docs/guide/e2e.md §4.60).
  */
 
 test.use({ storageState: 'playwright/.auth/dev2.json' });

@@ -2,7 +2,7 @@
 
 /**
  * Every observation of the product, newest first as the service orders
- * them, one tappable row each: date, promo badge, source and store, the
+ * them, one tappable row each: date, promo badge, source, the
  * price paid and the unit price. Tapping a row hands the entry to the
  * screen, which opens it in the shared entry sheet.
  */
@@ -60,8 +60,7 @@ export function PriceHistoryList({
                   </span>
                   <span className="flex items-center gap-1.5 font-sans text-[12px] text-text-muted">
                     <SourceIcon aria-hidden="true" className="size-3.5" />
-                    <span className="sr-only">{t(`source.${entry.source}`)}</span>
-                    <span className="truncate">{entry.store?.name ?? t('noStore')}</span>
+                    <span className="truncate">{t(`source.${entry.source}`)}</span>
                   </span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end font-mono tabular-nums">

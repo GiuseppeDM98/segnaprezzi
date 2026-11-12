@@ -29,7 +29,6 @@ export function buildEntry(overrides: Partial<IndexEntry> = {}): IndexEntry {
     recordedAt: atTenUtc('2026-03-07'),
     unitPriceMilli: 2380,
     isPromo: false,
-    storeId: null,
     ...overrides,
   };
 }
@@ -47,7 +46,6 @@ export function buildProduct(overrides: Partial<IndexProduct> = {}): IndexProduc
 /**
  * The worked example used across the engine's tests, verbatim: three products, four months,
  * thirteen entries. Its numbers are the acceptance contract of the engine.
- * Package prices are left out on purpose: the engine never reads them.
  * Package prices are left out on purpose: the engine never reads them.
  */
 export function buildWorkedExample(): { entries: IndexEntry[]; products: IndexProduct[] } {

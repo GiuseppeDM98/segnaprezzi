@@ -30,13 +30,12 @@ import { HistoryTimeline } from './history-timeline';
 
 export interface HistoryScreenProps {
   firstPage: HistoryPage;
-  stores: Array<{ id: string; name: string }>;
 }
 
 /** The request whose failure is on screen, so the retry button repeats that one. */
 type FailedRequest = 'first-page' | 'next-page' | null;
 
-export function HistoryScreen({ firstPage, stores }: HistoryScreenProps) {
+export function HistoryScreen({ firstPage }: HistoryScreenProps) {
   const t = useTranslations('history');
   const tDetail = useTranslations('productDetail');
   const tErrors = useTranslations('errors');
@@ -143,15 +142,7 @@ export function HistoryScreen({ firstPage, stores }: HistoryScreenProps) {
     toast({ kind: 'success', message: tDetail('entry.saved') });
     router.refresh();
     setEntries((current) =>
-      current.map((entry) =>
-        entry.id === entryId
-          ? {
-              ...entry,
-              ...input,
-              store: stores.find((store) => store.id === input.storeId) ?? null,
-            }
-          : entry,
-      ),
+      current.map((entry) => (entry.id === entryId ? { ...entry, ...input } : entry)),
     );
     return true;
   }
@@ -177,7 +168,7 @@ export function HistoryScreen({ firstPage, stores }: HistoryScreenProps) {
         <h1 className="font-mono font-semibold text-[12px] text-text-muted uppercase tracking-[0.12em]">
           {t('title')}
         </h1>
-        <HistoryFilterBar filters={filters} onFiltersChange={setFilters} stores={stores} />
+        <HistoryFilterBar filters={filters} onFiltersChange={setFilters} />
       </header>
 
       {failedRequest ? (
@@ -196,7 +187,6 @@ export function HistoryScreen({ firstPage, stores }: HistoryScreenProps) {
       <EntrySheet
         entry={activeEntry}
         onClose={() => setActiveEntry(null)}
-        stores={stores}
         onSave={handleSaveEntry}
         onDelete={handleDeleteEntry}
       />

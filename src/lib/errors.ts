@@ -23,10 +23,8 @@ export type DomainErrorCode =
   | 'INVALID_DATE'
   | 'INVALID_PRICE'
   | 'INVALID_SIZE'
-  | 'INVALID_STORE_KIND'
   | 'INCONSISTENT_FUEL_PRICES'
   | 'SESSION_NOT_FOUND'
-  | 'STORE_NOT_FOUND'
   | 'PRODUCT_NOT_FOUND'
   | 'SESSION_CLOSED'
   | 'PHOTO_TOO_LARGE'
@@ -98,24 +96,10 @@ export class SessionClosedError extends DomainError {
   }
 }
 
-/** The referenced store does not exist for this user. */
-export class StoreNotFoundError extends DomainError {
-  constructor(storeId: string) {
-    super('STORE_NOT_FOUND', `Store ${storeId} not found`);
-  }
-}
-
 /** The referenced product does not exist for this user. */
 export class ProductNotFoundError extends DomainError {
   constructor(productId: string) {
     super('PRODUCT_NOT_FOUND', `Product ${productId} not found`);
-  }
-}
-
-/** A fuel entry was attached to a store that is not a fuel station. */
-export class InvalidStoreKindError extends DomainError {
-  constructor(message: string) {
-    super('INVALID_STORE_KIND', message);
   }
 }
 

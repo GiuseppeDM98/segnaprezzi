@@ -2,9 +2,9 @@
 
 /**
  * The manual entry form's field state: the product search and choice, the
- * local catalog, the price fields, promo, store and date — and the moves the
+ * local catalog, the price fields, promo and date — and the moves the
  * form makes between them (picking a product resets the size unit, a reset
- * after save keeps the store and date).
+ * after save keeps the date).
  *
  * Design: state only. The numbers derived from it come from
  * manual-entry-derivations.ts, and the save itself — the Server Action call,
@@ -70,27 +70,24 @@ export interface ManualEntryFormState {
   promoKind: PromoKind | null;
   setPromoKind: (kind: PromoKind) => void;
 
-  storeId: string | null;
-  setStoreId: (storeId: string | null) => void;
   /** The date-time input's value (local time, `YYYY-MM-DDTHH:mm`). */
   recordedAtLocal: string;
   setRecordedAtLocal: (value: string) => void;
 
-  /** Clear the entry for the next one; keeps the store and the date. */
+  /** Clear the entry for the next one; keeps the date. */
   resetEntry: () => void;
 }
 
 /**
  * Hold the manual entry form's fields.
  *
- * @param context the catalog, stores and default store the page loaded; read
+ * @param context the catalog the page loaded; read
  *   on the first render only.
  */
 export function useManualEntryForm(context: ManualEntryContext): ManualEntryFormState {
   const [query, setQuery] = useState('');
   const [products, setProducts] = useState<ProductSummary[]>(context.products);
   const [choice, setChoice] = useState<ProductChoice>(null);
-  const [storeId, setStoreId] = useState<string | null>(context.defaultStoreId);
   const [recordedAtLocal, setRecordedAtLocal] = useState(() =>
     formatDateTimeLocalValue(Date.now()),
   );
@@ -192,8 +189,6 @@ export function useManualEntryForm(context: ManualEntryContext): ManualEntryForm
     setIsPromo,
     promoKind,
     setPromoKind,
-    storeId,
-    setStoreId,
     recordedAtLocal,
     setRecordedAtLocal,
     resetEntry,

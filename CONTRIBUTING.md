@@ -71,7 +71,7 @@ Then:
 
 ```bash
 pnpm db:migrate    # apply Drizzle migrations to local.db
-pnpm db:seed       # optional: demo stores/products/price entries so the dashboard isn't empty
+pnpm db:seed       # optional: demo products/price entries so the dashboard isn't empty
 pnpm dev           # http://localhost:3000
 ```
 

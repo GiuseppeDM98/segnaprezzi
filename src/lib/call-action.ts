@@ -23,7 +23,7 @@ import type { ActionError, ActionResult } from '@/lib/errors';
  * logged with the operation name, because nothing else will record it.
  *
  * @param operation - Name of the action being called, for the log line
- * @param call - The pending action call, e.g. `createStore(input)`
+ * @param call - The pending action call, e.g. `createProduct(input)`
  * @returns The action's own result, or `{ ok: false }` with code INTERNAL
  */
 export async function callAction<T>(
@@ -41,7 +41,7 @@ export async function callAction<T>(
 /**
  * The message to show for a failed action.
  *
- * Why two sources: a known code says why the action failed ("store not
+ * Why two sources: a known code says why the action failed ("product not
  * found"), which is more useful than the screen's generic sentence; INTERNAL
  * carries no cause the user can act on, so the screen's own message — which
  * at least says what did not happen ("not saved") — reads better.

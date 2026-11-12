@@ -27,7 +27,7 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 2. **Extract.** Claude Opus 5.5 reads each photo and pulls out the product, brand, category, total price, and unit price (€/kg, €/L, €/piece), normalized to comparable base units. You review every extraction before anything is saved — the AI proposes, you confirm.
 3. **Track.** The app buckets your entries by month, chains matched products into a personal CPI (base month = 100), and shows headline numbers ("your inflation: +4.2% YoY"), category breakdowns, per-product price histories, and a comparison against the official ISTAT index.
 
-**What the index measures:** how the prices of what you buy move, not where you shop. Each store is compared with itself, so buying the same bananas at a dearer supermarket this month is not inflation, and moving to a cheaper one for good is not deflation. What you paid at each store stays visible in the product's history.
+**What the index measures:** what you pay for the things you keep buying, wherever you buy them. A product has one price a month, the average of every price you recorded for it that month, and the app does not record where a price was seen. Buying the same bananas at a dearer supermarket this month reads as a rise, and going back to the cheaper one gives it back: where you shop adds noise to a single month, never drift to the index. Moving to a dearer shop for good is part of your inflation.
 
 **Every product is one vote.** The index does not weigh categories by what you spend: a fill-up and a packet of pasta move it by the same amount for the same percentage change, and a tag you scan without buying inflates nothing. The app tracks prices, never your spending. If a tag shows a size you did not buy, for example loose bananas by weight, change the total and the size together in review: changing only the total changes the unit price.
 
@@ -38,11 +38,11 @@ Your inflation is what **you** pay for what **you** buy. *Segnaprezzi* is the It
 - [x] **Tag scanning** — photograph shelf price tags; Claude Opus 5.5 extracts product, total price, and unit price with a review-before-save flow
 - [x] **Fuel & manual quick entry** — a fuel form (benzina, diesel, GPL, metano) where any two of unit price, quantity and total fill in the third, and a manual form for everything without a tag
 - [x] **Personal CPI** — chained monthly index with category breakdown, every compared product weighing the same, and a one-tap ISTAT comparison rebased to your own starting month, on a dashboard that leads with your year-over-year number and its coverage line
-- [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, where each product is cheapest across your stores, duplicate-product merging, and deleting a product with its observations when you want it gone for good
-- [x] **History & stores** — every observation day by day with shopping trips grouped under their total, filters by category/store/promo/source, and store management
+- [x] **Product price histories** — per-product charts with promo markers, min/max/average/latest, duplicate-product merging, and deleting a product with its observations when you want it gone for good
+- [x] **History** — every observation day by day with shopping trips grouped together, and filters by category/promo/source
 - [x] **Promo tracking** — flag discounts, loyalty prices, coupons, and bundles; choose whether promos count toward your index
 - [x] **Offline-first PWA** — installable on your phone, captures photos with zero connectivity, drains the queue by itself when the signal returns, and shows a localized offline page instead of a browser error
-- [x] **Accounts & private data** — email + password sign-up/login; every price, product, and store is scoped to your account alone
+- [x] **Accounts & private data** — email + password sign-up/login; every price and product is scoped to your account alone
 - [x] **Italian + English** — full i18n from day one
 - [x] **Dark / light theme**
 - [x] **Data export** — your complete data as JSON, always

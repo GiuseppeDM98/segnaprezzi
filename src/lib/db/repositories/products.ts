@@ -255,8 +255,8 @@ export async function listProductsForIndex(db: Db, userId: string): Promise<Inde
 }
 
 /**
- * Insert-or-update products by id for the backup import; same ownership
- * guard as upsertStores — foreign ids are skipped.
+ * Insert-or-update products by id for the backup import; foreign ids are
+ * skipped by the user_id guard.
  */
 export async function upsertProducts(
   db: Db | DbTransaction,

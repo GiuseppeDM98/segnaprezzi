@@ -7,8 +7,7 @@ import { listPriceEntries, type PriceEntryWithProduct } from '@/lib/db/repositor
 import { listProducts } from '@/lib/db/repositories/products';
 import { getUserSettings } from '@/lib/db/repositories/settings';
 import { listAllShoppingSessions } from '@/lib/db/repositories/shopping-sessions';
-import { listStores } from '@/lib/db/repositories/stores';
-import type { Product, ShoppingSession, Store } from '@/lib/db/schema/app';
+import type { Product, ShoppingSession } from '@/lib/db/schema/app';
 import type { IndexSettings } from '@/lib/inflation';
 import { toIndexSettings } from './settings';
 
@@ -17,21 +16,14 @@ import { toIndexSettings } from './settings';
  * change. Version 2 added `quantity` on every entry together with the
  * receipt import's tables; version 3 is version 2 without that import
  * (`receipts`, `productAliases`, `receiptId`, `defaultPackageSize` are gone,
- * `quantity` stays). The import accepts every published version.
+ * `quantity` stays); version 4 is version 3 without stores (the `stores`
+ * array and every `storeId` are gone, 2026-11-12). The import accepts every
+ * published version.
  */
 export interface ExportPayload {
-  schemaVersion: 3;
+  schemaVersion: 4;
   exportedAt: string;
   settings: IndexSettings;
-  stores: Array<{
-    id: string;
-    name: string;
-    chain: string | null;
-    city: string | null;
-    kind: string;
-    createdAt: string;
-    updatedAt: string;
-  }>;
   products: Array<{
     id: string;
     name: string;
@@ -45,7 +37,6 @@ export interface ExportPayload {
   }>;
   shoppingSessions: Array<{
     id: string;
-    storeId: string | null;
     status: string;
     startedAt: string;
     completedAt: string | null;
@@ -55,7 +46,6 @@ export interface ExportPayload {
   entries: Array<{
     id: string;
     productId: string;
-    storeId: string | null;
     sessionId: string | null;
     recordedAt: string;
     totalPriceCents: number;
@@ -82,19 +72,17 @@ export interface ExportPayload {
  * listAllShoppingSessions rather than a default page size.
  */
 export async function exportUserData(db: Db, userId: string): Promise<ExportPayload> {
-  const [settings, stores, products, shoppingSessions, entries] = await Promise.all([
+  const [settings, products, shoppingSessions, entries] = await Promise.all([
     getUserSettings(db, userId),
-    listStores(db, userId),
     listProducts(db, userId, { includeArchived: true }),
     listAllShoppingSessions(db, userId),
     listAllPriceEntries(db, userId),
   ]);
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     exportedAt: new Date().toISOString(),
     settings: toIndexSettings(settings),
-    stores: stores.map(toExportStore),
     products: products.map(toExportProduct),
     shoppingSessions: shoppingSessions.map(toExportShoppingSession),
     entries: entries.map(toExportEntry),
@@ -117,18 +105,6 @@ async function listAllPriceEntries(db: Db, userId: string): Promise<PriceEntryWi
 // fields explicitly rather than spreading the row, so a column added to the
 // schema reaches the backup only by a deliberate change to ExportPayload.
 
-function toExportStore(store: Store): ExportPayload['stores'][number] {
-  return {
-    id: store.id,
-    name: store.name,
-    chain: store.chain,
-    city: store.city,
-    kind: store.kind,
-    createdAt: store.createdAt.toISOString(),
-    updatedAt: store.updatedAt.toISOString(),
-  };
-}
-
 function toExportProduct(product: Product): ExportPayload['products'][number] {
   return {
     id: product.id,
@@ -148,7 +124,6 @@ function toExportShoppingSession(
 ): ExportPayload['shoppingSessions'][number] {
   return {
     id: session.id,
-    storeId: session.storeId,
     status: session.status,
     startedAt: session.startedAt.toISOString(),
     completedAt: session.completedAt?.toISOString() ?? null,
@@ -161,7 +136,6 @@ function toExportEntry(entry: PriceEntryWithProduct): ExportPayload['entries'][n
   return {
     id: entry.id,
     productId: entry.productId,
-    storeId: entry.storeId,
     sessionId: entry.sessionId,
     recordedAt: entry.recordedAt.toISOString(),
     totalPriceCents: entry.totalPriceCents,

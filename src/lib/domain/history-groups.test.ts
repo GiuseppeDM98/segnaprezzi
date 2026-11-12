@@ -18,8 +18,6 @@ function entry(
     id,
     recordedAt,
     sessionId: null,
-
-    store: null,
     ...overrides,
   };
 }
@@ -51,11 +49,10 @@ describe('groupEntriesByDay', () => {
 
   test('should fold consecutive entries of one session into a block with their total', () => {
     // Arrange
-    const store = { name: 'Esselunga' };
     const entries = [
-      entry('a', NOW + 3_000, { sessionId: 's1', store }),
-      entry('b', NOW + 2_000, { sessionId: 's1', store }),
-      entry('c', NOW + 1_000, { sessionId: 's1', store }),
+      entry('a', NOW + 3_000, { sessionId: 's1' }),
+      entry('b', NOW + 2_000, { sessionId: 's1' }),
+      entry('c', NOW + 1_000, { sessionId: 's1' }),
     ];
 
     // Act
@@ -66,7 +63,6 @@ describe('groupEntriesByDay', () => {
     expect(day.blocks[0]).toMatchObject({
       kind: 'session',
       sessionId: 's1',
-      storeName: 'Esselunga',
       startedAt: NOW + 1_000,
     });
     expect(day.blocks[0].entries.map((item) => item.id)).toEqual(['a', 'b', 'c']);

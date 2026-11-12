@@ -3,7 +3,7 @@
 /**
  * Manual entry Server Action.
  *
- * Online-only in v1: the form needs product and store lookups, so unlike the
+ * Online-only in v1: the form needs product lookups, so unlike the
  * photo path it does not queue offline. No idempotency key is needed either —
  * the form is single-shot and the UI disables submit while it is pending.
  */
@@ -15,7 +15,6 @@ import { db } from '@/lib/db/client';
 import { PROMO_KINDS } from '@/lib/domain/entries';
 import {
   epochMsSchema,
-  nanoidSchema,
   packageSizeSchema,
   productPickSchema,
   totalPriceCentsSchema,
@@ -27,7 +26,6 @@ import { createPriceEntry } from '@/lib/services/create-price-entry';
 const createManualEntrySchema = z
   .object({
     product: productPickSchema,
-    storeId: nanoidSchema.nullable(),
     recordedAt: epochMsSchema,
     totalPriceCents: totalPriceCentsSchema,
     packageSize: packageSizeSchema,

@@ -37,7 +37,7 @@ public disclosure.
 Things that are useful to know before reporting:
 
 - **Per-user privacy is a core invariant.** Every query is scoped by `user_id`;
-  any way for one authenticated user to read or write another user's stores,
+  any way for one authenticated user to read or write another user's
   products, price entries, or photos is a vulnerability — report it.
 - **Server-side secrets stay server-side.** The Claude API key
   (`ANTHROPIC_API_KEY`) and the session secret (`BETTER_AUTH_SECRET`) must

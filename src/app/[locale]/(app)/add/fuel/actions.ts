@@ -9,7 +9,7 @@ import { fieldErrorResult, revalidateAppLayout } from '@/lib/action-results';
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
 import { FUEL_QUICK_PICKS, type FuelQuickPickKey } from '@/lib/domain/fuel-products';
-import { epochMsSchema, nanoidSchema } from '@/lib/domain/schemas';
+import { epochMsSchema } from '@/lib/domain/schemas';
 import { type ActionResult, toLoggedActionError } from '@/lib/errors';
 import { createFuelEntry as createFuelEntryService } from '@/lib/services/create-price-entry';
 
@@ -22,8 +22,6 @@ const FUEL_KEYS = FUEL_QUICK_PICKS.map((pick) => pick.key) as [
 
 const createFuelEntrySchema = z.object({
   fuel: z.enum(FUEL_KEYS),
-  /** Store of kind 'fuel_station'; optional but encouraged. */
-  storeId: nanoidSchema.nullable(),
   recordedAt: epochMsSchema,
   unitPriceMilli: z.number().int().min(1).max(10_000), // ≤ €10 per base unit
   /** Litres, or kilograms for methane. → package_size */

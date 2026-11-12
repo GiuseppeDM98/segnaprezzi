@@ -5,7 +5,7 @@ tabella. La risposta è una riga: «dipendenze: invariate dal <data>» oppure «
 nuovo entra qui con la sua decisione; nessun aggiornamento nella stessa sessione. Un aggiornamento è una
 sessione a sé, sul suo branch, con versione scelta a mano e almeno qualche giorno di età.
 
-**Ultimo audit: 2026-11-03** · gestore pnpm 11.22 · Node 22.14 · next 16.4.2 · react 19.2.8
+**Ultimo audit: 2026-11-12** · gestore pnpm 11.22 · Node 22.14 · next 16.4.2 · react 19.2.8
 
 `pnpm audit` del 2026-10-26 contava 24 avvisi (1 critico, 11 alti, 10 moderati, 2 bassi). Il
 proprietario ha scelto di aggiornare nella stessa sessione (2026-10-27, in deroga alla regola qui

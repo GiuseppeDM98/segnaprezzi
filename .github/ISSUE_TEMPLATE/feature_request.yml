@@ -19,7 +19,7 @@ body:
     attributes:
       label: Problem
       description: What problem does this solve? Describe the situation, not the solution — "as a user tracking fuel prices, I can't…".
-      placeholder: When I buy the same product at two different stores in the same month, I can't see which store is cheaper over time.
+      placeholder: When a product I track changes its package size, I can't see that the two sizes are the same product.
     validations:
       required: true
 
@@ -28,7 +28,7 @@ body:
     attributes:
       label: Proposed solution
       description: How would you solve it? Concrete details welcome — affected routes, screens, data — but a rough sketch is fine too.
-      placeholder: Add a per-store breakdown to the product detail page (/products/[id]), one line per store on the price history chart.
+      placeholder: Show the package size of every observation on the product detail page (/products/[id]), and mark the month it changed on the price history chart.
     validations:
       required: true
 

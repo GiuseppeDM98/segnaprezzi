@@ -100,14 +100,13 @@ export async function deleteProductsByName(email: string, names: string[]): Prom
 export interface PriceObservation {
   product: string;
   category: string;
-  store: string;
   /** 'YYYY-MM'; the entry lands in the middle of that month. */
   ym: string;
   milli: number;
 }
 
 /**
- * Give a throwaway user a price history directly, products and stores included.
+ * Give a throwaway user a price history directly, products included.
  *
  * Why the database and not the forms: a dated history across months is the
  * arrangement of a dashboard test, not its subject, and the forms always record
@@ -128,25 +127,18 @@ export async function insertPriceObservations(
     const userId = String(users.rows[0].id);
     for (const [index, observation] of observations.entries()) {
       const productId = idOf('p', observation.product);
-      const storeId = idOf('s', observation.store);
       await client.execute({
         sql: `INSERT OR IGNORE INTO products (id, user_id, name, category, unit_kind, is_archived, created_at, updated_at)
               VALUES (?, ?, ?, ?, 'weight', 0, ?, ?)`,
         args: [productId, userId, observation.product, observation.category, now, now],
       });
       await client.execute({
-        sql: `INSERT OR IGNORE INTO stores (id, user_id, name, kind, created_at, updated_at)
-              VALUES (?, ?, ?, 'supermarket', ?, ?)`,
-        args: [storeId, userId, observation.store, now, now],
-      });
-      await client.execute({
-        sql: `INSERT INTO price_entries (id, user_id, product_id, store_id, recorded_at, total_price_cents, quantity, package_size, unit_price_milli, is_promo, source, currency, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, 0, 'manual', 'EUR', ?, ?)`,
+        sql: `INSERT INTO price_entries (id, user_id, product_id, recorded_at, total_price_cents, quantity, package_size, unit_price_milli, is_promo, source, currency, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, 1, 1, ?, 0, 'manual', 'EUR', ?, ?)`,
         args: [
           idOf('e', `${index}${observation.product}`),
           userId,
           productId,
-          storeId,
           Date.parse(`${observation.ym}-15T10:00:00Z`),
           Math.round(observation.milli / 10),
           observation.milli,

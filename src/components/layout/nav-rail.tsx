@@ -37,7 +37,7 @@ export function NavRail() {
       href: '/settings',
       label: t('settings'),
       icon: Settings2,
-      isActive: pathname.startsWith('/settings') || pathname.startsWith('/stores'),
+      isActive: pathname.startsWith('/settings'),
     },
   ] as const;
 

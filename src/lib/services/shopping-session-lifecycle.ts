@@ -19,9 +19,8 @@ import {
   isShoppingSessionIdTaken,
   updateShoppingSession,
 } from '@/lib/db/repositories/shopping-sessions';
-import { getStoreById } from '@/lib/db/repositories/stores';
 import type { ShoppingSession } from '@/lib/db/schema/app';
-import { SessionClosedError, SessionNotFoundError, StoreNotFoundError } from '@/lib/errors';
+import { SessionClosedError, SessionNotFoundError } from '@/lib/errors';
 
 /** Sessions in these statuses are terminal: nothing may be added to them. */
 const CLOSED_STATUSES = new Set(['completed', 'discarded']);
@@ -33,17 +32,14 @@ const CLOSED_STATUSES = new Set(['completed', 'discarded']);
  * @param db - Database or transaction; the confirm flow calls this inside its transaction
  * @param userId - Always from the server session, never from client input
  * @param sessionId - Client-generated nanoid(21)
- * @param storeId - Store chosen in the capture header, if any
  * @returns The open session row
  * @throws SessionNotFoundError when the id belongs to another user
  * @throws SessionClosedError when the session is completed or discarded
- * @throws StoreNotFoundError when storeId does not belong to the user
  */
 export async function getOrCreateShoppingSession(
   db: Db | DbTransaction,
   userId: string,
   sessionId: string,
-  storeId: string | null = null,
 ): Promise<ShoppingSession> {
   const existing = await getShoppingSessionById(db, userId, sessionId);
 
@@ -60,14 +56,7 @@ export async function getOrCreateShoppingSession(
     throw new SessionNotFoundError(sessionId);
   }
 
-  if (storeId) {
-    const store = await getStoreById(db, userId, storeId);
-    if (!store) {
-      throw new StoreNotFoundError(storeId);
-    }
-  }
-
-  const created = await createShoppingSession(db, userId, { id: sessionId, storeId });
+  const created = await createShoppingSession(db, userId, { id: sessionId });
   // Starting a new spesa abandons any unfinished one: two open sessions would
   // make the tray and the resume banner disagree about which spesa is "the"
   // current one, and photos would silently split across both.

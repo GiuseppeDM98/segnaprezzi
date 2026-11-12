@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { requireUser } from '@/lib/auth/session';
 import { db } from '@/lib/db/client';
-import { listHistoryPage, listHistoryStoreOptions } from '@/lib/services/history';
+import { listHistoryPage } from '@/lib/services/history';
 import { HistoryScreen } from './history-screen';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -18,10 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function HistoryPage() {
   const user = await requireUser();
-  const [firstPage, stores] = await Promise.all([
-    listHistoryPage(db, user.id),
-    listHistoryStoreOptions(db, user.id),
-  ]);
+  const firstPage = await listHistoryPage(db, user.id);
 
-  return <HistoryScreen firstPage={firstPage} stores={stores} />;
+  return <HistoryScreen firstPage={firstPage} />;
 }

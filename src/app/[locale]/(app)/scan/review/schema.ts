@@ -49,8 +49,6 @@ const confirmEntrySchema = z
 
 export const confirmShoppingSessionSchema = z.object({
   sessionId: nanoidSchema,
-  /** One store per session (v1): applied to the session and every entry. */
-  storeId: nanoidSchema.nullable(),
   entries: z.array(confirmEntrySchema).min(1).max(100),
 });
 

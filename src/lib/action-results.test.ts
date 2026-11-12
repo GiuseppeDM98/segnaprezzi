@@ -17,7 +17,7 @@ function zodErrorOf(schema: z.ZodType, input: unknown): z.ZodError {
 describe('invalidInputResult', () => {
   test('should report INVALID_INPUT with the Zod message', () => {
     // Arrange
-    const error = zodErrorOf(z.object({ storeId: z.string() }), {});
+    const error = zodErrorOf(z.object({ productId: z.string() }), {});
 
     // Act
     const result = invalidInputResult(error);

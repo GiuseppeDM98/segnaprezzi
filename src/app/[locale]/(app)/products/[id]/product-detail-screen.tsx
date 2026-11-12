@@ -4,8 +4,7 @@
  * Client half of the product detail. The screen owns the state (chart
  * range, which sheet is open, the edit draft, the pending flags) and every
  * product and entry action; the parts it renders live beside it: the chart
- * and stat tiles (price-overview), the per-store comparison
- * (store-comparison-section), the entries list (price-history-list), the
+ * and stat tiles (price-overview), the entries list (price-history-list), the
  * overflow menu (product-menu-sheet) and the edit form (edit-product-sheet).
  * The delete
  * confirmation and the entry sheet are shared components.
@@ -35,14 +34,12 @@ import { EditProductSheet, type ProductDraft } from './edit-product-sheet';
 import { PriceHistoryList } from './price-history-list';
 import { PriceOverview } from './price-overview';
 import { ProductMenuSheet } from './product-menu-sheet';
-import { StoreComparisonSection } from './store-comparison-section';
 
 export interface ProductDetailScreenProps {
   detail: ProductDetail;
-  stores: Array<{ id: string; name: string }>;
 }
 
-export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps) {
+export function ProductDetailScreen({ detail }: ProductDetailScreenProps) {
   const t = useTranslations('productDetail');
   const tCommon = useTranslations('common');
   const tProducts = useTranslations('products');
@@ -65,7 +62,7 @@ export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps
   const [isSaving, setIsSaving] = useState(false);
   const [activeEntry, setActiveEntry] = useState<EntrySheetEntry | null>(null);
 
-  const { product, stats, storeComparison, entries } = detail;
+  const { product, stats, entries } = detail;
 
   async function handleArchiveToggle(): Promise<void> {
     setIsMenuOpen(false);
@@ -190,7 +187,6 @@ export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps
               range={range}
               onRangeChange={setRange}
             />
-            <StoreComparisonSection rows={storeComparison} unitKind={product.unitKind} />
             <PriceHistoryList
               entries={entries}
               unitKind={product.unitKind}
@@ -236,7 +232,6 @@ export function ProductDetailScreen({ detail, stores }: ProductDetailScreenProps
       <EntrySheet
         entry={activeEntry}
         onClose={() => setActiveEntry(null)}
-        stores={stores}
         onSave={handleSaveEntry}
         onDelete={handleDeleteEntry}
       />

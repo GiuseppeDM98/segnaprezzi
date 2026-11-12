@@ -2,12 +2,11 @@
 
 /**
  * The Settings section for the user's data and the app on this device:
- * the install row, export to a JSON file, import from one, and the link to
- * the stores screen. It owns the hidden file input the import button
- * opens; the export and import themselves, and their pending flags, are
+ * the install row, export to a JSON file and import from one. It owns the
+ * hidden file input the import button opens; the export and import themselves, and their pending flags, are
  * the screen's.
  */
-import { Download, Store as StoreIcon, Upload } from 'lucide-react';
+import { Download, Upload } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { type ChangeEvent, type ReactNode, useRef } from 'react';
 
@@ -76,15 +75,6 @@ export function DataSection({
               data-testid="import-file-input"
             />
           </>
-        }
-      />
-      <DataRow
-        title={t('data.stores')}
-        body={t('data.storesHelp')}
-        action={
-          <Button href="/stores" variant="secondary" icon={<StoreIcon className="size-4" />}>
-            {t('data.stores')}
-          </Button>
         }
       />
     </section>

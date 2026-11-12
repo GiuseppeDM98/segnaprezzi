@@ -23,9 +23,7 @@ import {
   bucketEntries,
   buildMonthGrid,
   computeObservedMeans,
-  computeObservedStoreMeans,
   imputeCarryForward,
-  imputeStoreCarryForward,
 } from './bucketing';
 import { computeCoverage, emptyCoverage } from './coverage';
 import { computeMovers } from './movers';
@@ -121,22 +119,13 @@ export function computePersonalCpi(input: {
     return { series: [], headline: null, categories: [], coverage: emptyCoverage(), movers: [] };
   }
 
-  // Guide: bucket entries per product per Rome month, across stores and store
-  // by store, then impute gaps up to carryForwardMonths.
+  // Guide: bucket entries per product per Rome month, then impute gaps up to
+  // carryForwardMonths.
   const bucketedEntries = bucketEntries(entries);
   const monthKeys = bucketedEntries.map((entry) => entry.ym).sort();
   const monthGrid = buildMonthGrid(monthKeys[0], monthKeys[monthKeys.length - 1]);
   const observedMeans = computeObservedMeans(bucketedEntries, settings.includePromosInIndex);
-  const observedStoreMeans = computeObservedStoreMeans(
-    bucketedEntries,
-    settings.includePromosInIndex,
-  );
   const priceTable = imputeCarryForward(observedMeans, monthGrid, settings.carryForwardMonths);
-  const storePriceTable = imputeStoreCarryForward(
-    observedStoreMeans,
-    monthGrid,
-    settings.carryForwardMonths,
-  );
   const categoryByProduct = new Map(entries.map((entry) => [entry.productId, entry.category]));
 
   // Guide: one link per consecutive month pair — matched relatives, Jevons
@@ -151,7 +140,6 @@ export function computePersonalCpi(input: {
   for (let position = 1; position < monthGrid.length; position += 1) {
     const link = computeMonthLink(
       priceTable,
-      storePriceTable,
       categoryByProduct,
       monthGrid[position - 1],
       monthGrid[position],
@@ -201,17 +189,20 @@ export function computePersonalCpi(input: {
       monthsWithoutOverlap,
       outliersClamped,
     }),
-    movers: computeMovers(observedStoreMeans, products),
+    movers: computeMovers(observedMeans, products),
   };
 }
 
-/** Note the link's month under every category with a new price actually compared in it. */
+/**
+ * Note the link's month under every category with a new price actually
+ * compared in it: a carried-forward price is not one.
+ */
 function recordComparedCategories(
   link: MonthLink,
   comparedMonthsByCategory: Map<CategoryId, string[]>,
 ): void {
   const comparedCategories = new Set(
-    link.relatives.filter((relative) => relative.isPriceCompared).map(({ category }) => category),
+    link.relatives.filter((relative) => !relative.isToImputed).map(({ category }) => category),
   );
   for (const category of comparedCategories) {
     comparedMonthsByCategory.set(category, [

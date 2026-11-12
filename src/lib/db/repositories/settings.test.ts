@@ -2,13 +2,7 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { Db } from '@/lib/db/client';
-import {
-  priceEntries,
-  products,
-  shoppingSessions,
-  stores,
-  userSettings,
-} from '@/lib/db/schema/app';
+import { priceEntries, products, shoppingSessions, userSettings } from '@/lib/db/schema/app';
 import { users } from '@/lib/db/schema/auth';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { getUserSettings, updateUserSettings } from './settings';
@@ -44,22 +38,14 @@ describe('settings repository', () => {
 
   it('should cascade-delete all user data when the user row is deleted', async () => {
     await getUserSettings(db, userId);
-    const [store] = await db
-      .insert(stores)
-      .values({ userId, name: 'Esselunga', kind: 'supermarket' })
-      .returning();
     const [product] = await db
       .insert(products)
       .values({ userId, name: 'Pasta', category: 'food', unitKind: 'weight' })
       .returning();
-    const [session] = await db
-      .insert(shoppingSessions)
-      .values({ userId, storeId: store.id })
-      .returning();
+    const [session] = await db.insert(shoppingSessions).values({ userId }).returning();
     await db.insert(priceEntries).values({
       userId,
       productId: product.id,
-      storeId: store.id,
       sessionId: session.id,
       recordedAt: new Date(),
       totalPriceCents: 129,
@@ -73,7 +59,6 @@ describe('settings repository', () => {
     expect(
       (await db.select().from(userSettings).where(eq(userSettings.userId, userId))).length,
     ).toBe(0);
-    expect((await db.select().from(stores).where(eq(stores.userId, userId))).length).toBe(0);
     expect((await db.select().from(products).where(eq(products.userId, userId))).length).toBe(0);
     expect(
       (await db.select().from(shoppingSessions).where(eq(shoppingSessions.userId, userId))).length,

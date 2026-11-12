@@ -5,97 +5,53 @@
  * Why observed means only: imputed values would fabricate flat segments — a
  * carried-forward price is not evidence that the price held.
  *
- * Why the same stores on both sides: "what moved" must not list bananas at +20%
- * because they were bought at a dearer store this time. It also keeps the list
- * in step with the index, which compares each store with itself.
+ * The means are the index's own: one price per product per month, wherever it
+ * was seen, so the list moves in step with the headline.
  */
-import { addMonthsToYm, NO_STORE_KEY } from './bucketing';
-import type { IndexProduct, ObservedMeans, ObservedStoreMeans, ProductMover } from './types';
+import { addMonthsToYm } from './bucketing';
+import type { IndexProduct, ObservedMeans, ProductMover } from './types';
 
 /** How far back from a product's latest observation the comparison may reach. */
 export const MOVERS_WINDOW_MONTHS = 12;
 /** Risers and fallers are each capped at this many. */
 export const MOVERS_PER_DIRECTION = 5;
 
-/** Where a product's change is measured: two months and the stores seen in both. */
-interface StoreComparison {
-  fromYm: string;
-  toYm: string;
-  fromMilli: number;
-  toMilli: number;
-  storeKeys: string[];
-}
-
 /**
- * Pick one product's comparison: `toYm` is its latest observed month, `fromYm`
- * the earliest observed month within [toYm − MOVERS_WINDOW_MONTHS, toYm) that
- * shares a store with it, and both prices are means over the shared stores.
- * Null when no such month exists.
- */
-function findStoreComparison(storeMeans: ObservedMeans): StoreComparison | null {
-  const months = [
-    ...new Set([...storeMeans.values()].flatMap((means) => [...means.keys()])),
-  ].sort();
-  const toYm = months[months.length - 1];
-  const windowStartYm = addMonthsToYm(toYm, -MOVERS_WINDOW_MONTHS);
-  const sortedStores = [...storeMeans].sort(([a], [b]) => (a < b ? -1 : 1));
-
-  for (const fromYm of months) {
-    if (fromYm < windowStartYm || fromYm >= toYm) {
-      continue;
-    }
-    const storeKeys: string[] = [];
-    let fromSum = 0;
-    let toSum = 0;
-    for (const [storeKey, means] of sortedStores) {
-      const from = means.get(fromYm);
-      const to = means.get(toYm);
-      if (from !== undefined && to !== undefined) {
-        storeKeys.push(storeKey);
-        fromSum += from;
-        toSum += to;
-      }
-    }
-    if (storeKeys.length > 0) {
-      return {
-        fromYm,
-        toYm,
-        fromMilli: fromSum / storeKeys.length,
-        toMilli: toSum / storeKeys.length,
-        storeKeys,
-      };
-    }
-  }
-  return null;
-}
-
-/**
- * Rank the user's products by observed price change on the same stores (see
- * findStoreComparison). Products with no comparable month pair, or with
- * pct === 0 (nothing moved), are excluded.
+ * Rank the user's products by observed price change.
+ *
+ * Per product: `toYm` is its latest observed month and `fromYm` its earliest
+ * observed month within [toYm − MOVERS_WINDOW_MONTHS, toYm). Products with no
+ * such month, or with pct === 0 (nothing moved), are excluded.
  *
  * Returns up to MOVERS_PER_DIRECTION risers and as many fallers, as one array
  * sorted by pct descending; ties break on productId so the order is
  * deterministic.
  */
 export function computeMovers(
-  observedStoreMeans: ObservedStoreMeans,
+  observedMeans: ObservedMeans,
   products: readonly IndexProduct[],
 ): ProductMover[] {
   const productById = new Map(products.map((product) => [product.id, product]));
   const candidates: ProductMover[] = [];
 
-  const sortedProducts = [...observedStoreMeans].sort(([a], [b]) => (a < b ? -1 : 1));
-  for (const [productId, storeMeans] of sortedProducts) {
-    const product = productById.get(productId);
+  const sortedProducts = [...observedMeans].sort(([a], [b]) => (a < b ? -1 : 1));
+  for (const [productId, monthMeans] of sortedProducts) {
     // A product missing from the projection violates the engine's
     // precondition; dropping it from a display list beats throwing.
-    const comparison = product ? findStoreComparison(storeMeans) : null;
-    if (!product || !comparison) {
+    const product = productById.get(productId);
+    if (!product) {
       continue;
     }
 
-    const { fromYm, toYm, fromMilli, toMilli, storeKeys } = comparison;
+    const sortedMonths = [...monthMeans].sort(([a], [b]) => (a < b ? -1 : 1));
+    const [toYm, toMilli] = sortedMonths[sortedMonths.length - 1];
+    const windowStartYm = addMonthsToYm(toYm, -MOVERS_WINDOW_MONTHS);
+    const from = sortedMonths.find(([ym]) => ym >= windowStartYm && ym < toYm);
+    if (!from) {
+      continue;
+    }
+
+    const [fromYm, fromMilli] = from;
     const pct = (toMilli / fromMilli - 1) * 100;
     if (pct === 0) {
       continue;
@@ -110,7 +66,6 @@ export function computeMovers(
       fromMilli,
       toMilli,
       pct,
-      storeIds: storeKeys.map((storeKey) => (storeKey === NO_STORE_KEY ? null : storeKey)),
     });
   }
 

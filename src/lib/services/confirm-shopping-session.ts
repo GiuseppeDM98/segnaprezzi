@@ -42,8 +42,6 @@ export interface ConfirmEntryInput {
 
 export interface ConfirmShoppingSessionInput {
   sessionId: string;
-  /** One store per session in v1: applied to the session and to every entry. */
-  storeId: string | null;
   entries: ConfirmEntryInput[];
 }
 
@@ -80,7 +78,7 @@ export async function confirmShoppingSession(
       };
     }
 
-    await getOrCreateShoppingSession(tx, userId, input.sessionId, input.storeId);
+    await getOrCreateShoppingSession(tx, userId, input.sessionId);
 
     const { productIds, createdProductIds } = await resolveProductPicks(
       tx,
@@ -94,7 +92,6 @@ export async function confirmShoppingSession(
       input.entries.map((entry, index) => ({
         id: entry.id,
         productId: productIds[index],
-        storeId: input.storeId,
         sessionId: input.sessionId,
         recordedAt: new Date(entry.recordedAt),
         totalPriceCents: entry.totalPriceCents,
@@ -111,7 +108,6 @@ export async function confirmShoppingSession(
     );
 
     await updateShoppingSession(tx, userId, input.sessionId, {
-      storeId: input.storeId,
       status: 'completed',
       completedAt: new Date(),
     });

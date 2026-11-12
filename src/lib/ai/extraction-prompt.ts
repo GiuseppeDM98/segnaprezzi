@@ -63,7 +63,7 @@ SPECIAL TAG TYPES
   start with "2" and embed price or weight): the printed price is for that
   specific weighed piece — use the printed weight as packageSize and the
   printed total as totalPriceCents.
-- Fuel price boards (store kind fuel_station): unitKind "volume", category
+- Fuel price boards at a filling station: unitKind "volume", category
   "fuel", the €/L figure (3 decimals) → unitPriceMilli; set totalPriceCents 0
   and packageSize 0 — no quantity is shown on a price board.
 

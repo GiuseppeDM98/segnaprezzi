@@ -12,11 +12,9 @@ import {
   listShoppingSessionIds,
   upsertShoppingSessions,
 } from '@/lib/db/repositories/shopping-sessions';
-import { listStores, upsertStores } from '@/lib/db/repositories/stores';
 import { CATEGORY_IDS } from '@/lib/domain/categories';
 import { ENTRY_SOURCES, PROMO_KINDS, SESSION_STATUSES } from '@/lib/domain/entries';
 import { nanoidSchema } from '@/lib/domain/schemas';
-import { STORE_KINDS } from '@/lib/domain/stores';
 import { UNIT_KINDS } from '@/lib/domain/units';
 import { ValidationError } from '@/lib/errors';
 import { type IndexSettings, MAX_CARRY_FORWARD_MONTHS } from '@/lib/inflation';
@@ -62,7 +60,10 @@ export async function updateIndexSettings(
  * `defaultPackageSize` are dropped, and its entries with source 'receipt'
  * are skipped — the owner chose to remove that history together with the
  * feature, and the enum no longer admits the value. They are counted in
- * `skippedEntries`, so the result says what was left out.
+ * `skippedEntries`, so the result says what was left out. Backups up to v3
+ * also carry a `stores` array and a `storeId` on sessions and entries: the
+ * app no longer records where a price was seen (2026-11-12), so the schema
+ * does not name those keys and Zod strips them.
  */
 const isoDateSchema = z.iso.datetime().transform((value) => new Date(value));
 
@@ -70,20 +71,11 @@ const isoDateSchema = z.iso.datetime().transform((value) => new Date(value));
 const LEGACY_RECEIPT_SOURCE = 'receipt';
 
 export const exportPayloadSchema = z.object({
-  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
   settings: z.object({
     includePromosInIndex: z.boolean(),
     carryForwardMonths: z.number().int().min(0).max(MAX_CARRY_FORWARD_MONTHS),
   }),
-  stores: z.array(
-    z.object({
-      id: nanoidSchema,
-      name: z.string().min(1).max(200),
-      chain: z.string().max(100).nullable(),
-      city: z.string().max(100).nullable(),
-      kind: z.enum(STORE_KINDS),
-    }),
-  ),
   products: z.array(
     z.object({
       id: nanoidSchema,
@@ -98,7 +90,6 @@ export const exportPayloadSchema = z.object({
   shoppingSessions: z.array(
     z.object({
       id: nanoidSchema,
-      storeId: nanoidSchema.nullable(),
       status: z.enum(SESSION_STATUSES),
       startedAt: isoDateSchema,
       completedAt: isoDateSchema.nullable(),
@@ -108,7 +99,6 @@ export const exportPayloadSchema = z.object({
     z.object({
       id: nanoidSchema,
       productId: nanoidSchema,
-      storeId: nanoidSchema.nullable(),
       sessionId: nanoidSchema.nullable(),
       recordedAt: isoDateSchema,
       totalPriceCents: z.number().int().min(1),
@@ -130,7 +120,6 @@ export const exportPayloadSchema = z.object({
 export type ExportPayloadInput = z.infer<typeof exportPayloadSchema>;
 
 export interface ImportResult {
-  stores: number;
   products: number;
   sessions: number;
   entries: number;
@@ -142,7 +131,7 @@ export interface ImportResult {
  * Merge a backup into the user's data by id — never a wipe. Rows that
  * already exist are updated, new ones inserted, and anything whose id
  * belongs to another user is skipped by the repositories' ownership guard.
- * Entries are re-linked only to products/stores/sessions the user owns
+ * Entries are re-linked only to products and sessions the user owns
  * after the upserts, because the FK checks existence, not ownership.
  *
  * @throws ValidationError when the JSON is not a segnaprezzi export
@@ -155,18 +144,9 @@ export async function importUserData(db: Db, userId: string, raw: unknown): Prom
   const payload = parsed.data;
 
   return db.transaction(async (tx) => {
-    await upsertStores(tx, userId, payload.stores);
     await upsertProducts(tx, userId, payload.products);
 
-    const ownedStoreIds = new Set((await listStores(tx, userId)).map((store) => store.id));
-    await upsertShoppingSessions(
-      tx,
-      userId,
-      payload.shoppingSessions.map((session) => ({
-        ...session,
-        storeId: session.storeId && ownedStoreIds.has(session.storeId) ? session.storeId : null,
-      })),
-    );
+    await upsertShoppingSessions(tx, userId, payload.shoppingSessions);
 
     const [ownedProductIds, ownedSessionIds] = await Promise.all([
       listProductIds(tx, userId),
@@ -184,7 +164,6 @@ export async function importUserData(db: Db, userId: string, raw: unknown): Prom
       userId,
       importable.map((entry) => ({
         ...entry,
-        storeId: entry.storeId && ownedStoreIds.has(entry.storeId) ? entry.storeId : null,
         sessionId: entry.sessionId && ownedSessionIds.has(entry.sessionId) ? entry.sessionId : null,
       })),
     );
@@ -192,7 +171,6 @@ export async function importUserData(db: Db, userId: string, raw: unknown): Prom
     await updateUserSettings(tx, userId, payload.settings);
 
     return {
-      stores: payload.stores.length,
       products: payload.products.length,
       sessions: payload.shoppingSessions.length,
       entries: importable.length,

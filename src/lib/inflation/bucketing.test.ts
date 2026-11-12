@@ -6,10 +6,8 @@ import {
   buildMonthGrid,
   computeMonthlyMeans,
   computeObservedMeans,
-  computeObservedStoreMeans,
   countMonthsBetween,
   imputeCarryForward,
-  NO_STORE_KEY,
   toRomeYearMonth,
 } from './bucketing';
 import { computePersonalCpi } from './chain';
@@ -270,53 +268,5 @@ describe('imputeCarryForward', () => {
     const table = imputeCarryForward(computeObservedMeans(bucketEntries(entries), true), grid, 2);
 
     expect([...(table.get('pasta') ?? []).keys()]).toEqual(['2026-05']);
-  });
-});
-
-describe('computeObservedStoreMeans', () => {
-  it('should keep each store apart and average within it', () => {
-    const entries = [
-      buildEntry({ recordedAt: midMonth('2026-03'), storeId: 'coop', unitPriceMilli: 1000 }),
-      buildEntry({ recordedAt: atTenUtc('2026-03-20'), storeId: 'coop', unitPriceMilli: 1200 }),
-      buildEntry({ recordedAt: midMonth('2026-03'), storeId: null, unitPriceMilli: 3000 }),
-    ];
-
-    const pasta = computeObservedStoreMeans(bucketEntries(entries), true).get('pasta');
-
-    expect(pasta?.get('coop')?.get('2026-03')).toBe(1100);
-    expect(pasta?.get(NO_STORE_KEY)?.get('2026-03')).toBe(3000);
-  });
-
-  it('should not let a promo at one store stand beside a regular price at another', () => {
-    const entries = [
-      buildEntry({ recordedAt: midMonth('2026-03'), storeId: 'coop', unitPriceMilli: 1000 }),
-      buildEntry({
-        recordedAt: midMonth('2026-03'),
-        storeId: 'esselunga',
-        unitPriceMilli: 500,
-        isPromo: true,
-      }),
-    ];
-
-    const withoutPromos = computeObservedStoreMeans(bucketEntries(entries), false).get('pasta');
-    const withPromos = computeObservedStoreMeans(bucketEntries(entries), true).get('pasta');
-
-    expect([...(withoutPromos?.keys() ?? [])]).toEqual(['coop']);
-    expect(withPromos?.get('esselunga')?.get('2026-03')).toBe(500);
-  });
-
-  it('should keep a promo-only month when no store shows a regular price', () => {
-    const entries = [
-      buildEntry({
-        recordedAt: midMonth('2026-03'),
-        storeId: 'esselunga',
-        unitPriceMilli: 500,
-        isPromo: true,
-      }),
-    ];
-
-    const pasta = computeObservedStoreMeans(bucketEntries(entries), false).get('pasta');
-
-    expect(pasta?.get('esselunga')?.get('2026-03')).toBe(500);
   });
 });

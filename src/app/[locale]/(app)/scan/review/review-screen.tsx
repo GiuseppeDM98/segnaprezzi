@@ -144,7 +144,6 @@ export function ReviewScreen() {
       'confirmShoppingSession',
       confirmShoppingSession({
         sessionId,
-        storeId: photos.find((photo) => photo.storeId)?.storeId ?? null,
         entries: drafts.map(toConfirmEntry),
       }),
     );

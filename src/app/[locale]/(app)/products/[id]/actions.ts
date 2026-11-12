@@ -28,7 +28,6 @@ const editEntrySchema = z
   .object({
     entryId: nanoidSchema,
     recordedAt: epochMsSchema,
-    storeId: nanoidSchema.nullable(),
     totalPriceCents: totalPriceCentsSchema,
     packageSize: packageSizeSchema,
     unitPriceMilli: unitPriceMilliSchema,

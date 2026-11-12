@@ -6,14 +6,12 @@
  */
 import type { Db } from '@/lib/db/client';
 import { listPriceEntries } from '@/lib/db/repositories/price-entries';
-import { listStores } from '@/lib/db/repositories/stores';
 import type { CategoryId } from '@/lib/domain/categories';
 import type { EntrySource } from '@/lib/domain/entries';
 import { type EntrySummary, toEntrySummary } from './product-detail';
 
 export interface HistoryFilters {
   category?: CategoryId;
-  storeId?: string;
   /** The timeline only ever narrows to promos; "full price only" is not a filter the screen offers. */
   isPromo?: true;
   source?: EntrySource;
@@ -47,18 +45,4 @@ export async function listHistoryPage(
     })),
     nextCursor: page.nextCursor,
   };
-}
-
-export interface HistoryStoreOption {
-  id: string;
-  name: string;
-}
-
-/** The stores offered by the store filter picker. */
-export async function listHistoryStoreOptions(
-  db: Db,
-  userId: string,
-): Promise<HistoryStoreOption[]> {
-  const stores = await listStores(db, userId);
-  return stores.map((store) => ({ id: store.id, name: store.name }));
 }

@@ -22,6 +22,13 @@
       "when": 1793128864180,
       "tag": "0002_drop_receipt_import_and_account_issuer",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794497529151,
+      "tag": "0003_drop_stores",
+      "breakpoints": true
     }
   ]
 }

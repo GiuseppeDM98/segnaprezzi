@@ -14,9 +14,12 @@
  *   Zod at the boundary before data reaches a repository.
  * - FK actions: user delete cascades everywhere (full account wipe);
  *   product delete is blocked while entries reference it (history must
- *   never silently vanish — archive or merge instead); every other
- *   reference an entry holds (store, session) is set to NULL when
- *   its target is deleted (entries outlive organizational metadata).
+ *   never silently vanish — archive or merge instead); the session an entry
+ *   points to is set to NULL when it is deleted (entries outlive
+ *   organizational metadata).
+ * - There is no stores table (dropped in migration 0003, 2026-11-12): a
+ *   product is one thing wherever it is bought, so where a price was seen is
+ *   not recorded.
  *
  * Design note (verified empirically): price_entries.productId's FK could
  * instead be given as `onDelete: 'restrict'`, which reads more directly as
@@ -37,7 +40,6 @@ import { nanoid } from 'nanoid';
 
 import type { CategoryId } from '@/lib/domain/categories';
 import type { EntrySource, PromoKind, SessionStatus } from '@/lib/domain/entries';
-import type { StoreKind } from '@/lib/domain/stores';
 import type { UnitKind } from '@/lib/domain/units';
 import { users } from './auth';
 
@@ -76,21 +78,6 @@ export const userSettings = sqliteTable('user_settings', {
   updatedAt: updatedAtColumn(),
 });
 
-export const stores = sqliteTable(
-  'stores',
-  {
-    id: idColumn(),
-    userId: userIdColumn(),
-    name: text('name').notNull(),
-    chain: text('chain'),
-    city: text('city'),
-    kind: text('kind').$type<StoreKind>().notNull(),
-    createdAt: createdAtColumn(),
-    updatedAt: updatedAtColumn(),
-  },
-  (table) => [index('stores_user_id_idx').on(table.userId)],
-);
-
 export const products = sqliteTable(
   'products',
   {
@@ -113,7 +100,6 @@ export const shoppingSessions = sqliteTable(
   {
     id: idColumn(),
     userId: userIdColumn(),
-    storeId: text('store_id').references(() => stores.id, { onDelete: 'set null' }),
     status: text('status').$type<SessionStatus>().notNull().default('active'),
     startedAt: integer('started_at', { mode: 'timestamp_ms' })
       .notNull()
@@ -137,7 +123,6 @@ export const priceEntries = sqliteTable(
     productId: text('product_id')
       .notNull()
       .references(() => products.id),
-    storeId: text('store_id').references(() => stores.id, { onDelete: 'set null' }),
     sessionId: text('session_id').references(() => shoppingSessions.id, {
       onDelete: 'set null',
     }),
@@ -176,8 +161,6 @@ export const priceEntries = sqliteTable(
 
 // Inferred row types — the canonical TypeScript shapes used across layers.
 export type UserSettings = typeof userSettings.$inferSelect;
-export type Store = typeof stores.$inferSelect;
-export type NewStore = typeof stores.$inferInsert;
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
 export type ShoppingSession = typeof shoppingSessions.$inferSelect;

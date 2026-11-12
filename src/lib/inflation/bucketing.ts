@@ -7,15 +7,7 @@
  * there on, months are 'YYYY-MM' strings handled with integer arithmetic —
  * no timezone or DST reasoning of our own anywhere else.
  */
-import type {
-  BucketedEntry,
-  IndexEntry,
-  MonthlyPrice,
-  ObservedMeans,
-  ObservedStoreMeans,
-  PriceTable,
-  StorePriceTable,
-} from './types';
+import type { BucketedEntry, IndexEntry, MonthlyPrice, ObservedMeans, PriceTable } from './types';
 
 // Why 'en-CA': it is the one widely-supported locale whose formatted date
 // parts come out ISO-like ('2026-04'), so no manual part reassembly and no
@@ -79,10 +71,7 @@ export function buildMonthGrid(firstYm: string, lastYm: string): string[] {
   return grid;
 }
 
-/**
- * Label every entry with its Europe/Rome month, once — both the monthly means
- * and the expenditure weights bucket by the same key.
- */
+/** Label every entry with its Europe/Rome month, once. */
 export function bucketEntries(entries: readonly IndexEntry[]): BucketedEntry[] {
   return entries.map((entry) => ({ ...entry, ym: toRomeYearMonth(entry.recordedAt) }));
 }
@@ -97,9 +86,6 @@ interface Accumulator {
   count: number;
 }
 
-/** Stands for "no store recorded": store ids are nanoids, so it cannot collide. */
-export const NO_STORE_KEY = '';
-
 /**
  * The entries whose prices enter the index.
  *
@@ -111,11 +97,6 @@ export const NO_STORE_KEY = '';
  * promotion. The setting means "prefer regular prices", not "pretend promos
  * never happened". A promo-only month is an observation, never an imputation,
  * so coverage is unaffected.
- *
- * Why per product-month and not per store-month: a promo at one store must not
- * become that store's price while another store shows the regular one, or the
- * setting would stop preferring regular prices the moment two stores are
- * involved.
  */
 function selectEntriesForPrices(
   entries: readonly BucketedEntry[],
@@ -133,61 +114,38 @@ function selectEntriesForPrices(
   );
 }
 
-/** Arithmetic mean of unitPriceMilli per month, for each key `keyOf` assigns. */
-function computeMeansByMonth(
+/**
+ * Per-product, per-month arithmetic mean of unitPriceMilli.
+ *
+ * Every observation of the month counts, wherever the price was seen: a
+ * second shop, a re-scan, entries moved in by a product merge simply average.
+ * The index follows what the user pays for a product, not one shop's shelf
+ * (see relatives.ts).
+ */
+export function computeObservedMeans(
   entries: readonly BucketedEntry[],
-  keyOf: (entry: BucketedEntry) => string,
+  includePromosInIndex: boolean,
 ): ObservedMeans {
   const accumulators = new Map<string, Map<string, Accumulator>>();
-  for (const entry of entries) {
-    const byMonth = getOrCreate(accumulators, keyOf(entry), () => new Map<string, Accumulator>());
+  for (const entry of selectEntriesForPrices(entries, includePromosInIndex)) {
+    const byMonth = getOrCreate(
+      accumulators,
+      entry.productId,
+      () => new Map<string, Accumulator>(),
+    );
     const accumulator = getOrCreate(byMonth, entry.ym, () => ({ sum: 0, count: 0 }));
     accumulator.sum += entry.unitPriceMilli;
     accumulator.count += 1;
   }
 
   const means: ObservedMeans = new Map();
-  for (const [key, byMonth] of accumulators) {
-    means.set(key, new Map([...byMonth].map(([ym, { sum, count }]) => [ym, sum / count] as const)));
-  }
-  return means;
-}
-
-/**
- * Per-product, per-month arithmetic mean of unitPriceMilli, across stores.
- *
- * Duplicate observations in a month — two stores, a re-scan, entries moved in
- * by a product merge — simply average. This is the price the index falls back
- * on when two months share no store (see relatives.ts).
- */
-export function computeObservedMeans(
-  entries: readonly BucketedEntry[],
-  includePromosInIndex: boolean,
-): ObservedMeans {
-  return computeMeansByMonth(
-    selectEntriesForPrices(entries, includePromosInIndex),
-    (entry) => entry.productId,
-  );
-}
-
-/** The same means as computeObservedMeans, kept apart for each store of each product. */
-export function computeObservedStoreMeans(
-  entries: readonly BucketedEntry[],
-  includePromosInIndex: boolean,
-): ObservedStoreMeans {
-  const entriesByProduct = new Map<string, BucketedEntry[]>();
-  for (const entry of selectEntriesForPrices(entries, includePromosInIndex)) {
-    getOrCreate(entriesByProduct, entry.productId, () => []).push(entry);
-  }
-
-  const storeMeans: ObservedStoreMeans = new Map();
-  for (const [productId, productEntries] of entriesByProduct) {
-    storeMeans.set(
+  for (const [productId, byMonth] of accumulators) {
+    means.set(
       productId,
-      computeMeansByMonth(productEntries, (entry) => entry.storeId ?? NO_STORE_KEY),
+      new Map([...byMonth].map(([ym, { sum, count }]) => [ym, sum / count] as const)),
     );
   }
-  return storeMeans;
+  return means;
 }
 
 /** One point of a plain monthly-mean series. */
@@ -286,23 +244,6 @@ export function imputeCarryForward(
       }
     }
     table.set(productId, prices);
-  }
-  return table;
-}
-
-/**
- * Carry-forward applied store by store: each store of each product keeps its
- * last known price for at most `carryForwardMonths` months, by the same rule
- * as imputeCarryForward. See relatives.ts for why the comparison needs it.
- */
-export function imputeStoreCarryForward(
-  observedStoreMeans: ObservedStoreMeans,
-  monthGrid: readonly string[],
-  carryForwardMonths: number,
-): StorePriceTable {
-  const table: StorePriceTable = new Map();
-  for (const [productId, storeMeans] of observedStoreMeans) {
-    table.set(productId, imputeCarryForward(storeMeans, monthGrid, carryForwardMonths));
   }
   return table;
 }

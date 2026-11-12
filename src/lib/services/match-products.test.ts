@@ -11,8 +11,8 @@ import {
   suggestProductMatches,
 } from './match-products';
 
-function candidate(id: string, name: string, brand: string | null, isRecent = false) {
-  return { id, name, brand, hasRecentEntryAtStore: isRecent };
+function candidate(id: string, name: string, brand: string | null) {
+  return { id, name, brand };
 }
 
 describe('normalizeProductName', () => {
@@ -87,20 +87,8 @@ describe('suggestProductMatches', () => {
     }
   });
 
-  test('should rank the recently-bought-here product first on equal names', () => {
-    const suggestions = suggestProductMatches(
-      { productName: 'Passata di pomodoro', brand: 'Mutti' },
-      [
-        candidate('elsewhere', 'Passata di pomodoro', 'Mutti', false),
-        candidate('here', 'Passata di pomodoro', 'Mutti', true),
-      ],
-    );
-
-    expect(suggestions[0].productId).toBe('here');
-  });
-
   test('should cap the score at 1 and return at most 3 suggestions', () => {
-    const twins = ['a', 'b', 'c', 'd'].map((id) => candidate(id, 'Spaghetti n.5', 'Barilla', true));
+    const twins = ['a', 'b', 'c', 'd'].map((id) => candidate(id, 'Spaghetti n.5', 'Barilla'));
 
     const suggestions = suggestProductMatches(
       { productName: 'Spaghetti n.5', brand: 'Barilla' },

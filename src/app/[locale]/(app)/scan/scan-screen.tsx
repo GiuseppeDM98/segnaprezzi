@@ -1,8 +1,7 @@
 'use client';
 
 /**
- * Client half of the capture screen: session resume, store chip + picker
- * sheet, immersive viewfinder, tray with its queue status line
+ * Client half of the capture screen: session resume, immersive viewfinder, tray with its queue status line
  * and the review CTA. The FAB's accent disc morphs into this screen
  * through the shared layoutId.
  *
@@ -14,7 +13,7 @@
  * chips, never what is on screen.
  */
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronDown, Store as StoreIcon, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
@@ -22,15 +21,12 @@ import { useEffect, useState } from 'react';
 import { CameraView } from '@/components/capture/camera-view';
 import { PhotoTray } from '@/components/capture/photo-tray';
 import { QueueStatusLine } from '@/components/capture/queue-status-line';
-import { StorePickerSheet } from '@/components/capture/store-picker-sheet';
-import { useStoreOptions } from '@/components/capture/use-store-options';
 import { Button } from '@/components/ui/button';
 import { SCAN_MORPH_LAYOUT_ID } from '@/components/ui/fab';
 import { IconButton } from '@/components/ui/icon-button';
 import { Sheet } from '@/components/ui/sheet';
 import { useToast } from '@/components/ui/toast';
 import { callAction, describeActionError } from '@/lib/call-action';
-import { cx } from '@/lib/cx';
 import { useRouter } from '@/lib/i18n/navigation';
 import { useAppMotion } from '@/lib/motion';
 import { compressPhoto } from '@/lib/offline/compress';
@@ -46,7 +42,6 @@ import {
 } from '@/lib/offline/photo-queue';
 import { drainPendingPhotos, retryAllFailedPhotos, retryFailedPhoto } from '@/lib/offline/sync';
 import type { ScanContext } from '@/lib/services/capture-context';
-import { createStore } from '../stores/actions';
 import { discardShoppingSession } from './actions';
 
 /** After this long a spesa is more likely forgotten than still in progress. */
@@ -64,13 +59,6 @@ export function ScanScreen({ context }: ScanScreenProps) {
   const router = useRouter();
   const { isReduced, spring } = useAppMotion();
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const { stores, createStore: handleCreateStore } = useStoreOptions(
-    context.stores,
-    createStore,
-    'supermarket',
-  );
-  const [storeId, setStoreId] = useState<string | null>(context.defaultStoreId);
-  const [isStorePickerOpen, setIsStorePickerOpen] = useState(false);
   const [isResumeDismissed, setIsResumeDismissed] = useState(false);
   const [hasCapturedOnce, setHasCapturedOnce] = useState(false);
 
@@ -103,11 +91,7 @@ export function ScanScreen({ context }: ScanScreenProps) {
     const compressed = await compressPhoto(source);
     // The shutter ends here. The sync engine observes the insert and takes
     // over — uploading now, or whenever signal returns.
-    await enqueuePendingPhoto({
-      sessionId: activeSessionId,
-      storeId: storeId ?? undefined,
-      blob: compressed.blob,
-    });
+    await enqueuePendingPhoto({ sessionId: activeSessionId, blob: compressed.blob });
   }
 
   // Why the catch: the retries are fired from a click and never awaited, so
@@ -184,7 +168,6 @@ export function ScanScreen({ context }: ScanScreenProps) {
     serverSession.id !== sessionId &&
     photos.length === 0;
   const isStale = serverSession !== null && Date.now() - serverSession.startedAt > STALE_SESSION_MS;
-  const selectedStore = stores.find((store) => store.id === storeId) ?? null;
   const reviewableCount = photos.length;
 
   return (
@@ -200,29 +183,12 @@ export function ScanScreen({ context }: ScanScreenProps) {
         onClose={() => router.push('/')}
         isHintVisible={!hasCapturedOnce}
         topBar={
-          <div className="flex flex-1 items-center gap-2">
-            <IconButton
-              icon={<X />}
-              label={t('close')}
-              onClick={() => router.push('/')}
-              className="bg-camera/50 text-camera-contrast hover:bg-camera/70"
-            />
-            <button
-              type="button"
-              onClick={() => setIsStorePickerOpen(true)}
-              data-testid="store-chip"
-              className={cx(
-                'flex h-11 max-w-[60%] items-center gap-2 rounded-full px-3.5 font-sans font-medium text-[14px] backdrop-blur-sm',
-                selectedStore
-                  ? 'bg-camera-contrast text-camera'
-                  : 'bg-camera/50 text-camera-contrast',
-              )}
-            >
-              <StoreIcon aria-hidden="true" className="size-4 shrink-0" />
-              <span className="truncate">{selectedStore?.name ?? t('chooseStore')}</span>
-              <ChevronDown aria-hidden="true" className="size-4 shrink-0 opacity-70" />
-            </button>
-          </div>
+          <IconButton
+            icon={<X />}
+            label={t('close')}
+            onClick={() => router.push('/')}
+            className="bg-camera/50 text-camera-contrast hover:bg-camera/70"
+          />
         }
         bottomBar={({ isOnCamera }) => (
           <div className="flex flex-col gap-3">
@@ -244,17 +210,6 @@ export function ScanScreen({ context }: ScanScreenProps) {
             )}
           </div>
         )}
-      />
-
-      <StorePickerSheet
-        isOpen={isStorePickerOpen}
-        onClose={() => setIsStorePickerOpen(false)}
-        stores={stores}
-        selectedId={storeId}
-        onSelect={setStoreId}
-        onCreate={handleCreateStore}
-        noneLabel={t('storePicker.none')}
-        title={t('storePicker.title')}
       />
 
       <Sheet

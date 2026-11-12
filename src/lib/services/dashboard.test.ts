@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '@/lib/db/client';
 import { createPriceEntry } from '@/lib/db/repositories/price-entries';
 import { createProduct } from '@/lib/db/repositories/products';
-import { createStore } from '@/lib/db/repositories/stores';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { getDashboardData } from './dashboard';
 
@@ -197,27 +196,24 @@ describe('getDashboardData', () => {
     ]);
   });
 
-  it('should draw a mover on the stores it compares and ignore a change of store', async () => {
-    const coop = await createStore(db, userId, { name: 'Coop', kind: 'supermarket' });
-    const esselunga = await createStore(db, userId, { name: 'Esselunga', kind: 'supermarket' });
+  it('should read a dearer price in the month as a rise, in the headline and in the mover', async () => {
     const banane = await createProduct(db, userId, {
       name: 'Banane',
       category: 'food',
       unitKind: 'weight',
     });
-    const addEntry = (ym: string, storeId: string, unitPriceMilli: number) =>
+    const addEntry = (ym: string, unitPriceMilli: number) =>
       createPriceEntry(db, userId, {
         productId: banane.id,
-        storeId,
         recordedAt: new Date(`${ym}-10T10:00:00Z`),
         totalPriceCents: Math.round(unitPriceMilli / 10),
         packageSize: 1,
         unitPriceMilli,
         source: 'manual',
       });
-    await addEntry('2026-03', coop.id, 1000);
-    await addEntry('2026-04', coop.id, 1100);
-    await addEntry('2026-04', esselunga.id, 3000);
+    await addEntry('2026-03', 1000);
+    await addEntry('2026-04', 1100);
+    await addEntry('2026-04', 1900);
 
     const data = await getDashboardData(db, userId);
 
@@ -225,8 +221,9 @@ describe('getDashboardData', () => {
     if (data.state !== 'ready') {
       return;
     }
-    expect(data.headline.ratio).toBeCloseTo(0.1, 6);
-    expect(data.movers[0]).toMatchObject({ sparkline: [1000, 1100] });
-    expect(data.movers[0].ratio).toBeCloseTo(0.1, 6);
+    // April is the mean of its two prices, wherever each was seen.
+    expect(data.headline.ratio).toBeCloseTo(0.5, 6);
+    expect(data.movers[0]).toMatchObject({ sparkline: [1000, 1500] });
+    expect(data.movers[0].ratio).toBeCloseTo(0.5, 6);
   });
 });

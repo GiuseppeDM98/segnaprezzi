@@ -2,15 +2,13 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, test } from 'vitest';
 
 import type { Db } from '@/lib/db/client';
-import { priceEntries, products, stores } from '@/lib/db/schema/app';
+import { priceEntries, products } from '@/lib/db/schema/app';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import {
   InconsistentFuelPricesError,
   InvalidDateError,
   InvalidPriceError,
   InvalidSizeError,
-  InvalidStoreKindError,
-  StoreNotFoundError,
 } from '@/lib/errors';
 import { createFuelEntry, createPriceEntry } from './create-price-entry';
 
@@ -23,14 +21,12 @@ import { createFuelEntry, createPriceEntry } from './create-price-entry';
 
 let db: Db;
 let userId: string;
-let otherUserId: string;
 
 const RECORDED_AT = Date.UTC(2026, 3, 15, 10, 30);
 
 beforeEach(async () => {
   ({ db } = await createTestDb());
   ({ id: userId } = await createTestUser(db));
-  ({ id: otherUserId } = await createTestUser(db));
 });
 
 function manualInput(overrides: Record<string, unknown> = {}) {
@@ -42,7 +38,6 @@ function manualInput(overrides: Record<string, unknown> = {}) {
       category: 'food' as const,
       unitKind: 'weight' as const,
     },
-    storeId: null,
     recordedAt: RECORDED_AT,
     totalPriceCents: 129,
     packageSize: 0.7,
@@ -103,23 +98,11 @@ describe('createPriceEntry', () => {
       createPriceEntry(db, userId, manualInput({ packageSize: 10_001 })),
     ).rejects.toBeInstanceOf(InvalidSizeError);
   });
-
-  test("should reject another user's store", async () => {
-    const [foreignStore] = await db
-      .insert(stores)
-      .values({ userId: otherUserId, name: 'Coop Via Roma', kind: 'supermarket' })
-      .returning();
-
-    await expect(
-      createPriceEntry(db, userId, manualInput({ storeId: foreignStore.id })),
-    ).rejects.toBeInstanceOf(StoreNotFoundError);
-  });
 });
 
 describe('createFuelEntry', () => {
   const fuelInput = {
     fuel: 'diesel' as const,
-    storeId: null,
     recordedAt: RECORDED_AT,
     unitPriceMilli: 1799,
     quantity: 38.2,
@@ -201,28 +184,5 @@ describe('createFuelEntry', () => {
     await expect(
       createFuelEntry(db, userId, { ...fuelInput, totalPriceCents: 5000 }),
     ).rejects.toBeInstanceOf(InconsistentFuelPricesError);
-  });
-
-  test('should reject a store that is not a fuel station', async () => {
-    const [supermarket] = await db
-      .insert(stores)
-      .values({ userId, name: 'Esselunga Papiniano', kind: 'supermarket' })
-      .returning();
-
-    await expect(
-      createFuelEntry(db, userId, { ...fuelInput, storeId: supermarket.id }),
-    ).rejects.toBeInstanceOf(InvalidStoreKindError);
-  });
-
-  test('should accept a fuel station of the user', async () => {
-    const [station] = await db
-      .insert(stores)
-      .values({ userId, name: 'Eni Lorenteggio', kind: 'fuel_station' })
-      .returning();
-
-    const { entryId } = await createFuelEntry(db, userId, { ...fuelInput, storeId: station.id });
-
-    const [entry] = await db.select().from(priceEntries).where(eq(priceEntries.id, entryId));
-    expect(entry.storeId).toBe(station.id);
   });
 });

@@ -31,7 +31,6 @@ const INPUT = {
   // 'aGVsbG8=' once base64-encoded by the gateway.
   bytes: new TextEncoder().encode('hello'),
   mediaType: 'image/webp' as const,
-  storeKind: null,
 };
 
 function apiErrorBody(type: string) {
@@ -68,15 +67,6 @@ describe('extractPriceTag', () => {
       type: 'image',
       source: { type: 'base64', media_type: 'image/webp', data: 'aGVsbG8=' },
     });
-  });
-
-  test('should pass the store kind hint to the model', async () => {
-    parse.mockResolvedValue({ stop_reason: 'end_turn', parsed_output: VALID_EXTRACTION });
-
-    await extractPriceTag({ ...INPUT, storeKind: 'fuel_station' }, mockClient);
-
-    const params = parse.mock.calls[0][0];
-    expect(params.messages[0].content[1].text).toContain('Store kind: fuel_station');
   });
 
   test('should map a refusal to a non-retryable gateway error', async () => {

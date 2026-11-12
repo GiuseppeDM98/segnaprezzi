@@ -195,7 +195,7 @@ describe('price-entries repository', () => {
     );
   });
 
-  it('should filter by product, store, category, and date range', async () => {
+  it('should filter by product, category, and date range', async () => {
     const foodProduct = await createProductRow(userId, { name: 'Pasta', category: 'food' });
     const householdProduct = await createProductRow(userId, {
       name: 'Detersivo',
@@ -297,7 +297,6 @@ describe('price-entries repository', () => {
         recordedAt: Date.parse('2026-01-05T10:00:00Z'),
         unitPriceMilli: 2580,
         isPromo: false,
-        storeId: null,
       },
       {
         productId: ownProduct.id,
@@ -305,7 +304,6 @@ describe('price-entries repository', () => {
         recordedAt: Date.parse('2026-02-05T10:00:00Z'),
         unitPriceMilli: 2780,
         isPromo: true,
-        storeId: null,
       },
     ]);
   });

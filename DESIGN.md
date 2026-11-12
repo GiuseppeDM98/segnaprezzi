@@ -253,7 +253,7 @@ Sizes are the steps actually used in the build (24/17/15/14/13/12/11 px plus the
 - **Body** (grotesk 400, 15 px): prose, field labels (500), button labels (600), row primary text in grotesk lists.
 - **Data** (mono 400/600, 14 px): product names and values in rows; 600 for the value column, 400 for names.
 - **Data dense** (mono 400, 13 px): history lines, chart readouts and axis captions, the small trend badge; its grotesk twin (13 px, 400) carries header captions, small-chip labels and the sheet's secondary text.
-- **Caption** (grotesk 400, 12 px, muted): secondary row text (store, package size), coverage notes.
+- **Caption** (grotesk 400, 12 px, muted): secondary row text (source, package size), coverage notes.
 - **Label** (mono 400, 11 px, uppercase, tracking-wide, muted): the HH:MM time column, status chips, group-header meta, tab labels (grotesk 500, 11 px).
 
 ### Named Rules

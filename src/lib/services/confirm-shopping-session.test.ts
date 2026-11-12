@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, test } from 'vitest';
 
 import type { Db } from '@/lib/db/client';
-import { priceEntries, products, shoppingSessions, stores } from '@/lib/db/schema/app';
+import { priceEntries, products, shoppingSessions } from '@/lib/db/schema/app';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import { ProductNotFoundError, SessionClosedError, SessionNotFoundError } from '@/lib/errors';
 import {
@@ -64,17 +64,12 @@ function entry(
 }
 
 function input(overrides: Partial<ConfirmShoppingSessionInput> = {}): ConfirmShoppingSessionInput {
-  return { sessionId: SESSION_ID, storeId: null, entries: [entry()], ...overrides };
+  return { sessionId: SESSION_ID, entries: [entry()], ...overrides };
 }
 
 describe('confirmShoppingSession', () => {
   test('should create new products and entries and complete the session', async () => {
-    const [store] = await db
-      .insert(stores)
-      .values({ userId, name: 'Esselunga Papiniano', kind: 'supermarket' })
-      .returning();
-
-    const result = await confirmShoppingSession(db, userId, input({ storeId: store.id }));
+    const result = await confirmShoppingSession(db, userId, input());
 
     expect(result.entryIds).toEqual([PHOTO_ID_1]);
     expect(result.createdProductIds).toHaveLength(1);
@@ -85,7 +80,6 @@ describe('confirmShoppingSession', () => {
       .where(eq(priceEntries.id, PHOTO_ID_1));
     expect(savedEntry).toMatchObject({
       userId,
-      storeId: store.id,
       sessionId: SESSION_ID,
       source: 'photo',
       totalPriceCents: 89,
@@ -100,7 +94,6 @@ describe('confirmShoppingSession', () => {
       .where(eq(shoppingSessions.id, SESSION_ID));
     expect(session.status).toBe('completed');
     expect(session.completedAt).not.toBeNull();
-    expect(session.storeId).toBe(store.id);
   });
 
   test('should reuse an existing product matching on normalized name and brand', async () => {

@@ -90,7 +90,7 @@ export function formatUnitPrice(milli: number, unitKind: UnitKind, locale: AppLo
 /**
  * formatUnitPrice bound to one unit kind and locale, for a screen that prints
  * many prices of the same product (the chart's axis and tooltip, the stat
- * tiles, the store and history rows).
+ * tiles, the history rows).
  */
 export function buildUnitPriceFormatter(
   unitKind: UnitKind,

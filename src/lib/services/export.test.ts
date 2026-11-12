@@ -27,7 +27,6 @@ describe('exportUserData', () => {
     const start = Date.UTC(2026, 0, 1);
     const sessions = Array.from({ length: sessionCount }, (_, i) => ({
       id: `session-${String(i).padStart(3, '0')}`,
-      storeId: null,
       status: 'completed' as const,
       startedAt: new Date(start + i * 60_000),
       completedAt: new Date(start + i * 60_000 + 30_000),

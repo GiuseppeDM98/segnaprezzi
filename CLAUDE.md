@@ -61,11 +61,12 @@ Layer/naming/error-handling rules: `DEVELOPMENT_GUIDELINES.md`.
 ## 3. Features / modules
 
 - **Tag scanning + AI extraction**: camera → WebP ≤400 KB → Vercel Blob → `claude-opus-5-5` (effort `high`, no `temperature`, 60 s gateway timeout, `maxDuration = 90`) → review screen → confirm. Nothing hits the DB unconfirmed. The shelf tag is the unit of capture because it is the one place a supermarket prints the unit price.
-- **Personal CPI engine**: matched-model relatives compared store by store (`docs/guide/inflation-index.md` §4.72), Jevons within category and over every compared product (no expenditure weights since 2026-11-06, `docs/guide/inflation-index.md` §4.75), chained index base=100, carry-forward imputation, coverage stats, top movers; `rebaseIstat` + committed `data/istat-nic.json` (1996-01 → latest, base 2025=100, refreshed by `pnpm istat:update`).
+- **Personal CPI engine**: matched-model relatives on one monthly price per product, wherever it was bought (`docs/guide/inflation-index.md` §4.72), Jevons within category and over every compared product (no expenditure weights since 2026-11-06, `docs/guide/inflation-index.md` §4.75), chained index base=100, carry-forward imputation, coverage stats, top movers; `rebaseIstat` + committed `data/istat-nic.json` (1996-01 → latest, base 2025=100, refreshed by `pnpm istat:update`).
 - **Quick entry**: manual form (`/add/manual`, g/mL converted client-side) and fuel form (`/add/fuel`) with four quick picks — benzina, diesel, GPL, metano. Metano is sold per **kilogram**, so each pick carries its own `unit_kind`; renaming a pick's canonical name after entries exist is a data migration, not a copy edit.
-- **Dashboard + product histories**: index hero with its coverage line, trend chart with ISTAT overlay, category breakdown with «non rilevata», top movers, per-product price history, catalog with merge and delete, timeline, stores, settings — all in the design system recorded in `DESIGN.md`.
+- **Dashboard + product histories**: index hero with its coverage line, trend chart with ISTAT overlay, category breakdown with «non rilevata», top movers, per-product price history, catalog with merge and delete, timeline, settings — all in the design system recorded in `DESIGN.md`.
 - **Catalog housekeeping**: archive (keeps history, leaves suggestions), merge duplicates, or **delete** a product outright with every observation it carries — one transaction, behind a confirmation that states how many observations go and that the index is recomputed without them. Deleting entries, products or a whole account also deletes their photos from Blob; `pnpm photos:prune` reports orphans left by older versions.
 - **Receipt import — retired (2026-10-27)**: built and shipped in migration 0001, removed in 0002 at the owner's call. Receipts rarely print the €/kg the index needs, and the model miscounted repeated lines in ways only the printed total could catch. `price_entries.quantity` stays (every write path records 1; nothing reads it since 2026-11-06, dropping it would be a migration for nothing); `product_aliases`, `receipts`, `receipt_id`, `default_package_size` and every `source='receipt'` observation are gone. A v2 backup still imports: its receipt entries are skipped and counted.
+- **Stores — retired (2026-11-12)**: the app recorded where a price was seen and the index compared each store with itself; removed in migration 0003 at the owner's call, because what matters is what a product costs wherever it is bought. No table, column, picker, filter, page or per-store comparison is left. Export is schema v4; a v1–v3 backup still imports and its stores are ignored.
 - **Offline-first PWA**: Serwist service worker (NetworkFirst pages with a locale-aware `/offline` fallback, NetworkOnly `/api/*`, SWR photo thumbnails, CacheFirst hashed assets), web app manifest + generated icon set, and the sync engine in `src/lib/offline/sync.ts` — 1/2/4/8 s backoff, five attempts, concurrency 2 under a Web Lock, drains on start / `online` / tab focus / enqueue / Background Sync. Install experience lives in `src/components/pwa/`; a new service worker takes over at the next app start, with no update prompt (`docs/guide/offline-pwa.md` §4.76).
 - **Auth + multi-user isolation**: Better Auth, every query scoped by `user_id`; `SIGNUP_ENABLED=false` closes registration.
 - **i18n**: next-intl, `it` + `en`, all routes under `[locale]`.
@@ -78,27 +79,29 @@ Layer/naming/error-handling rules: `DEVELOPMENT_GUIDELINES.md`.
 *(Per-session history lives in `git log`, not here. One "Latest" entry: what
 was done, where it is documented, what is open, what comes next.)*
 
-**Latest — 2026-11-06, `fix/popup-noise-and-index-check`.** The index weighs
-every product the same, and the app stopped talking about spending and about
-updates.
+**Latest — 2026-11-12, `refactor/remove-stores`.** The app no longer knows
+stores: a product has one price a month wherever it was bought.
 
-- **Index**: the overall relative is the Jevons of every compared product;
-  expenditure weights are gone, with `weights.ts`. Why, and how the worked
-  example moved: `docs/guide/inflation-index.md` §4.75. No migration
-  (`quantity` stays, unread).
-- **UI**: «Spesa registrata» left the thin dashboard, «Totale spesa» left the
-  history card. The service-worker update toast is gone: a new worker takes
-  over at the next app start (`docs/guide/offline-pwa.md` §4.76). On `/scan`
-  the «Tutto sincronizzato» toast is not raised and the remaining toasts sit
-  above the camera controls.
-- **Collaudo**: closed on 2026-11-06 on automated checks alone (unit, full
-  E2E, an HTTP probe); the owner skipped the guided tour. Not read on
-  production data: the owner checks the real dashboard, and that neither
-  pop-up comes back on the phone, after the deploy.
+- **Index**: a product's monthly price is the mean of every observation of
+  the month and its relative is this month over last month. Why the
+  store-by-store comparison of 2026-11-03 was reversed, and what it costs:
+  `docs/guide/inflation-index.md` §4.72–4.73.
+- **Data**: migration 0003 drops `stores` and both `store_id` columns by
+  rebuilding the two tables (AGENTS.md §4.78). Export is schema v4; older
+  backups import, their stores ignored.
+- **UI**: the stores page, every store picker, the history filter, the
+  per-store comparison on the product page and the store line of a shopping
+  trip are gone. The scan top bar is the close button alone.
+- **Collaudo**: closed on 2026-11-12 on automated checks; the owner skipped
+  the guided tour.
 
 **Open / next:**
 
-1. Two dev machines. Mac: `pnpm` needs `corepack enable --install-directory
+1. Production, after the deploy: backup export, migration 0003, then the
+   duplicate products the stores had split are proposed and merged only where
+   the owner approves.
+
+2. Two dev machines. Mac: `pnpm` needs `corepack enable --install-directory
    ~/.local/bin` and `export PATH="$HOME/.local/bin:$PATH"` (AGENTS.md §4.11).
    Windows: `pnpm` lives in `AppData/Roaming/npm` (§4.11), the checkout is CRLF
    (§4.31) and a stale `.next` fails `pnpm typecheck` (§4.77). The Vercel
@@ -114,7 +117,7 @@ updates.
 1. **Before any coding**, read: `AGENTS.md`, `DEVELOPMENT_GUIDELINES.md`,
    and `COMMENTS.md`, plus the guide in `docs/guide/` for the domain you touch
    (`auth.md`, `offline-pwa.md`, `capture.md`, `inflation-index.md`,
-   `dipendenze.md`).
+   `e2e.md`, `dipendenze.md`).
 2. Canonical table/column/route/env names live in the code (Drizzle schema,
    Zod schemas, domain enums) — use them exactly. Money is integer only:
    `total_price_cents` (euro cents), `unit_price_milli` (milli-euros per base
@@ -150,12 +153,12 @@ updates.
 | Time | Epoch ms UTC in DB; month bucketing in Europe/Rome |
 | IDs | text nanoid(21), app-side |
 | Lint/tests | Biome; Vitest + Playwright — run locally, no CI workflow; the only Action is the monthly ISTAT refresh |
-| Index scope | Measures how prices move, not where you shop: each store against itself, a change of store reads 0% (`docs/guide/inflation-index.md` §4.72) |
+| Index scope | **Reversed 2026-11-12.** One price per product per month, wherever it was bought: the app does not know stores, and a change of shop is part of your inflation (`docs/guide/inflation-index.md` §4.72). Stores are not re-added without a new product decision |
 | Index weights | Every compared product is one vote (Jevons over the matched set); no expenditure weights, the app never says how much you spend (2026-11-06, `docs/guide/inflation-index.md` §4.75) |
 | Registration | Open by default, `SIGNUP_ENABLED=false` closes it |
 | Currency | EUR only in v1 (`currency` column kept for later) |
 | License | MIT, public from first commit |
 | UI | "Wow" bar — designed with the impeccable skill; world: *tabulato a modulo continuo* (`DESIGN.md`) |
 
-Non-goals v1: barcode scanning, receipt import (tried and retired),
+Non-goals v1: barcode scanning, receipt import and store tracking (both tried and retired),
 shared/community prices, multi-currency, budgeting, native app stores.

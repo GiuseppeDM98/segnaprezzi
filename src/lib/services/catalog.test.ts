@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { Db } from '@/lib/db/client';
 import { createPriceEntry, listPriceEntries } from '@/lib/db/repositories/price-entries';
 import { createProduct } from '@/lib/db/repositories/products';
-import { createStore } from '@/lib/db/repositories/stores';
 import { createTestDb, createTestUser } from '@/lib/db/testing/create-test-db';
 import {
   deleteProducts,
@@ -244,8 +243,6 @@ describe('searchProducts', () => {
       category: 'food',
       unitKind: 'weight',
     });
-    const store = await createStore(db, userId, { name: 'Esselunga', kind: 'supermarket' });
-    expect(store.id).toBeTruthy();
 
     const hits = await searchProducts(db, userId, 'MUTTI');
 

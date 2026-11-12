@@ -14,14 +14,13 @@
 
 - Added the dashboard: your personal inflation as one big number (year over year once you have a year of data, "since you started" before that), with month-over-month, the index value, and an honesty line that says how many products and categories it rests on and how many still have no price this month
 - Added the 12-month trend chart of your index with a one-tap comparison against the official ISTAT index, rebased to your own starting month so the two lines are directly comparable
-- Added the category breakdown (which parts of your shopping went up or down, and "not measured" where no new price could be compared yet) and the top movers — the five products that changed the most at the same stores, each with a tiny price line
+- Added the category breakdown (which parts of your shopping went up or down, and "not measured" where no new price could be compared yet) and the top movers — the five products that changed the most, each with a tiny price line
 - Added a product catalog with search and category filters, an archive, and a merge tool to fold duplicate products together without losing any history
-- Added product pages: monthly price chart with promo markers, min/max/average/latest, where it's cheapest across your stores, and every observation — editable or deletable from a sheet
-- Added the history: every price you recorded, day by day, with shopping trips grouped under their store and time, and filters by category, store, promo and source
-- Added store management (supermarkets, fuel stations, other) and inline "create a store" from every picker
+- Added product pages: monthly price chart with promo markers, min/max/average/latest, and every observation — editable or deletable from a sheet
+- Added the history: every price you recorded, day by day, with shopping trips grouped under their time, and filters by category, promo and source
 - Added settings: include or exclude promotions from the index, how many months a missing price is carried forward, language, light/dark/system theme, data export, backup import, and account deletion
 - Redesigned the whole app as a printed statement — cream paper, green-bar rows, typewriter numbers that line up in columns — with a dark "print negative" theme, Italian and English, on phone, tablet and desktop
-- Redesigned the camera screen as a full-screen viewfinder with a store chip, torch toggle, photo tray with status chips, and a "Review (N)" button; the Scan button morphs into the camera
+- Redesigned the camera screen as a full-screen viewfinder with a torch toggle, photo tray with status chips, and a "Review (N)" button; the Scan button morphs into the camera
 - Redesigned the review screen: one card per photo, flagged cards say why, a product picker with suggestions and catalog search, and a confirm bar that shows the running total and what is still missing
 - Added an offline pill that tells you how many photos are waiting on your phone, and a success toast when they are synced — everywhere but on the camera screen, where the photo tray already shows it and nothing should come between you and the next shot
 - Login and signup now reveal one field at a time, show inline errors, and let you peek at the password
@@ -46,7 +45,7 @@
 - Fixed the product page scrolling sideways
 - Fixed disabled buttons being unreadable — pale text on a pale orange fill
 - Fixed amounts inside input fields using a dot while the totals beside them used a comma; Italian now sees a comma in both, and both separators are still accepted when typing
-- Fixed the price-change badge appearing on some rows of a list and vanishing on others, and the same for the shop icon on the stores list
+- Fixed the price-change badge appearing on some rows of a list and vanishing on others
 - Fixed a shelf photo that fails to load leaving a blank black square instead of the "no photo" icon
 
 - Fixed the quick actions on the home screen looking stranded on a laptop or desktop window — they now sit on one line, each button as wide as its label. The phone layout is unchanged
@@ -71,7 +70,7 @@
 
 ## 🔒 Security
 
-- Your data is now private to your account — every store, product, and price you add is visible only to you, never to other users on the same instance
+- Your data is now private to your account — every product and price you add is visible only to you, never to other users on the same instance
 - Pages that show your data now require you to be signed in
 
 - Importing a backup can only ever touch your own rows: ids that belong to someone else are skipped, never overwritten
@@ -98,7 +97,7 @@
 - Added the sync engine behind the photo queue, with its own tests: five attempts spaced 1, 2, 4 and 8 seconds apart, at most two uploads at a time, one drain at a time across the page and the background worker, and the same photo id on every attempt so a retry can never duplicate an entry
 - The end-to-end suite now runs against a real production build with the service worker installed, covering offline capture, reconnection, backoff and the offline fallback page
 
-- Added the personal inflation engine: your entries are bucketed into calendar months (Italian time), each product is compared with itself at the same store month over month (so a change of store alone is never inflation), and every compared product counts the same, whatever it cost, so a fuel fill-up can never outvote your groceries and a tag you scanned without buying inflates nothing — giving a chained index (first month = 100) with month-over-month, year-over-year and since-start figures, per-category series, and your top risers and fallers
+- Added the personal inflation engine: your entries are bucketed into calendar months (Italian time), each product is compared with itself month over month on the average of what you recorded for it that month, wherever you bought it (the app does not track stores: your inflation is what you pay, and a month at a dearer shop evens out when you go back), and every compared product counts the same, whatever it cost, so a fuel fill-up can never outvote your groceries and a tag you scanned without buying inflates nothing — giving a chained index (first month = 100) with month-over-month, year-over-year and since-start figures, per-category series, and your top risers and fallers
 - Added honesty stats next to every index number — how many products were compared, how many categories, how many still have no price this month, which months had nothing to compare, and how many suspicious jumps were capped — so a thin history never looks more solid than it is
 - Added carry-forward and outlier guards: a missing month is filled from the last known price for up to two months (configurable; 0 turns it off), a promo-only month still counts when promos are excluded from the index, and one implausible jump (a €/100 g tag read as €/kg) can move the index by at most a factor of five for one month
 - Added the official ISTAT NIC index as bundled data (all items, monthly since 1996, in the current 2025 = 100 base) so the "you vs Italy" comparison works offline, plus a maintenance command and a monthly GitHub workflow that refresh it from ISTAT's data service and open a pull request with the diff

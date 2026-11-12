@@ -3,8 +3,8 @@
 /**
  * The manual entry form: product picker
  * with inline create, the price group with the live-derived unit price,
- * promo/store/date details, and a save bar tuned for entering several
- * prices in a row (the form resets but keeps store and date).
+ * promo/date details, and a save bar tuned for entering several
+ * prices in a row (the form resets but keeps the date).
  *
  * Design: the unit price is derived from total ÷ size on every keystroke,
  * but the moment the user types one it stops being derived — some tags
@@ -12,21 +12,18 @@
  * tag wins. The 2% cross-check then warns rather than blocks.
  *
  * This file is the orchestrator: it owns the save (the Server Action calls,
- * their error and pending state) and the store picker. The fields live in
+ * their error and pending state). The fields live in
  * useManualEntryForm, the numbers in manual-entry-derivations.ts, and each
  * section of the form in its own file beside this one.
  */
 import { useTranslations } from 'next-intl';
 import { type FormEvent, useState } from 'react';
-import { StorePickerSheet } from '@/components/capture/store-picker-sheet';
-import { useStoreOptions } from '@/components/capture/use-store-options';
 import { ScreenHeader } from '@/components/layout/screen-header';
 import { useToast } from '@/components/ui/toast';
 import { callAction } from '@/lib/call-action';
 import { parseDateTimeLocalValue } from '@/lib/format';
 import { useRouter } from '@/lib/i18n/navigation';
 import type { ManualEntryContext } from '@/lib/services/capture-context';
-import { createStore } from '../../stores/actions';
 import { createManualEntry } from './actions';
 import { ManualDetailsSection } from './manual-details-section';
 import { toCreatedProduct, toProductInput } from './manual-entry-derivations';
@@ -48,12 +45,6 @@ export function ManualEntryForm({ context }: ManualEntryFormProps) {
   const { toast } = useToast();
 
   const form = useManualEntryForm(context);
-  const { stores, createStore: handleCreateStore } = useStoreOptions(
-    context.stores,
-    createStore,
-    'supermarket',
-  );
-  const [isStorePickerOpen, setIsStorePickerOpen] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,7 +69,6 @@ export function ManualEntryForm({ context }: ManualEntryFormProps) {
       'createManualEntry',
       createManualEntry({
         product: toProductInput(choice),
-        storeId: form.storeId,
         recordedAt,
         totalPriceCents: form.price.totalPriceCents,
         packageSize: form.price.packageSize,
@@ -103,7 +93,6 @@ export function ManualEntryForm({ context }: ManualEntryFormProps) {
     }
   }
 
-  const selectedStore = stores.find((store) => store.id === form.storeId) ?? null;
   const fieldError = errorCode && errorCode !== 'MISSING_PRODUCT' ? errorCode : null;
 
   return (
@@ -148,8 +137,6 @@ export function ManualEntryForm({ context }: ManualEntryFormProps) {
           onIsPromoChange={form.setIsPromo}
           promoKind={form.promoKind}
           onPromoKindChange={form.setPromoKind}
-          storeName={selectedStore?.name ?? null}
-          onOpenStorePicker={() => setIsStorePickerOpen(true)}
           recordedAtLocal={form.recordedAtLocal}
           onRecordedAtLocalChange={form.setRecordedAtLocal}
           fieldError={fieldError}
@@ -163,17 +150,6 @@ export function ManualEntryForm({ context }: ManualEntryFormProps) {
       </div>
 
       <ManualSubmitBar isSubmitting={isSubmitting} onDone={() => router.push('/')} />
-
-      <StorePickerSheet
-        isOpen={isStorePickerOpen}
-        onClose={() => setIsStorePickerOpen(false)}
-        stores={stores}
-        selectedId={form.storeId}
-        onSelect={form.setStoreId}
-        onCreate={handleCreateStore}
-        noneLabel={t('noStore')}
-        title={t('store')}
-      />
     </form>
   );
 }

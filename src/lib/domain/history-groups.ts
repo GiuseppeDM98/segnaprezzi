@@ -12,7 +12,6 @@ export interface GroupableEntry {
   recordedAt: number;
   /** The shopping session the entry was confirmed in, or null for a standalone entry. */
   sessionId: string | null;
-  store: { name: string } | null;
 }
 
 /** A run of consecutive entries from one shopping session. */
@@ -21,7 +20,6 @@ export interface SessionBlock<E extends GroupableEntry> {
   /** Unique among the blocks of a day, even when one session appears in two runs. */
   key: string;
   sessionId: string;
-  storeName: string | null;
   /** Epoch ms of the run's earliest entry. */
   startedAt: number;
   entries: E[];
@@ -81,7 +79,6 @@ export function groupEntriesByDay<E extends GroupableEntry>(
           kind: 'session',
           key: `session-${entry.id}`,
           sessionId: entry.sessionId,
-          storeName: entry.store?.name ?? null,
           startedAt: entry.recordedAt,
           entries: [entry],
         });

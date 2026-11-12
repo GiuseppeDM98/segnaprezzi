@@ -11,7 +11,7 @@ import {
   shoppingSessions,
 } from '@/lib/db/schema/app';
 
-export type CreateShoppingSessionInput = Pick<NewShoppingSession, 'storeId'> & {
+export interface CreateShoppingSessionInput {
   /**
    * Explicit session id. Normally ids are minted by the schema's $defaultFn,
    * but a shopping session starts on a phone with no connectivity: the
@@ -19,9 +19,9 @@ export type CreateShoppingSessionInput = Pick<NewShoppingSession, 'storeId'> & {
    * materializes the row under that id later. Omitted elsewhere.
    */
   id?: string;
-};
+}
 export type UpdateShoppingSessionPatch = Partial<
-  Pick<NewShoppingSession, 'storeId' | 'status' | 'completedAt'>
+  Pick<NewShoppingSession, 'status' | 'completedAt'>
 >;
 
 /** Insert a session with status 'active' and startedAt = now; return the row. */
@@ -30,10 +30,7 @@ export async function createShoppingSession(
   userId: string,
   input?: CreateShoppingSessionInput,
 ): Promise<ShoppingSession> {
-  const [session] = await db
-    .insert(shoppingSessions)
-    .values({ id: input?.id, storeId: input?.storeId, userId })
-    .returning();
+  const [session] = await db.insert(shoppingSessions).values({ id: input?.id, userId }).returning();
   return session;
 }
 
@@ -68,7 +65,7 @@ export async function getActiveShoppingSession(
   return session ?? null;
 }
 
-/** Apply a partial update (status transitions, store, completion time); null if not found. */
+/** Apply a partial update (status transitions, completion time); null if not found. */
 export async function updateShoppingSession(
   db: Db | DbTransaction,
   userId: string,
@@ -189,7 +186,6 @@ export async function upsertShoppingSessions(
   userId: string,
   inputs: Array<{
     id: string;
-    storeId: string | null;
     status: ShoppingSession['status'];
     startedAt: Date;
     completedAt: Date | null;
@@ -204,7 +200,6 @@ export async function upsertShoppingSessions(
     .onConflictDoUpdate({
       target: shoppingSessions.id,
       set: {
-        storeId: sql`excluded.store_id`,
         status: sql`excluded.status`,
         startedAt: sql`excluded.started_at`,
         completedAt: sql`excluded.completed_at`,

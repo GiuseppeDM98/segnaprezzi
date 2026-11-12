@@ -12,7 +12,6 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 
 import type { PhotoMediaType } from '@/lib/domain/photos';
-import type { StoreKind } from '@/lib/domain/stores';
 import { env } from '@/lib/env';
 import { EXTRACTION_SYSTEM_PROMPT } from './extraction-prompt';
 import { type ExtractionResult, extractionResultSchema } from './extraction-schema';
@@ -79,13 +78,12 @@ export interface ExtractPriceTagInput {
   /** The photo as uploaded; base64-encoded here. */
   bytes: Uint8Array;
   mediaType: PhotoMediaType;
-  storeKind: StoreKind | null;
 }
 
 /**
  * Extract structured price-tag data from one photo.
  *
- * @param input - Photo bytes + optional store-kind hint for the prompt
+ * @param input - Photo bytes and their media type
  * @param client - Injected for tests; defaults to the module singleton
  * @returns The parsed extraction (schema-validated by the SDK)
  * @throws AiGatewayError for every failure mode, retryable flag set
@@ -114,7 +112,7 @@ export async function extractPriceTag(
                 data: base64Data,
               },
             },
-            { type: 'text', text: buildUserInstruction(input.storeKind) },
+            { type: 'text', text: 'Extract the price tag data from this photo.' },
           ],
         },
       ],
@@ -138,11 +136,6 @@ export async function extractPriceTag(
   } catch (error) {
     throw toAiGatewayError(error);
   }
-}
-
-function buildUserInstruction(storeKind: ExtractPriceTagInput['storeKind']): string {
-  const storeContext = storeKind ? `Store kind: ${storeKind}. ` : '';
-  return `${storeContext}Extract the price tag data from this photo.`;
 }
 
 /**

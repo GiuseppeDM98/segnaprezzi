@@ -28,9 +28,6 @@ export async function uploadPendingPhoto(photo: PendingPhoto): Promise<UploadOut
   formData.append('photo', photo.blob, photo.id);
   formData.append('photoId', photo.id);
   formData.append('sessionId', photo.sessionId);
-  if (photo.storeId) {
-    formData.append('storeId', photo.storeId);
-  }
 
   const abortController = new AbortController();
   const abortTimer = setTimeout(() => abortController.abort(), REQUEST_TIMEOUT_MS);
