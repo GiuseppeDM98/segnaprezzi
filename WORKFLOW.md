@@ -245,8 +245,10 @@ What that collaudo established about how obligation 4 works in practice here:
 
 pnpm (Node 22+). The exact commands are already documented once, in
 `CONTRIBUTING.md` → "Everyday commands" and `CLAUDE.md` → "Session protocol"
-— do not duplicate them here, just note the two relevant for collaudo:
+— do not duplicate them here, just note the three relevant for collaudo:
 
+- `node ~/.claude/processi-collaudo.mjs` — collaudo count, **the first gate**: zero collaudo
+  trees and forgotten services (the Next `dev` server), or the gates do not start (§ 2).
 - `pnpm test` — Vitest, unit/integration.
 - `pnpm test:e2e` — Playwright, E2E.
 
