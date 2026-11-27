@@ -2,6 +2,7 @@ import { expect, type Page, test } from '@playwright/test';
 
 import { seedId } from '../../scripts/seed-ids';
 import { SEED_USER_2 } from './fixtures/users';
+import { AUTH_STATE } from './helpers/auth';
 import { resetCaptureFixtures } from './helpers/db';
 
 /*
@@ -23,7 +24,7 @@ import { resetCaptureFixtures } from './helpers/db';
  * the rich dataset the other specs assert on.
  */
 
-test.use({ storageState: 'playwright/.auth/dev2.json' });
+test.use({ storageState: AUTH_STATE.dev2 });
 // Serial: every test here writes to the same account, and each starts from a clean
 // slate that a parallel sibling would pull out from under it.
 test.describe.configure({ mode: 'serial' });

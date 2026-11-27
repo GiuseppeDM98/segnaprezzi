@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { SEED_USER_2 } from './fixtures/users';
+import { AUTH_STATE } from './helpers/auth';
 import { deleteProductsByName } from './helpers/db';
 
 /*
@@ -19,7 +20,7 @@ import { deleteProductsByName } from './helpers/db';
  * suite's fuzzy match (docs/guide/e2e.md §4.60).
  */
 
-test.use({ storageState: 'playwright/.auth/dev2.json' });
+test.use({ storageState: AUTH_STATE.dev2 });
 test.describe.configure({ mode: 'serial' });
 
 const PRODUCT_NAME = 'Vombato in scatola E2E';

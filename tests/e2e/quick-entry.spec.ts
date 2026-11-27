@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { SEED_USER_2 } from './fixtures/users';
+import { AUTH_STATE } from './helpers/auth';
 import { deleteProductsByName } from './helpers/db';
 
 /*
@@ -13,7 +14,7 @@ import { deleteProductsByName } from './helpers/db';
  * never against the page alone.
  */
 
-test.use({ storageState: 'playwright/.auth/dev2.json' });
+test.use({ storageState: AUTH_STATE.dev2 });
 test.describe.configure({ mode: 'serial' });
 
 const MANUAL_PRODUCT_NAME = 'Passata di pomodoro E2E';

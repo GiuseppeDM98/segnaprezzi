@@ -14,6 +14,23 @@ import type { APIResponse, Page } from '@playwright/test';
  * disabled for tests, so the tests wait it out instead.
  */
 
+/**
+ * The parked sessions global-setup saves and the specs open with
+ * `test.use({ storageState })`.
+ *
+ * Why here and nowhere else: a spec that spells the path itself keeps working
+ * until the day the file moves or a worker gets its own copy, and then every
+ * spec has to be found and fixed (WORKFLOW.md § 2, obligation 4).
+ */
+export const AUTH_STATE = {
+  /** SEED_USER. */
+  dev: 'playwright/.auth/dev.json',
+  /** SEED_USER_2. */
+  dev2: 'playwright/.auth/dev2.json',
+  /** PWA_E2E_USER, the throwaway account of the offline and PWA suites. */
+  pwa: 'playwright/.auth/pwa.json',
+} as const;
+
 const MAX_RATE_LIMIT_RETRIES = 4;
 const FALLBACK_RETRY_AFTER_SECONDS = 10;
 

@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
+import { AUTH_STATE } from './tests/e2e/helpers/auth';
+
 /*
  * Design: the primary project is a 390×844 mobile viewport — the app's real
  * target is a phone held one-handed in a supermarket aisle. A desktop project
@@ -72,13 +74,13 @@ export default defineConfig({
       use: {
         ...mobileDevice,
         serviceWorkers: 'block',
-        storageState: 'playwright/.auth/pwa.json',
+        storageState: AUTH_STATE.pwa,
       },
     },
     {
       name: 'pwa',
       testMatch: /pwa\.spec\.ts/,
-      use: { ...mobileDevice, storageState: 'playwright/.auth/pwa.json' },
+      use: { ...mobileDevice, storageState: AUTH_STATE.pwa },
     },
   ],
   webServer: {

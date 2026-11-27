@@ -5,7 +5,7 @@ tabella. La risposta è una riga: «dipendenze: invariate dal <data>» oppure «
 nuovo entra qui con la sua decisione; nessun aggiornamento nella stessa sessione. Un aggiornamento è una
 sessione a sé, sul suo branch, con versione scelta a mano e almeno qualche giorno di età.
 
-**Ultimo audit: 2026-11-12** · gestore pnpm 11.22 · Node 22.14 · next 16.4.2 · react 19.2.8
+**Ultimo audit: 2026-11-27** · gestore pnpm 11.22 · Node 22.14 · next 16.4.6 · react 19.2.8
 
 `pnpm audit` del 2026-10-26 contava 24 avvisi (1 critico, 11 alti, 10 moderati, 2 bassi). Il
 proprietario ha scelto di aggiornare nella stessa sessione (2026-10-27, in deroga alla regola qui
@@ -21,8 +21,14 @@ L'audit del 2026-11-03 contava 11 avvisi (5 alti, 5 moderati, 1 basso): `undici`
 avvisi e si erano aggiunti `glob` e `minimatch`. Il proprietario ha scelto di aggiornare nella stessa
 sessione, terza deroga alla regola qui sopra. Dopo l'aggiornamento resta il solo avviso di `zod`.
 
+L'audit del 2026-11-27 contava 8 avvisi (1 alto, 7 moderati): ai 7 nuovi, tutti su `next` 16.4.2 (vedi
+riga), `next build` si fermava una volta per mostrarli. Il proprietario ha scelto di aggiornare nella
+stessa sessione, quarta deroga alla regola qui sopra: 16.4.6, uscita il 2026-11-09, scelta a mano e non
+con il comando che l'avviso suggerisce. Dopo l'aggiornamento resta il solo avviso di `zod`.
+
 | Pacchetto | Versione installata | Diretto / transitivo | Solo dev | Gravità | Prima versione corretta | Decisione | Data |
 |---|---|---|---|---|---|---|---|
+| next | 16.4.6 (era 16.4.2) | diretto | no | era moderata ×7 (GHSA-mfr8-8qww-v76h, GHSA-vc7v-qv4w-wrv8, GHSA-rhh4-g77r-r9qj e GHSA-vvgp-ww4w-46vf su `use cache`; GHSA-7qx7-33qx-rqx2 SVG nell'ottimizzazione immagini; GHSA-f3mh-rxg3-f5g2 cookie HttpOnly sul runtime Edge; GHSA-pc58-hwjq-p385 risposte fra client su self-hosting) | 16.4.5 | aggiornato 2026-11-27 a 16.4.6 (pin esatto, come prima): type-check, 389 test unitari e 87 E2E sulla build verdi | 2026-11-27 |
 | zod | 4.4.3 (diretto) · 4.1.11 (transitivo via @vercel/blob → @vercel/oidc → @vercel/cli-config) | diretto | no | alta (GHSA-mrhx-c7xc-m3w5, esaurimento memoria su collezioni vincolate sovradimensionate) | 4.6.6 | accettato per ora (proprietario): gli schemi del repo non validano collezioni grandi da input esterno; si rivaluta al prossimo audit (audit 2026-11-03: nessuna nuova decisione, avviso invariato) | 2026-10-27 |
 | undici | 6.29.1 (era 6.28.0) | transitivo (@vercel/blob 2.8.0) | no (lato server) | era alta ×4, moderata ×3, bassa (DoS WebSocket/EventSource, TLS: GHSA-2m5v-pch6-74hx e GHSA-qrxm-fqhp-jwvm, response splitting) | 6.29.1 | aggiornato 2026-11-03 con `pnpm update --depth Infinity undici`: il range di @vercel/blob (`^6.23.0`) lo consentiva già, nessuna override | 2026-11-03 |
 | glob | 14.0.3 (era 13.0.6) | transitivo (@serwist/next, @serwist/build) | no nel lockfile, ma gira solo in build | era moderata (GHSA-3g3m-2fjr-6pw4) | 14.0.2 | aggiornato 2026-11-03 con override `glob: 14.0.3`: anche @serwist 9.5.13 fissa esattamente 13.0.6. Salto di major verificato: il manifesto di precache del service worker è identico con le due versioni (75 voci) | 2026-11-03 |

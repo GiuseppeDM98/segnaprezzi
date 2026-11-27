@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { signUpViaApi } from './helpers/auth';
+import { AUTH_STATE, signUpViaApi } from './helpers/auth';
 import { deleteUserByEmail } from './helpers/db';
 
 /*
@@ -51,7 +51,7 @@ test.describe('anonymous visitors', () => {
 });
 
 test.describe('seed user (dev@segnaprezzi.local)', () => {
-  test.use({ storageState: 'playwright/.auth/dev.json' });
+  test.use({ storageState: AUTH_STATE.dev });
 
   test('should reach a protected page without hitting /login', async ({ page }) => {
     await page.goto('/');
@@ -91,7 +91,7 @@ test.describe('seed user (dev@segnaprezzi.local)', () => {
 });
 
 test.describe('second seed user (dev2@segnaprezzi.local)', () => {
-  test.use({ storageState: 'playwright/.auth/dev2.json' });
+  test.use({ storageState: AUTH_STATE.dev2 });
 
   test('should see only its own data via /api/export', async ({ page }) => {
     const response = await page.request.get('/api/export');

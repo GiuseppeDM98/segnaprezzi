@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { type BrowserContext, expect, type Page, test } from '@playwright/test';
 
 import { seedId } from '../../scripts/seed-ids';
-import { signUpViaApi } from './helpers/auth';
+import { AUTH_STATE, signUpViaApi } from './helpers/auth';
 import { deleteUserByEmail } from './helpers/db';
 
 /*
@@ -62,7 +62,7 @@ async function expectNoViolations(page: Page): Promise<void> {
 for (const theme of THEMES) {
   test.describe(`${theme} theme`, () => {
     test.describe('seed user', () => {
-      test.use({ storageState: 'playwright/.auth/dev.json' });
+      test.use({ storageState: AUTH_STATE.dev });
 
       for (const route of AUTHENTICATED_ROUTES) {
         test(`should have no axe violations on ${route}`, async ({ page, context }) => {
@@ -84,7 +84,7 @@ for (const theme of THEMES) {
     });
 
     test.describe('second seed user (thin-data dashboard)', () => {
-      test.use({ storageState: 'playwright/.auth/dev2.json' });
+      test.use({ storageState: AUTH_STATE.dev2 });
 
       test('should have no axe violations on the thin-data dashboard', async ({
         page,

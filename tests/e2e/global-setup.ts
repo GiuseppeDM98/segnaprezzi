@@ -1,7 +1,7 @@
 import { chromium, type FullConfig } from '@playwright/test';
 
 import { PWA_E2E_USER, SEED_USER, SEED_USER_2 } from './fixtures/users';
-import { loginViaApi, signUpViaApi } from './helpers/auth';
+import { AUTH_STATE, loginViaApi, signUpViaApi } from './helpers/auth';
 
 async function saveAuthState(
   baseURL: string | undefined,
@@ -45,7 +45,7 @@ async function savePwaAuthState(baseURL: string | undefined, outFile: string): P
  */
 async function warmUpRoutes(baseURL: string | undefined): Promise<void> {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ baseURL, storageState: 'playwright/.auth/dev.json' });
+  const page = await browser.newPage({ baseURL, storageState: AUTH_STATE.dev });
   await page.request.get('/');
   await page.request.get('/en');
   await page.request.get('/scan');
@@ -61,8 +61,8 @@ async function warmUpRoutes(baseURL: string | undefined): Promise<void> {
 
 export default async function globalSetup(config: FullConfig): Promise<void> {
   const baseURL = config.projects[0]?.use.baseURL;
-  await saveAuthState(baseURL, SEED_USER, 'playwright/.auth/dev.json');
-  await saveAuthState(baseURL, SEED_USER_2, 'playwright/.auth/dev2.json');
-  await savePwaAuthState(baseURL, 'playwright/.auth/pwa.json');
+  await saveAuthState(baseURL, SEED_USER, AUTH_STATE.dev);
+  await saveAuthState(baseURL, SEED_USER_2, AUTH_STATE.dev2);
+  await savePwaAuthState(baseURL, AUTH_STATE.pwa);
   await warmUpRoutes(baseURL);
 }

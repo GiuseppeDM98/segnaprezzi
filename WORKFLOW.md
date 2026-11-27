@@ -266,9 +266,13 @@ pnpm (Node 22+). The exact commands are already documented once, in
 
 ### E2E: Playwright, and how it will authenticate
 
-`playwright.config.ts` exists: single `mobile` project (Chromium, 390×844
-mobile emulation), `webServer` auto-starts `pnpm dev` against
-`http://localhost:3000`, tests live under `tests/e2e/`.
+`playwright.config.ts` has four projects: `mobile` (Chromium, 390×844 mobile
+emulation), `desktop` (smoke and accessibility only), `offline-queue` and `pwa`.
+Its `webServer` builds and starts a PRODUCTION server (`pnpm build && pnpm start`)
+on `http://localhost:3000` (`PORT=<n> pnpm test:e2e` moves it); tests live under
+`tests/e2e/`.
+
+Browser tests: workers 4 (Playwright's default on this machine, not measured against other counts) · isolation one local SQLite file shared by the workers, each spec on its own seed user or throwaway rows · whole run 1,6 min on 2026-11-27 (87 tests)
 
 Auth scripting was designed deliberately, specifically so it wouldn't be
 improvised session by session:
@@ -282,7 +286,8 @@ improvised session by session:
   own REST route, `POST /api/auth/sign-in/email`, is called directly
   (`tests/e2e/helpers/auth.ts` → `loginViaApi`) instead of driving the
   `/login` form. `tests/e2e/global-setup.ts` logs in both seed users once per
-  run and caches `storageState` under `playwright/.auth/` (gitignored) — the
+  run and caches `storageState` under `playwright/.auth/` (gitignored; the paths
+  are named once, `AUTH_STATE` in `tests/e2e/helpers/auth.ts`) — the
   form is only exercised by the one test that specifically tests the form.
 - A throwaway signup account (needed only for the signup-flow test itself,
   not for the isolation pair above) is created the same way, via

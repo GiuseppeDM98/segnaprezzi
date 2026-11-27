@@ -81,6 +81,7 @@
 - Added a maintenance command that finds and removes photos left behind by earlier versions
 
 - Updated Next.js to 16.4.2, which fixes critical remote code execution advisories in image optimization (GHSA-2464-fhr4-w9xw) and in cached functions (GHSA-673q-mjm6-r5xr), plus a denial of service in Server Actions (GHSA-p3m5-59mp-jv5r). Self-hosted instances should update
+- Updated Next.js again, to 16.4.6, which fixes seven moderate advisories: four in cached functions, one in image optimization of SVG files, one on HttpOnly cookies in the Edge runtime and one on responses mixed up between clients on self-hosted servers. Self-hosted instances should update
 - Updated Better Auth to 1.7.12, which fixes a critical advisory in OAuth state handling (GHSA-965c-763c-88jm) and two lesser ones; none applied to this app's email-and-password login, but self-hosted instances should update all the same
 - Updated the server-side HTTP client behind photo storage, which fixes denial-of-service and TLS advisories; self-hosted instances should update
 
